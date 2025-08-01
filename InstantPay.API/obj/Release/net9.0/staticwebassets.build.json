@@ -1,0 +1,12 @@
+{
+  "Version": 1,
+  "Hash": "f8qPfpzUaN3ZqG0XoFCVKU2C7AInh9ygI/xUuvjZroo=",
+  "Source": "InstantPay.API",
+  "BasePath": "_content/InstantPay.API",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [],
+  "DiscoveryPatterns": [],
+  "Assets": [],
+  "Endpoints": []
+}

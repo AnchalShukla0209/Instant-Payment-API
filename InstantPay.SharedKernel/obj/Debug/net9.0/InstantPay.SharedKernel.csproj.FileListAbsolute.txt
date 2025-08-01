@@ -1,0 +1,11 @@
+D:\InstantPay\InstantPay.SharedKernel\bin\Debug\net9.0\InstantPay.SharedKernel.deps.json
+D:\InstantPay\InstantPay.SharedKernel\bin\Debug\net9.0\InstantPay.SharedKernel.dll
+D:\InstantPay\InstantPay.SharedKernel\bin\Debug\net9.0\InstantPay.SharedKernel.pdb
+D:\InstantPay\InstantPay.SharedKernel\obj\Debug\net9.0\InstantPay.SharedKernel.GeneratedMSBuildEditorConfig.editorconfig
+D:\InstantPay\InstantPay.SharedKernel\obj\Debug\net9.0\InstantPay.SharedKernel.AssemblyInfoInputs.cache
+D:\InstantPay\InstantPay.SharedKernel\obj\Debug\net9.0\InstantPay.SharedKernel.AssemblyInfo.cs
+D:\InstantPay\InstantPay.SharedKernel\obj\Debug\net9.0\InstantPay.SharedKernel.csproj.CoreCompileInputs.cache
+D:\InstantPay\InstantPay.SharedKernel\obj\Debug\net9.0\InstantPay.SharedKernel.dll
+D:\InstantPay\InstantPay.SharedKernel\obj\Debug\net9.0\refint\InstantPay.SharedKernel.dll
+D:\InstantPay\InstantPay.SharedKernel\obj\Debug\net9.0\InstantPay.SharedKernel.pdb
+D:\InstantPay\InstantPay.SharedKernel\obj\Debug\net9.0\ref\InstantPay.SharedKernel.dll

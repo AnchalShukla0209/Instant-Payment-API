@@ -1,0 +1,17 @@
+D:\InstantPay\InstantPay.Infrastructure\bin\Release\net9.0\InstantPay.Infrastructure.deps.json
+D:\InstantPay\InstantPay.Infrastructure\bin\Release\net9.0\InstantPay.Infrastructure.runtimeconfig.json
+D:\InstantPay\InstantPay.Infrastructure\bin\Release\net9.0\InstantPay.Infrastructure.dll
+D:\InstantPay\InstantPay.Infrastructure\bin\Release\net9.0\InstantPay.Infrastructure.pdb
+D:\InstantPay\InstantPay.Infrastructure\bin\Release\net9.0\InstantPay.SharedKernel.dll
+D:\InstantPay\InstantPay.Infrastructure\bin\Release\net9.0\InstantPay.SharedKernel.pdb
+D:\InstantPay\InstantPay.Infrastructure\obj\Release\net9.0\InstantPay.Infrastructure.csproj.AssemblyReference.cache
+D:\InstantPay\InstantPay.Infrastructure\obj\Release\net9.0\InstantPay.Infrastructure.GeneratedMSBuildEditorConfig.editorconfig
+D:\InstantPay\InstantPay.Infrastructure\obj\Release\net9.0\InstantPay.Infrastructure.AssemblyInfoInputs.cache
+D:\InstantPay\InstantPay.Infrastructure\obj\Release\net9.0\InstantPay.Infrastructure.AssemblyInfo.cs
+D:\InstantPay\InstantPay.Infrastructure\obj\Release\net9.0\InstantPay.Infrastructure.csproj.CoreCompileInputs.cache
+D:\InstantPay\InstantPay.Infrastructure\obj\Release\net9.0\InstantP.69EAB1BC.Up2Date
+D:\InstantPay\InstantPay.Infrastructure\obj\Release\net9.0\InstantPay.Infrastructure.dll
+D:\InstantPay\InstantPay.Infrastructure\obj\Release\net9.0\refint\InstantPay.Infrastructure.dll
+D:\InstantPay\InstantPay.Infrastructure\obj\Release\net9.0\InstantPay.Infrastructure.pdb
+D:\InstantPay\InstantPay.Infrastructure\obj\Release\net9.0\InstantPay.Infrastructure.genruntimeconfig.cache
+D:\InstantPay\InstantPay.Infrastructure\obj\Release\net9.0\ref\InstantPay.Infrastructure.dll

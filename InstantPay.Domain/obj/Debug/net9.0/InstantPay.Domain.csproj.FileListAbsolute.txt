@@ -1,0 +1,11 @@
+D:\InstantPay\InstantPay.Domain\obj\Debug\net9.0\InstantPay.Domain.GeneratedMSBuildEditorConfig.editorconfig
+D:\InstantPay\InstantPay.Domain\obj\Debug\net9.0\InstantPay.Domain.AssemblyInfoInputs.cache
+D:\InstantPay\InstantPay.Domain\obj\Debug\net9.0\InstantPay.Domain.AssemblyInfo.cs
+D:\InstantPay\InstantPay.Domain\obj\Debug\net9.0\InstantPay.Domain.csproj.CoreCompileInputs.cache
+D:\InstantPay\InstantPay.Domain\bin\Debug\net9.0\InstantPay.Domain.deps.json
+D:\InstantPay\InstantPay.Domain\bin\Debug\net9.0\InstantPay.Domain.dll
+D:\InstantPay\InstantPay.Domain\bin\Debug\net9.0\InstantPay.Domain.pdb
+D:\InstantPay\InstantPay.Domain\obj\Debug\net9.0\InstantPay.Domain.dll
+D:\InstantPay\InstantPay.Domain\obj\Debug\net9.0\refint\InstantPay.Domain.dll
+D:\InstantPay\InstantPay.Domain\obj\Debug\net9.0\InstantPay.Domain.pdb
+D:\InstantPay\InstantPay.Domain\obj\Debug\net9.0\ref\InstantPay.Domain.dll

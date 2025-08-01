@@ -1,0 +1,40 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InstantPay.API", "InstantPay.API\InstantPay.API.csproj", "{26CE2790-AA8D-4D0C-B9DD-565DE252AFF9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InstantPay.Application", "InstantPay.Application\InstantPay.Application.csproj", "{3D434F41-B26F-48A7-9D7B-0ECD41380D7A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InstantPay.Infrastructure", "InstantPay.Infrastructure\InstantPay.Infrastructure.csproj", "{4B113637-A444-4937-9438-F20C05D351E8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InstantPay.SharedKernel", "InstantPay.SharedKernel\InstantPay.SharedKernel.csproj", "{3FF392B8-1C04-4C14-A4BF-7CA017486073}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{26CE2790-AA8D-4D0C-B9DD-565DE252AFF9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{26CE2790-AA8D-4D0C-B9DD-565DE252AFF9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{26CE2790-AA8D-4D0C-B9DD-565DE252AFF9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{26CE2790-AA8D-4D0C-B9DD-565DE252AFF9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3D434F41-B26F-48A7-9D7B-0ECD41380D7A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3D434F41-B26F-48A7-9D7B-0ECD41380D7A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3D434F41-B26F-48A7-9D7B-0ECD41380D7A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3D434F41-B26F-48A7-9D7B-0ECD41380D7A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4B113637-A444-4937-9438-F20C05D351E8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4B113637-A444-4937-9438-F20C05D351E8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4B113637-A444-4937-9438-F20C05D351E8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4B113637-A444-4937-9438-F20C05D351E8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3FF392B8-1C04-4C14-A4BF-7CA017486073}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3FF392B8-1C04-4C14-A4BF-7CA017486073}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3FF392B8-1C04-4C14-A4BF-7CA017486073}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3FF392B8-1C04-4C14-A4BF-7CA017486073}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,405 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "D:\\InstantPay\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{3D434F41-B26F-48A7-9D7B-0ECD41380D7A}|InstantPay.Application\\InstantPay.Application.csproj|d:\\instantpay\\instantpay.application\\services\\reportservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{3D434F41-B26F-48A7-9D7B-0ECD41380D7A}|InstantPay.Application\\InstantPay.Application.csproj|solutionrelative:instantpay.application\\services\\reportservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{26CE2790-AA8D-4D0C-B9DD-565DE252AFF9}|InstantPay.API\\InstantPay.API.csproj|d:\\instantpay\\instantpay.api\\controller\\reportcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{26CE2790-AA8D-4D0C-B9DD-565DE252AFF9}|InstantPay.API\\InstantPay.API.csproj|solutionrelative:instantpay.api\\controller\\reportcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{26CE2790-AA8D-4D0C-B9DD-565DE252AFF9}|InstantPay.API\\InstantPay.API.csproj|d:\\instantpay\\instantpay.api\\controller\\rechargecontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{26CE2790-AA8D-4D0C-B9DD-565DE252AFF9}|InstantPay.API\\InstantPay.API.csproj|solutionrelative:instantpay.api\\controller\\rechargecontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{26CE2790-AA8D-4D0C-B9DD-565DE252AFF9}|InstantPay.API\\InstantPay.API.csproj|d:\\instantpay\\instantpay.api\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{26CE2790-AA8D-4D0C-B9DD-565DE252AFF9}|InstantPay.API\\InstantPay.API.csproj|solutionrelative:instantpay.api\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{3FF392B8-1C04-4C14-A4BF-7CA017486073}|InstantPay.SharedKernel\\InstantPay.SharedKernel.csproj|d:\\instantpay\\instantpay.sharedkernel\\entity\\txnreportdata.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{3FF392B8-1C04-4C14-A4BF-7CA017486073}|InstantPay.SharedKernel\\InstantPay.SharedKernel.csproj|solutionrelative:instantpay.sharedkernel\\entity\\txnreportdata.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{26CE2790-AA8D-4D0C-B9DD-565DE252AFF9}|InstantPay.API\\InstantPay.API.csproj|d:\\instantpay\\instantpay.api\\controller\\mastercontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{26CE2790-AA8D-4D0C-B9DD-565DE252AFF9}|InstantPay.API\\InstantPay.API.csproj|solutionrelative:instantpay.api\\controller\\mastercontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{3D434F41-B26F-48A7-9D7B-0ECD41380D7A}|InstantPay.Application\\InstantPay.Application.csproj|d:\\instantpay\\instantpay.application\\interfaces\\ireportservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{3D434F41-B26F-48A7-9D7B-0ECD41380D7A}|InstantPay.Application\\InstantPay.Application.csproj|solutionrelative:instantpay.application\\interfaces\\ireportservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{3D434F41-B26F-48A7-9D7B-0ECD41380D7A}|InstantPay.Application\\InstantPay.Application.csproj|d:\\instantpay\\instantpay.application\\services\\rechargeservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{3D434F41-B26F-48A7-9D7B-0ECD41380D7A}|InstantPay.Application\\InstantPay.Application.csproj|solutionrelative:instantpay.application\\services\\rechargeservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{3D434F41-B26F-48A7-9D7B-0ECD41380D7A}|InstantPay.Application\\InstantPay.Application.csproj|d:\\instantpay\\instantpay.application\\services\\userrepository.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{3D434F41-B26F-48A7-9D7B-0ECD41380D7A}|InstantPay.Application\\InstantPay.Application.csproj|solutionrelative:instantpay.application\\services\\userrepository.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{3D434F41-B26F-48A7-9D7B-0ECD41380D7A}|InstantPay.Application\\InstantPay.Application.csproj|d:\\instantpay\\instantpay.application\\services\\loginservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{3D434F41-B26F-48A7-9D7B-0ECD41380D7A}|InstantPay.Application\\InstantPay.Application.csproj|solutionrelative:instantpay.application\\services\\loginservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{26CE2790-AA8D-4D0C-B9DD-565DE252AFF9}|InstantPay.API\\InstantPay.API.csproj|d:\\instantpay\\instantpay.api\\controller\\logincontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{26CE2790-AA8D-4D0C-B9DD-565DE252AFF9}|InstantPay.API\\InstantPay.API.csproj|solutionrelative:instantpay.api\\controller\\logincontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{26CE2790-AA8D-4D0C-B9DD-565DE252AFF9}|InstantPay.API\\InstantPay.API.csproj|d:\\instantpay\\instantpay.api\\controller\\dashboardcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{26CE2790-AA8D-4D0C-B9DD-565DE252AFF9}|InstantPay.API\\InstantPay.API.csproj|solutionrelative:instantpay.api\\controller\\dashboardcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{4B113637-A444-4937-9438-F20C05D351E8}|InstantPay.Infrastructure\\InstantPay.Infrastructure.csproj|d:\\instantpay\\instantpay.infrastructure\\security\\aesencryptionservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{4B113637-A444-4937-9438-F20C05D351E8}|InstantPay.Infrastructure\\InstantPay.Infrastructure.csproj|solutionrelative:instantpay.infrastructure\\security\\aesencryptionservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{3D434F41-B26F-48A7-9D7B-0ECD41380D7A}|InstantPay.Application\\InstantPay.Application.csproj|d:\\instantpay\\instantpay.application\\interfaces\\iuserrepository.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{3D434F41-B26F-48A7-9D7B-0ECD41380D7A}|InstantPay.Application\\InstantPay.Application.csproj|solutionrelative:instantpay.application\\interfaces\\iuserrepository.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{3D434F41-B26F-48A7-9D7B-0ECD41380D7A}|InstantPay.Application\\InstantPay.Application.csproj|d:\\instantpay\\instantpay.application\\dtos\\loginresponsedto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{3D434F41-B26F-48A7-9D7B-0ECD41380D7A}|InstantPay.Application\\InstantPay.Application.csproj|solutionrelative:instantpay.application\\dtos\\loginresponsedto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{26CE2790-AA8D-4D0C-B9DD-565DE252AFF9}|InstantPay.API\\InstantPay.API.csproj|d:\\instantpay\\instantpay.api\\appsettings.development.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
+      "RelativeMoniker": "D:0:0:{26CE2790-AA8D-4D0C-B9DD-565DE252AFF9}|InstantPay.API\\InstantPay.API.csproj|solutionrelative:instantpay.api\\appsettings.development.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{26CE2790-AA8D-4D0C-B9DD-565DE252AFF9}|InstantPay.API\\InstantPay.API.csproj|d:\\instantpay\\instantpay.api\\appsettings.production.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
+      "RelativeMoniker": "D:0:0:{26CE2790-AA8D-4D0C-B9DD-565DE252AFF9}|InstantPay.API\\InstantPay.API.csproj|solutionrelative:instantpay.api\\appsettings.production.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{26CE2790-AA8D-4D0C-B9DD-565DE252AFF9}|InstantPay.API\\InstantPay.API.csproj|d:\\instantpay\\instantpay.api\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
+      "RelativeMoniker": "D:0:0:{26CE2790-AA8D-4D0C-B9DD-565DE252AFF9}|InstantPay.API\\InstantPay.API.csproj|solutionrelative:instantpay.api\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{3D434F41-B26F-48A7-9D7B-0ECD41380D7A}|InstantPay.Application\\InstantPay.Application.csproj|d:\\instantpay\\instantpay.application\\interfaces\\irechargeservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{3D434F41-B26F-48A7-9D7B-0ECD41380D7A}|InstantPay.Application\\InstantPay.Application.csproj|solutionrelative:instantpay.application\\interfaces\\irechargeservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{3FF392B8-1C04-4C14-A4BF-7CA017486073}|InstantPay.SharedKernel\\InstantPay.SharedKernel.csproj|d:\\instantpay\\instantpay.sharedkernel\\results\\result.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{3FF392B8-1C04-4C14-A4BF-7CA017486073}|InstantPay.SharedKernel\\InstantPay.SharedKernel.csproj|solutionrelative:instantpay.sharedkernel\\results\\result.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{3D434F41-B26F-48A7-9D7B-0ECD41380D7A}|InstantPay.Application\\InstantPay.Application.csproj|d:\\instantpay\\instantpay.application\\interfaces\\iwalletrepository.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{3D434F41-B26F-48A7-9D7B-0ECD41380D7A}|InstantPay.Application\\InstantPay.Application.csproj|solutionrelative:instantpay.application\\interfaces\\iwalletrepository.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 15,
+          "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{1c4feeaa-4718-4aa9-859d-94ce25d182ba}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:129:0:{1fc202d4-d401-403c-9834-5b218574bb67}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:130:0:{1fc202d4-d401-403c-9834-5b218574bb67}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:131:0:{1fc202d4-d401-403c-9834-5b218574bb67}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:132:0:{1fc202d4-d401-403c-9834-5b218574bb67}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:133:0:{1fc202d4-d401-403c-9834-5b218574bb67}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:134:0:{1fc202d4-d401-403c-9834-5b218574bb67}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:135:0:{1fc202d4-d401-403c-9834-5b218574bb67}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:136:0:{1fc202d4-d401-403c-9834-5b218574bb67}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:137:0:{1fc202d4-d401-403c-9834-5b218574bb67}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:138:0:{1fc202d4-d401-403c-9834-5b218574bb67}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:139:0:{1fc202d4-d401-403c-9834-5b218574bb67}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "TxnReportData.cs",
+              "DocumentMoniker": "D:\\InstantPay\\InstantPay.SharedKernel\\Entity\\TxnReportData.cs",
+              "RelativeDocumentMoniker": "InstantPay.SharedKernel\\Entity\\TxnReportData.cs",
+              "ToolTip": "D:\\InstantPay\\InstantPay.SharedKernel\\Entity\\TxnReportData.cs",
+              "RelativeToolTip": "InstantPay.SharedKernel\\Entity\\TxnReportData.cs",
+              "ViewState": "AgIAACkAAAAAAAAAAAAswDUAAAAFAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-30T18:13:45.353Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "ReportController.cs",
+              "DocumentMoniker": "D:\\InstantPay\\InstantPay.API\\Controller\\ReportController.cs",
+              "RelativeDocumentMoniker": "InstantPay.API\\Controller\\ReportController.cs",
+              "ToolTip": "D:\\InstantPay\\InstantPay.API\\Controller\\ReportController.cs",
+              "RelativeToolTip": "InstantPay.API\\Controller\\ReportController.cs",
+              "ViewState": "AgIAABgAAAAAAAAAAAAYwCkAAAAMAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-30T18:09:23.652Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "RechargeController.cs",
+              "DocumentMoniker": "D:\\InstantPay\\InstantPay.API\\Controller\\RechargeController.cs",
+              "RelativeDocumentMoniker": "InstantPay.API\\Controller\\RechargeController.cs",
+              "ToolTip": "D:\\InstantPay\\InstantPay.API\\Controller\\RechargeController.cs",
+              "RelativeToolTip": "InstantPay.API\\Controller\\RechargeController.cs",
+              "ViewState": "AgIAABkAAAAAAAAAAAAQwCMAAAAMAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-30T18:03:54.576Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "ReportService.cs",
+              "DocumentMoniker": "D:\\InstantPay\\InstantPay.Application\\Services\\ReportService.cs",
+              "RelativeDocumentMoniker": "InstantPay.Application\\Services\\ReportService.cs",
+              "ToolTip": "D:\\InstantPay\\InstantPay.Application\\Services\\ReportService.cs",
+              "RelativeToolTip": "InstantPay.Application\\Services\\ReportService.cs",
+              "ViewState": "AgIAABEAAAAAAAAAAADgvxcAAAAIAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-30T15:43:50.138Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 8,
+              "Title": "UserRepository.cs",
+              "DocumentMoniker": "D:\\InstantPay\\InstantPay.Application\\Services\\UserRepository.cs",
+              "RelativeDocumentMoniker": "InstantPay.Application\\Services\\UserRepository.cs",
+              "ToolTip": "D:\\InstantPay\\InstantPay.Application\\Services\\UserRepository.cs",
+              "RelativeToolTip": "InstantPay.Application\\Services\\UserRepository.cs",
+              "ViewState": "AgIAAGQAAAAAAAAAAAAEwHAAAAAIAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-30T11:37:33.392Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 10,
+              "Title": "LoginController.cs",
+              "DocumentMoniker": "D:\\InstantPay\\InstantPay.API\\Controller\\LoginController.cs",
+              "RelativeDocumentMoniker": "InstantPay.API\\Controller\\LoginController.cs",
+              "ToolTip": "D:\\InstantPay\\InstantPay.API\\Controller\\LoginController.cs",
+              "RelativeToolTip": "InstantPay.API\\Controller\\LoginController.cs",
+              "ViewState": "AgIAAA8AAAAAAAAAAAAQwB4AAAAMAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-19T13:23:38.202Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "Program.cs",
+              "DocumentMoniker": "D:\\InstantPay\\InstantPay.API\\Program.cs",
+              "RelativeDocumentMoniker": "InstantPay.API\\Program.cs",
+              "ToolTip": "D:\\InstantPay\\InstantPay.API\\Program.cs",
+              "RelativeToolTip": "InstantPay.API\\Program.cs",
+              "ViewState": "AgIAAFMAAAAAAAAAAAAEwGIAAAA4AAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-19T12:20:07.117Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 16,
+              "Title": "appsettings.Production.json",
+              "DocumentMoniker": "D:\\InstantPay\\InstantPay.API\\appsettings.Production.json",
+              "RelativeDocumentMoniker": "InstantPay.API\\appsettings.Production.json",
+              "ToolTip": "D:\\InstantPay\\InstantPay.API\\appsettings.Production.json",
+              "RelativeToolTip": "InstantPay.API\\appsettings.Production.json",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAsAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
+              "WhenOpened": "2025-07-22T09:02:36.089Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 9,
+              "Title": "LoginService.cs",
+              "DocumentMoniker": "D:\\InstantPay\\InstantPay.Application\\Services\\LoginService.cs",
+              "RelativeDocumentMoniker": "InstantPay.Application\\Services\\LoginService.cs",
+              "ToolTip": "D:\\InstantPay\\InstantPay.Application\\Services\\LoginService.cs",
+              "RelativeToolTip": "InstantPay.Application\\Services\\LoginService.cs",
+              "ViewState": "AgIAAAoAAAAAAAAAAAAvwBYAAAAIAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-19T12:05:48.546Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "MasterController.cs",
+              "DocumentMoniker": "D:\\InstantPay\\InstantPay.API\\Controller\\MasterController.cs",
+              "RelativeDocumentMoniker": "InstantPay.API\\Controller\\MasterController.cs",
+              "ToolTip": "D:\\InstantPay\\InstantPay.API\\Controller\\MasterController.cs",
+              "RelativeToolTip": "InstantPay.API\\Controller\\MasterController.cs",
+              "ViewState": "AgIAABgAAAAAAAAAAADgvyoAAAAwAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-29T14:11:23.081Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
+              "Title": "IReportService.cs",
+              "DocumentMoniker": "D:\\InstantPay\\InstantPay.Application\\Interfaces\\IReportService.cs",
+              "RelativeDocumentMoniker": "InstantPay.Application\\Interfaces\\IReportService.cs",
+              "ToolTip": "D:\\InstantPay\\InstantPay.Application\\Interfaces\\IReportService.cs",
+              "RelativeToolTip": "InstantPay.Application\\Interfaces\\IReportService.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAuwAsAAAA9AAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-30T15:44:30.053Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 7,
+              "Title": "RechargeService.cs",
+              "DocumentMoniker": "D:\\InstantPay\\InstantPay.Application\\Services\\RechargeService.cs",
+              "RelativeDocumentMoniker": "InstantPay.Application\\Services\\RechargeService.cs",
+              "ToolTip": "D:\\InstantPay\\InstantPay.Application\\Services\\RechargeService.cs",
+              "RelativeToolTip": "InstantPay.Application\\Services\\RechargeService.cs",
+              "ViewState": "AgIAAD8AAAAAAAAAAAAYwE8AAABdAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-19T12:00:52.991Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 14,
+              "Title": "LoginResponseDto.cs",
+              "DocumentMoniker": "D:\\InstantPay\\InstantPay.Application\\DTOs\\LoginResponseDto.cs",
+              "RelativeDocumentMoniker": "InstantPay.Application\\DTOs\\LoginResponseDto.cs",
+              "ToolTip": "D:\\InstantPay\\InstantPay.Application\\DTOs\\LoginResponseDto.cs",
+              "RelativeToolTip": "InstantPay.Application\\DTOs\\LoginResponseDto.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAuwA8AAAAfAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-28T19:21:46.535Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 11,
+              "Title": "DashboardController.cs",
+              "DocumentMoniker": "D:\\InstantPay\\InstantPay.API\\Controller\\DashboardController.cs",
+              "RelativeDocumentMoniker": "InstantPay.API\\Controller\\DashboardController.cs",
+              "ToolTip": "D:\\InstantPay\\InstantPay.API\\Controller\\DashboardController.cs",
+              "RelativeToolTip": "InstantPay.API\\Controller\\DashboardController.cs",
+              "ViewState": "AgIAABYAAAAAAAAAAAAQwCMAAAANAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-29T14:11:34.502Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 12,
+              "Title": "AesEncryptionService.cs",
+              "DocumentMoniker": "D:\\InstantPay\\InstantPay.Infrastructure\\Security\\AesEncryptionService.cs",
+              "RelativeDocumentMoniker": "InstantPay.Infrastructure\\Security\\AesEncryptionService.cs",
+              "ToolTip": "D:\\InstantPay\\InstantPay.Infrastructure\\Security\\AesEncryptionService.cs",
+              "RelativeToolTip": "InstantPay.Infrastructure\\Security\\AesEncryptionService.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-28T19:54:27.875Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 13,
+              "Title": "IUserRepository.cs",
+              "DocumentMoniker": "D:\\InstantPay\\InstantPay.Application\\Interfaces\\IUserRepository.cs",
+              "RelativeDocumentMoniker": "InstantPay.Application\\Interfaces\\IUserRepository.cs",
+              "ToolTip": "D:\\InstantPay\\InstantPay.Application\\Interfaces\\IUserRepository.cs",
+              "RelativeToolTip": "InstantPay.Application\\Interfaces\\IUserRepository.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAuwBAAAAATAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-28T19:24:44.86Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 15,
+              "Title": "appsettings.Development.json",
+              "DocumentMoniker": "D:\\InstantPay\\InstantPay.API\\appsettings.Development.json",
+              "RelativeDocumentMoniker": "InstantPay.API\\appsettings.Development.json",
+              "ToolTip": "D:\\InstantPay\\InstantPay.API\\appsettings.Development.json",
+              "RelativeToolTip": "InstantPay.API\\appsettings.Development.json",
+              "ViewState": "AgIAAA8AAAAAAAAAAAAAABwAAAADAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
+              "WhenOpened": "2025-07-19T12:05:18.479Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 20,
+              "Title": "IWalletRepository.cs",
+              "DocumentMoniker": "D:\\InstantPay\\InstantPay.Application\\Interfaces\\IWalletRepository.cs",
+              "RelativeDocumentMoniker": "InstantPay.Application\\Interfaces\\IWalletRepository.cs",
+              "ToolTip": "D:\\InstantPay\\InstantPay.Application\\Interfaces\\IWalletRepository.cs",
+              "RelativeToolTip": "InstantPay.Application\\Interfaces\\IWalletRepository.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAwAAAAhAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-19T12:22:02.863Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 17,
+              "Title": "appsettings.json",
+              "DocumentMoniker": "D:\\InstantPay\\InstantPay.API\\appsettings.json",
+              "RelativeDocumentMoniker": "InstantPay.API\\appsettings.json",
+              "ToolTip": "D:\\InstantPay\\InstantPay.API\\appsettings.json",
+              "RelativeToolTip": "InstantPay.API\\appsettings.json",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
+              "WhenOpened": "2025-07-23T07:01:22.606Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 19,
+              "Title": "Result.cs",
+              "DocumentMoniker": "D:\\InstantPay\\InstantPay.SharedKernel\\Results\\Result.cs",
+              "RelativeDocumentMoniker": "InstantPay.SharedKernel\\Results\\Result.cs",
+              "ToolTip": "D:\\InstantPay\\InstantPay.SharedKernel\\Results\\Result.cs",
+              "RelativeToolTip": "InstantPay.SharedKernel\\Results\\Result.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-19T18:27:30.687Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 18,
+              "Title": "IRechargeService.cs",
+              "DocumentMoniker": "D:\\InstantPay\\InstantPay.Application\\Interfaces\\IRechargeService.cs",
+              "RelativeDocumentMoniker": "InstantPay.Application\\Interfaces\\IRechargeService.cs",
+              "ToolTip": "D:\\InstantPay\\InstantPay.Application\\Interfaces\\IRechargeService.cs",
+              "RelativeToolTip": "InstantPay.Application\\Interfaces\\IRechargeService.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAwAAABOAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-07-19T18:32:39.676Z"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
