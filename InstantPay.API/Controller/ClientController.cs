@@ -43,5 +43,12 @@ namespace InstantPay.API.Controller
             return Ok(new { data = encrypted });
         }
 
+
+        [HttpPost("CreateOrUpdateClient")]
+        public async Task<IActionResult> CreateOrUpdateClient([FromForm] CreateOrUpdateClientCommand request, CancellationToken cancellationToken)
+        {
+            var result = await _reportservice.CreateOrUpdateClient(request, cancellationToken);
+            return Ok(result);
+        }
     }
 }
