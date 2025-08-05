@@ -1,15 +1,17 @@
-﻿using System;
+﻿using Microsoft.AspNetCore.Http;
+using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace InstantPay.Infrastructure.Sql.Entities;
 
-public partial class TblUser
+public partial class TblWlUser
 {
     public int Id { get; set; }
 
     public string? CompanyName { get; set; }
 
-    public string? Name { get; set; }
+    public string? UserName { get; set; }
 
     public string? EmailId { get; set; }
 
@@ -21,7 +23,9 @@ public partial class TblUser
 
     public string? AadharCard { get; set; }
 
-    public string? Wlid { get; set; }
+    public string? DomainName { get; set; }
+
+    public string? Logo { get; set; }
 
     public string? AddressLine1 { get; set; }
 
@@ -49,47 +53,25 @@ public partial class TblUser
 
     public string? MicroAtm { get; set; }
 
+    public string? Apitransfer { get; set; }
+
+    public string? Margin { get; set; }
+
+    public string? Debit { get; set; }
+
     public string? Status { get; set; }
-
-    public string? AepsStatus { get; set; }
-
-    public string? Lat { get; set; }
-
-    public string? Longitute { get; set; }
-
-    public string? DeviceId { get; set; }
-
-    public string? TokenKey { get; set; }
-
-    public string? DeviceInfo { get; set; }
 
     public DateTime? RegDate { get; set; }
 
-    public string? SessionKey { get; set; }
-
-    public string? Usertype { get; set; }
-
-    public string? Mdid { get; set; }
-
-    public string? Adid { get; set; }
-
-    public string? Logo { get; set; }
-
     public string? TxnPin { get; set; }
 
-    public string? MerchargeCode { get; set; }
-
     public string? PlanId { get; set; }
-
-    public string? Username { get; set; }
-
-    public string? ShopAddress { get; set; }
-
-    public string? ShopState { get; set; }
-
-    public string? ShopCity { get; set; }
-
-    public string? ShipZipcode { get; set; }
-
-    public string? Latlongstatus { get; set; }
+    [NotMapped]
+    public IFormFile? PanCardFile { get; set; }
+    [NotMapped]
+    public IFormFile? AadharCardFile { get; set; }
+    [NotMapped]
+    public IFormFile? ProfileFile { get; set; }
+    [NotMapped]
+    public IFormFile? OtherFile { get; set; }
 }

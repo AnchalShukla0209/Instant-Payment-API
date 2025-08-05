@@ -2,11 +2,13 @@
 using InstantPay.Infrastructure.Sql.Entities;
 using InstantPay.SharedKernel.Entity;
 using Microsoft.EntityFrameworkCore;
+using MongoDB.Bson.IO;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 
 namespace InstantPay.Application.Services
 {
@@ -75,5 +77,113 @@ namespace InstantPay.Application.Services
                 Users = users
             };
         }
+
+
+        public async Task<ResponseModelforClientaddandupdateapi> CreateOrUpdateClient(CreateOrUpdateClientCommand request, CancellationToken cancellationToken)
+        {
+            //string? panPath = request.PanCardFile != null ? await _fileStorage.SaveAsync(request.PanCardFile) : null;
+            //string? aadharPath = request.AadharCardFile != null ? await _fileStorage.SaveAsync(request.AadharCardFile) : null;
+            //string? profilePath = request.ProfileFile != null ? await _fileStorage.SaveAsync(request.ProfileFile) : null;
+            //string? otherPath = request.OtherFile != null ? await _fileStorage.SaveAsync(request.OtherFile) : null;
+
+            TblWlUser client;
+
+            if (request.ClientId == 0)
+            {
+                client = new TblWlUser
+                {
+                    CompanyName = request.CompanyName,
+                    UserName = request.UserName,
+                    EmailId = request.EmailId,
+                    Phone = request.Phone,
+                    Password = request.Password,
+                    DomainName = request.DomainName,
+                    AddressLine1 = request.AddressLine1,
+                    AddressLine2 = request.AddressLine2,
+                    State = request.State,
+                    City = request.City,
+                    Pincode = request.Pincode,
+                    Recharge = request.Recharge,
+                    MoneyTransfer = request.MoneyTransfer,
+                    Aeps = request.AEPS,
+                    BillPayment = request.BillPayment,
+                    MicroAtm = request.MicroATM,
+                    Apitransfer = request.APITransfer,
+                    Margin = request.Margin,
+                    Debit = request.Debit,
+                    Status = "Active",
+                    RegDate = DateTime.UtcNow,
+                    Logo = Newtonsoft.Json.JsonConvert.SerializeObject(new
+                    {
+                        //PanCard = panPath,
+                        //AadharCard = aadharPath,
+                        //Profile = profilePath,
+                        //Other = otherPath
+                    })
+                };
+
+                _context.TblWlUsers.Add(client);
+                object value = await _context.SaveChangesAsync(cancellationToken);
+
+                return new ResponseModelforClientaddandupdateapi
+                {
+                    id = client.Id,
+                    Msg = "Client Created Successfully",
+                    flag = true
+                };
+            }
+            else
+            {
+                client = await _context.TblWlUsers.FirstOrDefaultAsync(c => c.Id == request.ClientId);
+                if (client == null)
+                {
+                    return new ResponseModelforClientaddandupdateapi
+                    {
+                        Msg = "Client Not Found",
+                        flag = false
+                    };
+                }
+
+                client.CompanyName = request.CompanyName;
+                client.UserName = request.UserName;
+                client.EmailId = request.EmailId;
+                client.Phone = request.Phone;
+                client.Password = request.Password;
+                client.DomainName = request.DomainName;
+                client.AddressLine1 = request.AddressLine1;
+                client.AddressLine2 = request.AddressLine2;
+                client.State = request.State;
+                client.City = request.City;
+                client.Pincode = request.Pincode;
+                client.Recharge = request.Recharge;
+                client.MoneyTransfer = request.MoneyTransfer;
+                client.Aeps = request.AEPS;
+                client.BillPayment = request.BillPayment;
+                client.MicroAtm = request.MicroATM;
+                client.Apitransfer = request.APITransfer;
+                client.Margin = request.Margin;
+                client.Debit = request.Debit;
+
+                // Update file paths only if newly uploaded
+                var currentLogoData = Newtonsoft.Json.JsonConvert.DeserializeObject<dynamic>(client.Logo ?? "{}");
+                client.Logo = Newtonsoft.Json.JsonConvert.SerializeObject(new
+                {
+                    //PanCard = panPath ?? currentLogoData?.PanCard,
+                    //AadharCard = aadharPath ?? currentLogoData?.AadharCard,
+                    //Profile = profilePath ?? currentLogoData?.Profile,
+                    //Other = otherPath ?? currentLogoData?.Other
+                });
+
+                await _context.SaveChangesAsync(cancellationToken);
+
+                return new ResponseModelforClientaddandupdateapi
+                {
+                    id = client.Id,
+                    Msg = "Client Updated",
+                    flag = true
+                };
+            }
+        }
+
     }
 }
