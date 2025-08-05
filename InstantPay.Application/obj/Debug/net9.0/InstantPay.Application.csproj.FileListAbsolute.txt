@@ -15,3 +15,21 @@ D:\InstantPay\InstantPay.Application\obj\Debug\net9.0\InstantPay.Application.dll
 D:\InstantPay\InstantPay.Application\obj\Debug\net9.0\refint\InstantPay.Application.dll
 D:\InstantPay\InstantPay.Application\obj\Debug\net9.0\InstantPay.Application.pdb
 D:\InstantPay\InstantPay.Application\obj\Debug\net9.0\ref\InstantPay.Application.dll
+C:\Instant Projects\Instant-Payment-API\InstantPay.Application\bin\Debug\net9.0\InstantPay.Application.deps.json
+C:\Instant Projects\Instant-Payment-API\InstantPay.Application\bin\Debug\net9.0\InstantPay.Application.dll
+C:\Instant Projects\Instant-Payment-API\InstantPay.Application\bin\Debug\net9.0\InstantPay.Application.pdb
+C:\Instant Projects\Instant-Payment-API\InstantPay.Application\bin\Debug\net9.0\InstantPay.Infrastructure.dll
+C:\Instant Projects\Instant-Payment-API\InstantPay.Application\bin\Debug\net9.0\InstantPay.SharedKernel.dll
+C:\Instant Projects\Instant-Payment-API\InstantPay.Application\bin\Debug\net9.0\InstantPay.Infrastructure.pdb
+C:\Instant Projects\Instant-Payment-API\InstantPay.Application\bin\Debug\net9.0\InstantPay.SharedKernel.pdb
+C:\Instant Projects\Instant-Payment-API\InstantPay.Application\obj\Debug\net9.0\InstantPay.Application.csproj.AssemblyReference.cache
+C:\Instant Projects\Instant-Payment-API\InstantPay.Application\obj\Debug\net9.0\InstantPay.Application.GeneratedMSBuildEditorConfig.editorconfig
+C:\Instant Projects\Instant-Payment-API\InstantPay.Application\obj\Debug\net9.0\InstantPay.Application.AssemblyInfoInputs.cache
+C:\Instant Projects\Instant-Payment-API\InstantPay.Application\obj\Debug\net9.0\InstantPay.Application.AssemblyInfo.cs
+C:\Instant Projects\Instant-Payment-API\InstantPay.Application\obj\Debug\net9.0\InstantPay.Application.csproj.CoreCompileInputs.cache
+C:\Instant Projects\Instant-Payment-API\InstantPay.Application\obj\Debug\net9.0\InstantPay.Application.sourcelink.json
+C:\Instant Projects\Instant-Payment-API\InstantPay.Application\obj\Debug\net9.0\InstantP.C34050E2.Up2Date
+C:\Instant Projects\Instant-Payment-API\InstantPay.Application\obj\Debug\net9.0\InstantPay.Application.dll
+C:\Instant Projects\Instant-Payment-API\InstantPay.Application\obj\Debug\net9.0\refint\InstantPay.Application.dll
+C:\Instant Projects\Instant-Payment-API\InstantPay.Application\obj\Debug\net9.0\InstantPay.Application.pdb
+C:\Instant Projects\Instant-Payment-API\InstantPay.Application\obj\Debug\net9.0\ref\InstantPay.Application.dll

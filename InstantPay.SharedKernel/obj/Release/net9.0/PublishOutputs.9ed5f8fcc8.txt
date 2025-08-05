@@ -1,0 +1,3 @@
+C:\Instant Projects\Instant-Payment-API\publish\InstantPay.SharedKernel.dll
+C:\Instant Projects\Instant-Payment-API\publish\InstantPay.SharedKernel.deps.json
+C:\Instant Projects\Instant-Payment-API\publish\InstantPay.SharedKernel.pdb

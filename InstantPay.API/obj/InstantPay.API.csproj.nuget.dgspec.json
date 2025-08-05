@@ -1,23 +1,23 @@
 {
   "format": 1,
   "restore": {
-    "D:\\InstantPay\\InstantPay.API\\InstantPay.API.csproj": {}
+    "C:\\Instant Projects\\Instant-Payment-API\\InstantPay.API\\InstantPay.API.csproj": {}
   },
   "projects": {
-    "D:\\InstantPay\\InstantPay.API\\InstantPay.API.csproj": {
+    "C:\\Instant Projects\\Instant-Payment-API\\InstantPay.API\\InstantPay.API.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\InstantPay\\InstantPay.API\\InstantPay.API.csproj",
+        "projectUniqueName": "C:\\Instant Projects\\Instant-Payment-API\\InstantPay.API\\InstantPay.API.csproj",
         "projectName": "InstantPay.API",
-        "projectPath": "D:\\InstantPay\\InstantPay.API\\InstantPay.API.csproj",
-        "packagesPath": "C:\\Users\\user\\.nuget\\packages\\",
-        "outputPath": "D:\\InstantPay\\InstantPay.API\\obj\\",
+        "projectPath": "C:\\Instant Projects\\Instant-Payment-API\\InstantPay.API\\InstantPay.API.csproj",
+        "packagesPath": "C:\\Users\\dell\\.nuget\\packages\\",
+        "outputPath": "C:\\Instant Projects\\Instant-Payment-API\\InstantPay.API\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\user\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\dell\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
@@ -33,11 +33,11 @@
           "net9.0": {
             "targetAlias": "net9.0",
             "projectReferences": {
-              "D:\\InstantPay\\InstantPay.Application\\InstantPay.Application.csproj": {
-                "projectPath": "D:\\InstantPay\\InstantPay.Application\\InstantPay.Application.csproj"
+              "C:\\Instant Projects\\Instant-Payment-API\\InstantPay.Application\\InstantPay.Application.csproj": {
+                "projectPath": "C:\\Instant Projects\\Instant-Payment-API\\InstantPay.Application\\InstantPay.Application.csproj"
               },
-              "D:\\InstantPay\\InstantPay.Infrastructure\\InstantPay.Infrastructure.csproj": {
-                "projectPath": "D:\\InstantPay\\InstantPay.Infrastructure\\InstantPay.Infrastructure.csproj"
+              "C:\\Instant Projects\\Instant-Payment-API\\InstantPay.Infrastructure\\InstantPay.Infrastructure.csproj": {
+                "projectPath": "C:\\Instant Projects\\Instant-Payment-API\\InstantPay.Infrastructure\\InstantPay.Infrastructure.csproj"
               }
             }
           }
@@ -52,7 +52,7 @@
           "auditLevel": "low",
           "auditMode": "direct"
         },
-        "SdkAnalysisLevel": "9.0.100"
+        "SdkAnalysisLevel": "9.0.300"
       },
       "frameworks": {
         "net9.0": {
@@ -90,24 +90,24 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.103/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.302/PortableRuntimeIdentifierGraph.json"
         }
       }
     },
-    "D:\\InstantPay\\InstantPay.Application\\InstantPay.Application.csproj": {
+    "C:\\Instant Projects\\Instant-Payment-API\\InstantPay.Application\\InstantPay.Application.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\InstantPay\\InstantPay.Application\\InstantPay.Application.csproj",
+        "projectUniqueName": "C:\\Instant Projects\\Instant-Payment-API\\InstantPay.Application\\InstantPay.Application.csproj",
         "projectName": "InstantPay.Application",
-        "projectPath": "D:\\InstantPay\\InstantPay.Application\\InstantPay.Application.csproj",
-        "packagesPath": "C:\\Users\\user\\.nuget\\packages\\",
-        "outputPath": "D:\\InstantPay\\InstantPay.Application\\obj\\",
+        "projectPath": "C:\\Instant Projects\\Instant-Payment-API\\InstantPay.Application\\InstantPay.Application.csproj",
+        "packagesPath": "C:\\Users\\dell\\.nuget\\packages\\",
+        "outputPath": "C:\\Instant Projects\\Instant-Payment-API\\InstantPay.Application\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\user\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\dell\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
@@ -123,11 +123,11 @@
           "net9.0": {
             "targetAlias": "net9.0",
             "projectReferences": {
-              "D:\\InstantPay\\InstantPay.Infrastructure\\InstantPay.Infrastructure.csproj": {
-                "projectPath": "D:\\InstantPay\\InstantPay.Infrastructure\\InstantPay.Infrastructure.csproj"
+              "C:\\Instant Projects\\Instant-Payment-API\\InstantPay.Infrastructure\\InstantPay.Infrastructure.csproj": {
+                "projectPath": "C:\\Instant Projects\\Instant-Payment-API\\InstantPay.Infrastructure\\InstantPay.Infrastructure.csproj"
               },
-              "D:\\InstantPay\\InstantPay.SharedKernel\\InstantPay.SharedKernel.csproj": {
-                "projectPath": "D:\\InstantPay\\InstantPay.SharedKernel\\InstantPay.SharedKernel.csproj"
+              "C:\\Instant Projects\\Instant-Payment-API\\InstantPay.SharedKernel\\InstantPay.SharedKernel.csproj": {
+                "projectPath": "C:\\Instant Projects\\Instant-Payment-API\\InstantPay.SharedKernel\\InstantPay.SharedKernel.csproj"
               }
             }
           }
@@ -142,7 +142,7 @@
           "auditLevel": "low",
           "auditMode": "direct"
         },
-        "SdkAnalysisLevel": "9.0.100"
+        "SdkAnalysisLevel": "9.0.300"
       },
       "frameworks": {
         "net9.0": {
@@ -185,24 +185,24 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.103/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.302/PortableRuntimeIdentifierGraph.json"
         }
       }
     },
-    "D:\\InstantPay\\InstantPay.Infrastructure\\InstantPay.Infrastructure.csproj": {
+    "C:\\Instant Projects\\Instant-Payment-API\\InstantPay.Infrastructure\\InstantPay.Infrastructure.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\InstantPay\\InstantPay.Infrastructure\\InstantPay.Infrastructure.csproj",
+        "projectUniqueName": "C:\\Instant Projects\\Instant-Payment-API\\InstantPay.Infrastructure\\InstantPay.Infrastructure.csproj",
         "projectName": "InstantPay.Infrastructure",
-        "projectPath": "D:\\InstantPay\\InstantPay.Infrastructure\\InstantPay.Infrastructure.csproj",
-        "packagesPath": "C:\\Users\\user\\.nuget\\packages\\",
-        "outputPath": "D:\\InstantPay\\InstantPay.Infrastructure\\obj\\",
+        "projectPath": "C:\\Instant Projects\\Instant-Payment-API\\InstantPay.Infrastructure\\InstantPay.Infrastructure.csproj",
+        "packagesPath": "C:\\Users\\dell\\.nuget\\packages\\",
+        "outputPath": "C:\\Instant Projects\\Instant-Payment-API\\InstantPay.Infrastructure\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\user\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\dell\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
@@ -218,8 +218,8 @@
           "net9.0": {
             "targetAlias": "net9.0",
             "projectReferences": {
-              "D:\\InstantPay\\InstantPay.SharedKernel\\InstantPay.SharedKernel.csproj": {
-                "projectPath": "D:\\InstantPay\\InstantPay.SharedKernel\\InstantPay.SharedKernel.csproj"
+              "C:\\Instant Projects\\Instant-Payment-API\\InstantPay.SharedKernel\\InstantPay.SharedKernel.csproj": {
+                "projectPath": "C:\\Instant Projects\\Instant-Payment-API\\InstantPay.SharedKernel\\InstantPay.SharedKernel.csproj"
               }
             }
           }
@@ -234,7 +234,7 @@
           "auditLevel": "low",
           "auditMode": "direct"
         },
-        "SdkAnalysisLevel": "9.0.100"
+        "SdkAnalysisLevel": "9.0.300"
       },
       "frameworks": {
         "net9.0": {
@@ -271,24 +271,24 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.103/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.302/PortableRuntimeIdentifierGraph.json"
         }
       }
     },
-    "D:\\InstantPay\\InstantPay.SharedKernel\\InstantPay.SharedKernel.csproj": {
+    "C:\\Instant Projects\\Instant-Payment-API\\InstantPay.SharedKernel\\InstantPay.SharedKernel.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\InstantPay\\InstantPay.SharedKernel\\InstantPay.SharedKernel.csproj",
+        "projectUniqueName": "C:\\Instant Projects\\Instant-Payment-API\\InstantPay.SharedKernel\\InstantPay.SharedKernel.csproj",
         "projectName": "InstantPay.SharedKernel",
-        "projectPath": "D:\\InstantPay\\InstantPay.SharedKernel\\InstantPay.SharedKernel.csproj",
-        "packagesPath": "C:\\Users\\user\\.nuget\\packages\\",
-        "outputPath": "D:\\InstantPay\\InstantPay.SharedKernel\\obj\\",
+        "projectPath": "C:\\Instant Projects\\Instant-Payment-API\\InstantPay.SharedKernel\\InstantPay.SharedKernel.csproj",
+        "packagesPath": "C:\\Users\\dell\\.nuget\\packages\\",
+        "outputPath": "C:\\Instant Projects\\Instant-Payment-API\\InstantPay.SharedKernel\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\user\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\dell\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
@@ -316,7 +316,7 @@
           "auditLevel": "low",
           "auditMode": "direct"
         },
-        "SdkAnalysisLevel": "9.0.100"
+        "SdkAnalysisLevel": "9.0.300"
       },
       "frameworks": {
         "net9.0": {
@@ -337,7 +337,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.103/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.302/PortableRuntimeIdentifierGraph.json"
         }
       }
     }

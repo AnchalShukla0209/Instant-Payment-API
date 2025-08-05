@@ -1,5 +1,21 @@
 [
   {
+    "ContainingType": "InstantPay.API.Controller.ClientController",
+    "Method": "ClientReport",
+    "RelativePath": "api/Client/Client-Report",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "InstantPay.Application.DTOs.EncryptedRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
     "ContainingType": "InstantPay.API.Controller.DashboardController",
     "Method": "GetDashboard",
     "RelativePath": "api/Dashboard",

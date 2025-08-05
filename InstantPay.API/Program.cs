@@ -97,6 +97,7 @@ builder.Services.AddScoped<IRechargeService, RechargeService>();
 builder.Services.AddScoped<IOtpService, OtpService>();
 builder.Services.AddScoped<IMasterService, MasterService>();
 builder.Services.AddScoped<IReportService, ReportService>();
+builder.Services.AddScoped<IClientOperation, ClientOperation>();
 var app = builder.Build();
 if (app.Environment.IsDevelopment() || app.Environment.IsProduction())
 {
