@@ -50,5 +50,16 @@ namespace InstantPay.API.Controller
             var result = await _reportservice.CreateOrUpdateClient(request, cancellationToken);
             return Ok(result);
         }
+
+        [HttpGet("clientId")]
+        public async Task<IActionResult> GetClientDetail(int Id)
+        {
+            var client = await _reportservice.GetClientDetailByIdAsync(Id);
+
+            if (client == null)
+                return NotFound("Client not found");
+
+            return Ok(client);
+        }
     }
 }

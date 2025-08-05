@@ -185,5 +185,47 @@ namespace InstantPay.Application.Services
             }
         }
 
+
+        public async Task<GetClientDetail?> GetClientDetailByIdAsync(int Id)
+        {
+            var client = await _context.TblWlUsers
+                .Where(c => c.Id == Id)
+                .Select(c => new GetClientDetail
+                {
+                    Id = c.Id,
+                    CompanyName = c.CompanyName,
+                    UserName = c.UserName,
+                    EmailId = c.EmailId,
+                    Phone = c.Phone,
+                    Password = c.Password,
+                    PanCard = c.PanCard,
+                    AadharCard = c.AadharCard,
+                    DomainName = c.DomainName,
+                    Logo = c.Logo,
+                    AddressLine1 = c.AddressLine1,
+                    AddressLine2 = c.AddressLine2,
+                    State = c.State,
+                    City = c.City,
+                    Pincode = c.Pincode,
+                    Pancopy = c.Pancopy,
+                    AadharFront = c.AadharFront,
+                    AadharBack = c.AadharBack,
+                    Recharge = c.Recharge,
+                    MoneyTransfer = c.MoneyTransfer,
+                    AEPS = c.Aeps,
+                    BillPayment = c.BillPayment,
+                    MicroATM = c.MicroAtm,
+                    APITransfer = c.Apitransfer,
+                    Margin = c.Margin,
+                    Debit = c.Debit,
+                    Status = c.Status,
+                    RegDate = c.RegDate,
+                    TxnPin = c.TxnPin,
+                    PlanId = c.PlanId
+                })
+        .FirstOrDefaultAsync();
+
+            return client;
+        }
     }
 }
