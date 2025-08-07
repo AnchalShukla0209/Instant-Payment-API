@@ -5,7 +5,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace InstantPay.Infrastructure.Sql.Entities;
 
-public partial class TblWlUsers
+public partial class TblWlUser
 {
     public int Id { get; set; }
 
@@ -66,12 +66,5 @@ public partial class TblWlUsers
     public string? TxnPin { get; set; }
 
     public string? PlanId { get; set; }
-    [NotMapped]
-    public IFormFile PanCardFile { get; set; }
-    [NotMapped]
-    public IFormFile AadharCardFile { get; set; }
-    [NotMapped]
-    public IFormFile ProfileFile { get; set; }
-    [NotMapped]
-    public IFormFile OtherFile { get; set; }
+   
 }

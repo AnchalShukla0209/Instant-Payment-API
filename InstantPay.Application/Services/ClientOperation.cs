@@ -1,23 +1,27 @@
 ﻿using InstantPay.Application.Interfaces;
 using InstantPay.Infrastructure.Sql.Entities;
 using InstantPay.SharedKernel.Entity;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using MongoDB.Bson.IO;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
+using static InstantPay.SharedKernel.Enums.WalletOperationStatusENUM;
 
 namespace InstantPay.Application.Services
 {
     public class ClientOperation : IClientOperation
     {
         private readonly AppDbContext _context;
-        public ClientOperation(AppDbContext context)
+        private IFileHandler _IFileHandler;
+        public ClientOperation(AppDbContext context, IFileHandler iFileHandler)
         {
             _context = context;
+            _IFileHandler = iFileHandler;
         }
 
         public async Task<GetUsersWithMainBalanceResponse> GetClientList(GetUsersWithMainBalanceQuery request)
@@ -25,10 +29,10 @@ namespace InstantPay.Application.Services
             DateOnly? fromDate = null;
             DateOnly? toDate = null;
 
-            if (DateOnly.TryParse(request.FromDate, out var parsedFromDate))
+            if (DateOnly.TryParse(request.fromDate, out var parsedFromDate))
                 fromDate = parsedFromDate;
 
-            if (DateOnly.TryParse(request.ToDate, out var parsedToDate))
+            if (DateOnly.TryParse(request.toDate, out var parsedToDate))
                 toDate = parsedToDate;
 
             var balanceQuery = _context.TblWlbalances.AsQueryable();
@@ -53,8 +57,8 @@ namespace InstantPay.Application.Services
 
             var users = await _context.TblWlUsers
                 .OrderByDescending(u => u.Id)
-                .Skip((request.PageIndex - 1) * request.PageSize)
-                .Take(request.PageSize)
+                .Skip((request.pageIndex - 1) * request.pageSize)
+                .Take(request.pageSize)
                 .Select(u => new UserBalanceDto
                 {
                     Id = u.Id,
@@ -70,26 +74,32 @@ namespace InstantPay.Application.Services
 
             return new GetUsersWithMainBalanceResponse
             {
-                PageIndex = request.PageIndex,
-                PageSize = request.PageSize,
+                PageIndex = request.pageIndex,
+                PageSize = request.pageSize,
                 TotalRecords = totalCount,
                 TotalBalance = (decimal)totalBalance,
                 Users = users
             };
         }
 
-
         public async Task<ResponseModelforClientaddandupdateapi> CreateOrUpdateClient(CreateOrUpdateClientCommand request, CancellationToken cancellationToken)
         {
-            //string? panPath = request.PanCardFile != null ? await _fileStorage.SaveAsync(request.PanCardFile) : null;
-            //string? aadharPath = request.AadharCardFile != null ? await _fileStorage.SaveAsync(request.AadharCardFile) : null;
-            //string? profilePath = request.ProfileFile != null ? await _fileStorage.SaveAsync(request.ProfileFile) : null;
-            //string? otherPath = request.OtherFile != null ? await _fileStorage.SaveAsync(request.OtherFile) : null;
-
             TblWlUser client;
+            bool isNew = request.ClientId == 0;
 
-            if (request.ClientId == 0)
+            if (isNew)
             {
+                var existingUser = await _context.TblWlUsers
+        .FirstOrDefaultAsync(x => x.UserName.ToLower().Trim() == request.UserName.ToLower().Trim());
+
+                if (existingUser != null)
+                {
+                    return new ResponseModelforClientaddandupdateapi
+                    {
+                        Msg = "Username already exists.",
+                        flag = false
+                    };
+                }
                 client = new TblWlUser
                 {
                     CompanyName = request.CompanyName,
@@ -97,6 +107,8 @@ namespace InstantPay.Application.Services
                     EmailId = request.EmailId,
                     Phone = request.Phone,
                     Password = request.Password,
+                    PanCard = request.PanCard,
+                    AadharCard = request.AadharCard,
                     DomainName = request.DomainName,
                     AddressLine1 = request.AddressLine1,
                     AddressLine2 = request.AddressLine2,
@@ -113,24 +125,12 @@ namespace InstantPay.Application.Services
                     Debit = request.Debit,
                     Status = "Active",
                     RegDate = DateTime.UtcNow,
-                    Logo = Newtonsoft.Json.JsonConvert.SerializeObject(new
-                    {
-                        //PanCard = panPath,
-                        //AadharCard = aadharPath,
-                        //Profile = profilePath,
-                        //Other = otherPath
-                    })
+                    TxnPin = request.TxnPin,
+                    PlanId = request.PlanId,
                 };
 
                 _context.TblWlUsers.Add(client);
-                object value = await _context.SaveChangesAsync(cancellationToken);
-
-                return new ResponseModelforClientaddandupdateapi
-                {
-                    id = client.Id,
-                    Msg = "Client Created Successfully",
-                    flag = true
-                };
+                await _context.SaveChangesAsync(cancellationToken);
             }
             else
             {
@@ -139,7 +139,19 @@ namespace InstantPay.Application.Services
                 {
                     return new ResponseModelforClientaddandupdateapi
                     {
-                        Msg = "Client Not Found",
+                        Msg = "Record Not Found",
+                        flag = false
+                    };
+                }
+
+                var existingUser = await _context.TblWlUsers
+        .FirstOrDefaultAsync(x => x.UserName.ToLower().Trim() == request.UserName.ToLower().Trim() && x.Id != request.ClientId);
+
+                if (existingUser != null)
+                {
+                    return new ResponseModelforClientaddandupdateapi
+                    {
+                        Msg = "Username already exists.",
                         flag = false
                     };
                 }
@@ -149,6 +161,8 @@ namespace InstantPay.Application.Services
                 client.EmailId = request.EmailId;
                 client.Phone = request.Phone;
                 client.Password = request.Password;
+                client.PanCard = request.PanCard;
+                client.AadharCard = request.AadharCard;
                 client.DomainName = request.DomainName;
                 client.AddressLine1 = request.AddressLine1;
                 client.AddressLine2 = request.AddressLine2;
@@ -163,28 +177,57 @@ namespace InstantPay.Application.Services
                 client.Apitransfer = request.APITransfer;
                 client.Margin = request.Margin;
                 client.Debit = request.Debit;
-
-                // Update file paths only if newly uploaded
-                var currentLogoData = Newtonsoft.Json.JsonConvert.DeserializeObject<dynamic>(client.Logo ?? "{}");
-                client.Logo = Newtonsoft.Json.JsonConvert.SerializeObject(new
-                {
-                    //PanCard = panPath ?? currentLogoData?.PanCard,
-                    //AadharCard = aadharPath ?? currentLogoData?.AadharCard,
-                    //Profile = profilePath ?? currentLogoData?.Profile,
-                    //Other = otherPath ?? currentLogoData?.Other
-                });
-
-                await _context.SaveChangesAsync(cancellationToken);
-
-                return new ResponseModelforClientaddandupdateapi
-                {
-                    id = client.Id,
-                    Msg = "Client Updated",
-                    flag = true
-                };
+                client.Status = request.Status;
+                client.TxnPin = request.TxnPin;
             }
-        }
 
+            string webRootPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+            string basePath = Path.Combine(webRootPath, "UploadFiles", client.Id.ToString());
+            Directory.CreateDirectory(basePath);
+            string? SaveFile(IFormFile file, string folder)
+            {
+                if (file == null) return null;
+                string folderPath = Path.Combine(basePath, folder);
+                Directory.CreateDirectory(folderPath);
+                string filePath = Path.Combine(folderPath, file.FileName);
+                using var stream = new FileStream(filePath, FileMode.Create);
+                file.CopyTo(stream);
+                return Path.Combine("UploadFiles", client.Id.ToString(), folder, file.FileName).Replace("\\", "/");
+            }
+            string? panPath = "";
+            string? aadharPath = "";
+            string? aadharBackPath = "";
+            string? logopath = "";
+            if (request.PancopyFile != null)
+            {
+                 panPath = SaveFile(request.PancopyFile, "PanCard");
+                 client.Pancopy = panPath ?? "";
+            }
+            if (request.AadharFrontFile != null )
+            {
+                 aadharPath = SaveFile(request.AadharFrontFile, "AadharCard");
+                 client.AadharFront = aadharPath ?? "";
+            }
+            if (request.AadharBackFile != null )
+            {
+                 aadharBackPath = SaveFile(request.AadharBackFile, "AadharBack");
+                 client.AadharBack = aadharBackPath ?? "";
+            }
+            if (request.LogoFile != null)
+            {
+                 logopath = SaveFile(request.LogoFile, "Logo");
+                 client.Logo = logopath ?? "";
+            }
+
+            await _context.SaveChangesAsync(cancellationToken);
+
+            return new ResponseModelforClientaddandupdateapi
+            {
+                id = client.Id,
+                Msg = isNew ? "Client Created Successfully" : "Client Updated",
+                flag = true
+            };
+        }
 
         public async Task<GetClientDetail?> GetClientDetailByIdAsync(int Id)
         {
@@ -227,5 +270,141 @@ namespace InstantPay.Application.Services
 
             return client;
         }
+
+        public async Task<ResponseModelforClientaddandupdateapi> Handle(DeleteClientFileCommand request, CancellationToken cancellationToken)
+        {
+            var client = await _context.TblWlUsers.FindAsync(new object[] { request.ClientId }, cancellationToken);
+
+            if (client == null)
+            {
+                return new ResponseModelforClientaddandupdateapi
+                {
+                    id = request.ClientId,
+                    Msg = "Client Not Found",
+                    flag = false
+                };
+            }
+
+            string? filePath = null;
+            switch (request.FileType)
+            {
+                case "LogoFile":
+                    filePath = client.Logo;
+                    client.Logo = "";
+                    break;
+                case "PancopyFile":
+                    filePath = client.Pancopy;
+                    client.Pancopy = "";
+                    break;
+                case "AadharFrontFile":
+                    filePath = client.AadharFront;
+                    client.AadharFront = "";
+                    break;
+                case "AadharBackFile":
+                    filePath = client.AadharBack;
+                    client.AadharBack = "";
+                    break;
+                default:
+                    return new ResponseModelforClientaddandupdateapi
+                    {
+                        id = request.ClientId,
+                        Msg = "Invalid File Type",
+                        flag = false
+                    };
+            }
+
+            if (!string.IsNullOrWhiteSpace(filePath))
+            {
+                _IFileHandler.DeleteFile(request.ClientId, filePath);
+            }
+
+            await _context.SaveChangesAsync(cancellationToken);
+            return new ResponseModelforClientaddandupdateapi
+            {
+                id = request.ClientId,
+                Msg = "File Deleted Successfully",
+                flag = true
+            };
+        }
+
+        public async Task<WalletTransactionResponse> Handle(WalletTransactionRequest request)
+        {
+            var dto = request;
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            {
+                try
+                {
+                    var user = await _context.TblWlUsers
+                        .Where(x => x.Id == dto.UserId)
+                        .Select(x => new { x.Id, x.UserName, x.Phone })
+                        .FirstOrDefaultAsync();
+
+                    if (user is null)
+                    {
+                        return new WalletTransactionResponse { ErrorMessage = "User not found.", IsSuccessful = false };
+                    }
+
+                    var admin = await _context.TblSuperadmins
+                        .Where(x => x.Id == dto.ActionById)
+                        .Select(x => x.TxnPin)
+                        .FirstOrDefaultAsync();
+
+                    if (admin is null)
+                    {
+                        return new WalletTransactionResponse { ErrorMessage = "Admin not found.", IsSuccessful = false };
+                    }
+
+                    if (!string.Equals(dto.TxnPin.Trim(), admin.Trim(), StringComparison.Ordinal))
+                    {
+                        return new WalletTransactionResponse { ErrorMessage = "Invalid Txn Pin", IsSuccessful = false };
+                    }
+
+                    var oldBalance = await _context.TblWlbalances
+                        .Where(b => Convert.ToInt32(b.UserId) == dto.UserId)
+                        .OrderByDescending(b => b.Id)
+                        .Select(b => b.NewBal)
+                        .FirstOrDefaultAsync();
+
+                    var newBalance = dto.Status == WalletOperationStatus.Credit
+    ? (oldBalance ?? 0) + dto.Amount
+    : (oldBalance ?? 0) - dto.Amount;
+
+
+                    var txnType = dto.Status == WalletOperationStatus.Credit ? "WALLET TOPUP BY ADMIN" : "WALLET DEBIT BY ADMIN";
+                    var remarks = $"{txnType} For Account No {user.Phone} | {(dto.Status == WalletOperationStatus.Credit ? "Credit" : "Debit")} by Services | Wallet {(dto.Status == WalletOperationStatus.Credit ? "TopUp" : "Debit")} BY Admin Account";
+
+                    _context.TblWlbalances.Add(new TblWlbalance
+                    {
+                        TxnAmount = dto.Amount,
+                        SurComm = 0,
+                        Tds = 0,
+                        UserId = Convert.ToString(dto.UserId),
+                        UserName = user.UserName,
+                        OldBal = oldBalance,
+                        Amount = dto.Amount,
+                        NewBal = newBalance,
+                        TxnType = txnType,
+                        CrdrType = dto.Status == WalletOperationStatus.Credit ? "Credit" : "Debit",
+                        Remarks = remarks,
+                        Txndate = DateTime.Now
+                    });
+
+                    await _context.SaveChangesAsync();
+                    await transaction.CommitAsync();
+
+                    return new WalletTransactionResponse
+                    {
+                        ErrorMessage = dto.Status == WalletOperationStatus.Credit ? "Balance Credited Successfully" : "Balance Debited Successfully",
+                        IsSuccessful = true
+                    };
+                }
+                catch (Exception ex)
+                {
+                    await transaction.RollbackAsync();
+                    return new WalletTransactionResponse { ErrorMessage = ex.Message, IsSuccessful = false };
+                }
+            }
+        }
+
     }
 }

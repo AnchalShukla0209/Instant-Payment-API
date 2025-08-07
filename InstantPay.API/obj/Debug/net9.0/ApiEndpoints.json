@@ -16,6 +16,220 @@
     "ReturnTypes": []
   },
   {
+    "ContainingType": "InstantPay.API.Controller.ClientController",
+    "Method": "GetClientDetail",
+    "RelativePath": "api/Client/clientId",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "Id",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InstantPay.API.Controller.ClientController",
+    "Method": "CreateOrUpdateClient",
+    "RelativePath": "api/Client/CreateOrUpdateClient",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "ClientId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "CompanyName",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "UserName",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "EmailId",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "Phone",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "Password",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "PanCard",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "AadharCard",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "DomainName",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "AddressLine1",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "AddressLine2",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "State",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "City",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "Pincode",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "Recharge",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "MoneyTransfer",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "AEPS",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "BillPayment",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "MicroATM",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "APITransfer",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "Margin",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "Debit",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "Status",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "RegDate",
+        "Type": "System.DateTime",
+        "IsRequired": false
+      },
+      {
+        "Name": "TxnPin",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "PlanId",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "PancopyFile",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      },
+      {
+        "Name": "AadharFrontFile",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      },
+      {
+        "Name": "AadharBackFile",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      },
+      {
+        "Name": "LogoFile",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InstantPay.API.Controller.ClientController",
+    "Method": "DeleteClientFile",
+    "RelativePath": "api/Client/delete-file",
+    "HttpMethod": "DELETE",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "clientId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "fileType",
+        "Type": "System.String",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InstantPay.API.Controller.ClientController",
+    "Method": "WalletTransaction",
+    "RelativePath": "api/Client/wallet-transaction",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "InstantPay.SharedKernel.Entity.WalletTransactionRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
     "ContainingType": "InstantPay.API.Controller.DashboardController",
     "Method": "GetDashboard",
     "RelativePath": "api/Dashboard",

@@ -3,6 +3,7 @@ using InstantPay.Application.Interfaces;
 using InstantPay.Infrastructure.Security;
 using InstantPay.SharedKernel.Entity;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
@@ -61,5 +62,38 @@ namespace InstantPay.API.Controller
 
             return Ok(client);
         }
+
+        [HttpDelete("delete-file")]
+        public async Task<IActionResult> DeleteClientFile(int clientId, string fileType, CancellationToken cancellationToken)
+        {
+            var command = new DeleteClientFileCommand
+            {
+                ClientId = clientId,
+                FileType = fileType
+            };
+
+            var result = await _reportservice.Handle(command, cancellationToken);
+            return Ok(result);
+        }
+
+        [HttpPost("wallet-transaction")]
+        public async Task<IActionResult> WalletTransaction([FromBody] WalletTransactionRequest request)
+        {
+            var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == "userid");
+            var usernameclaim = User.Claims.FirstOrDefault(c => c.Type == "username");
+            if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+            {
+                return Unauthorized(new { message = "Invalid token or user ID." });
+            }
+            if (usernameclaim == null || string.IsNullOrWhiteSpace(usernameclaim.Value))
+            {
+                return Unauthorized(new { message = "Invalid token or user ID." });
+            }
+            var response = await _reportservice.Handle(request);
+            return Ok(response);
+
+        }
+
+
     }
 }

@@ -1,8 +1,11 @@
 {
   "version": 2,
-  "dgSpecHash": "acGj0+GbANw=",
+  "dgSpecHash": "S6wcbfJ1AYI=",
   "success": true,
   "projectFilePath": "C:\\Instant Projects\\Instant-Payment-API\\InstantPay.SharedKernel\\InstantPay.SharedKernel.csproj",
-  "expectedPackageFiles": [],
+  "expectedPackageFiles": [
+    "C:\\Users\\dell\\.nuget\\packages\\microsoft.aspnetcore.http.features\\2.3.0\\microsoft.aspnetcore.http.features.2.3.0.nupkg.sha512",
+    "C:\\Users\\dell\\.nuget\\packages\\microsoft.extensions.primitives\\8.0.0\\microsoft.extensions.primitives.8.0.0.nupkg.sha512"
+  ],
   "logs": []
 }

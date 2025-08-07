@@ -4,6 +4,7 @@ using InstantPay.Infrastructure.Mongo;
 using InstantPay.Infrastructure.Security;
 using InstantPay.Infrastructure.Sql;
 using InstantPay.Infrastructure.Sql.Entities;
+using InstantPay.SharedKernel.Entity;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -98,6 +99,12 @@ builder.Services.AddScoped<IOtpService, OtpService>();
 builder.Services.AddScoped<IMasterService, MasterService>();
 builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddScoped<IClientOperation, ClientOperation>();
+builder.Services.AddScoped<IFileHandler>(provider =>
+{
+    var env = provider.GetRequiredService<IWebHostEnvironment>();
+    return new FileHandler(env.WebRootPath);
+});
+
 var app = builder.Build();
 if (app.Environment.IsDevelopment() || app.Environment.IsProduction())
 {
@@ -110,4 +117,5 @@ app.UseCors("AllowAllFrontends");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.UseStaticFiles();
 app.Run();

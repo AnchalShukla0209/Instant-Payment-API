@@ -36,6 +36,299 @@
         }
       }
     },
+    "/api/Client/CreateOrUpdateClient": {
+      "post": {
+        "tags": [
+          "Client"
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ClientId": {
+                    "type": "integer",
+                    "format": "int32"
+                  },
+                  "CompanyName": {
+                    "type": "string"
+                  },
+                  "UserName": {
+                    "type": "string"
+                  },
+                  "EmailId": {
+                    "type": "string"
+                  },
+                  "Phone": {
+                    "type": "string"
+                  },
+                  "Password": {
+                    "type": "string"
+                  },
+                  "PanCard": {
+                    "type": "string"
+                  },
+                  "AadharCard": {
+                    "type": "string"
+                  },
+                  "DomainName": {
+                    "type": "string"
+                  },
+                  "AddressLine1": {
+                    "type": "string"
+                  },
+                  "AddressLine2": {
+                    "type": "string"
+                  },
+                  "State": {
+                    "type": "string"
+                  },
+                  "City": {
+                    "type": "string"
+                  },
+                  "Pincode": {
+                    "type": "string"
+                  },
+                  "Recharge": {
+                    "type": "string"
+                  },
+                  "MoneyTransfer": {
+                    "type": "string"
+                  },
+                  "AEPS": {
+                    "type": "string"
+                  },
+                  "BillPayment": {
+                    "type": "string"
+                  },
+                  "MicroATM": {
+                    "type": "string"
+                  },
+                  "APITransfer": {
+                    "type": "string"
+                  },
+                  "Margin": {
+                    "type": "string"
+                  },
+                  "Debit": {
+                    "type": "string"
+                  },
+                  "Status": {
+                    "type": "string"
+                  },
+                  "RegDate": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "TxnPin": {
+                    "type": "string"
+                  },
+                  "PlanId": {
+                    "type": "string"
+                  },
+                  "PancopyFile": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "AadharFrontFile": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "AadharBackFile": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "LogoFile": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              },
+              "encoding": {
+                "ClientId": {
+                  "style": "form"
+                },
+                "CompanyName": {
+                  "style": "form"
+                },
+                "UserName": {
+                  "style": "form"
+                },
+                "EmailId": {
+                  "style": "form"
+                },
+                "Phone": {
+                  "style": "form"
+                },
+                "Password": {
+                  "style": "form"
+                },
+                "PanCard": {
+                  "style": "form"
+                },
+                "AadharCard": {
+                  "style": "form"
+                },
+                "DomainName": {
+                  "style": "form"
+                },
+                "AddressLine1": {
+                  "style": "form"
+                },
+                "AddressLine2": {
+                  "style": "form"
+                },
+                "State": {
+                  "style": "form"
+                },
+                "City": {
+                  "style": "form"
+                },
+                "Pincode": {
+                  "style": "form"
+                },
+                "Recharge": {
+                  "style": "form"
+                },
+                "MoneyTransfer": {
+                  "style": "form"
+                },
+                "AEPS": {
+                  "style": "form"
+                },
+                "BillPayment": {
+                  "style": "form"
+                },
+                "MicroATM": {
+                  "style": "form"
+                },
+                "APITransfer": {
+                  "style": "form"
+                },
+                "Margin": {
+                  "style": "form"
+                },
+                "Debit": {
+                  "style": "form"
+                },
+                "Status": {
+                  "style": "form"
+                },
+                "RegDate": {
+                  "style": "form"
+                },
+                "TxnPin": {
+                  "style": "form"
+                },
+                "PlanId": {
+                  "style": "form"
+                },
+                "PancopyFile": {
+                  "style": "form"
+                },
+                "AadharFrontFile": {
+                  "style": "form"
+                },
+                "AadharBackFile": {
+                  "style": "form"
+                },
+                "LogoFile": {
+                  "style": "form"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Client/clientId": {
+      "get": {
+        "tags": [
+          "Client"
+        ],
+        "parameters": [
+          {
+            "name": "Id",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Client/delete-file": {
+      "delete": {
+        "tags": [
+          "Client"
+        ],
+        "parameters": [
+          {
+            "name": "clientId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "fileType",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Client/wallet-transaction": {
+      "post": {
+        "tags": [
+          "Client"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WalletTransactionRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WalletTransactionRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/WalletTransactionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/Dashboard": {
       "get": {
         "tags": [
@@ -284,6 +577,39 @@
           "serviceName": {
             "type": "string",
             "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "WalletOperationStatus": {
+        "enum": [
+          0,
+          1
+        ],
+        "type": "integer",
+        "format": "int32"
+      },
+      "WalletTransactionRequest": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/WalletOperationStatus"
+          },
+          "txnPin": {
+            "type": "string",
+            "nullable": true
+          },
+          "amount": {
+            "type": "number",
+            "format": "double"
+          },
+          "userId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "actionById": {
+            "type": "integer",
+            "format": "int32"
           }
         },
         "additionalProperties": false

@@ -12,5 +12,7 @@ namespace InstantPay.Application.Interfaces
         Task<GetUsersWithMainBalanceResponse> GetClientList(GetUsersWithMainBalanceQuery request);
         Task<ResponseModelforClientaddandupdateapi> CreateOrUpdateClient(CreateOrUpdateClientCommand request, CancellationToken cancellationToken);
         Task<GetClientDetail?> GetClientDetailByIdAsync(int Id);
+        Task<ResponseModelforClientaddandupdateapi> Handle(DeleteClientFileCommand request, CancellationToken cancellationToken);
+        Task<WalletTransactionResponse> Handle(WalletTransactionRequest request);
     }
 }

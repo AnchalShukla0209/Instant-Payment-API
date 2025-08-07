@@ -9,10 +9,10 @@ namespace InstantPay.SharedKernel.Entity
 {
     public class GetUsersWithMainBalanceQuery
     {
-        public int PageIndex { get; set; } = 1;
-        public int PageSize { get; set; } = 50;
-        public string? FromDate { get; set; }
-        public string? ToDate { get; set; }
+        public int pageIndex { get; set; } = 0;
+        public int pageSize { get; set; } = 0;
+        public string? fromDate { get; set; }
+        public string? toDate { get; set; }
     }
 
     public class GetUsersWithMainBalanceResponse
@@ -47,15 +47,11 @@ namespace InstantPay.SharedKernel.Entity
         public string PanCard { get; set; }
         public string AadharCard { get; set; }
         public string DomainName { get; set; }
-        public string Logo { get; set; }
         public string AddressLine1 { get; set; }
         public string AddressLine2 { get; set; }
         public string State { get; set; }
         public string City { get; set; }
         public string Pincode { get; set; }
-        public string Pancopy { get; set; }
-        public string AadharFront { get; set; }
-        public string AadharBack { get; set; }
         public string Recharge { get; set; }
         public string MoneyTransfer { get; set; }
         public string AEPS { get; set; }
@@ -68,10 +64,10 @@ namespace InstantPay.SharedKernel.Entity
         public DateTime RegDate { get; set; }
         public string TxnPin { get; set; }
         public string PlanId { get; set; }
-        public IFormFile PanCardFile { get; set; }
-        public IFormFile AadharCardFile { get; set; }
-        public IFormFile ProfileFile { get; set; }
-        public IFormFile OtherFile { get; set; }
+        public IFormFile? PancopyFile { get; set; }
+        public IFormFile? AadharFrontFile { get; set; }
+        public IFormFile? AadharBackFile { get; set; }
+        public IFormFile? LogoFile { get; set; }
     }
 
 
@@ -116,6 +112,13 @@ namespace InstantPay.SharedKernel.Entity
         public string? TxnPin { get; set; }
         public string? PlanId { get; set; }
     }
+
+    public class DeleteClientFileCommand 
+    {
+        public int ClientId { get; set; }
+        public string FileType { get; set; } = string.Empty;
+    }
+
 
 
 

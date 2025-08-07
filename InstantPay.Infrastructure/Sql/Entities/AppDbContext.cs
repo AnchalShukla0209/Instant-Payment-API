@@ -42,8 +42,7 @@ public partial class AppDbContext : DbContext
     public virtual DbSet<TblSlabName> TblSlabNames { get; set; }
 
     public virtual DbSet<TblSuperadmin> TblSuperadmins { get; set; }
-
-  
+    public virtual DbSet<TblUser> TblUsers { get; set; }
     public virtual DbSet<TblWlUser> TblWlUsers { get; set; }
 
     public virtual DbSet<TblWlbalance> TblWlbalances { get; set; }

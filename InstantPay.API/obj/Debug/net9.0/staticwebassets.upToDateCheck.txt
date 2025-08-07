@@ -1,0 +1,12 @@
+wwwroot\UploadFiles\3\AadharBack\SACH.jpeg
+wwwroot\UploadFiles\3\AadharCard\photo-removebg-preview.png
+wwwroot\UploadFiles\3\Logo\pic.jpeg
+wwwroot\UploadFiles\3\PanCard\sign.jpeg
+wwwroot\UploadFiles\4\AadharBack\sign.jpeg
+wwwroot\UploadFiles\4\AadharCard\photo.jpeg
+wwwroot\UploadFiles\4\Logo\SACH.jpeg
+wwwroot\UploadFiles\4\PanCard\pic.jpeg
+wwwroot\UploadFiles\5\AadharBack\photo-removebg-preview.png
+wwwroot\UploadFiles\5\AadharCard\sign.jpeg
+wwwroot\UploadFiles\5\Logo\SACH.jpeg
+wwwroot\UploadFiles\5\PanCard\pic.jpeg

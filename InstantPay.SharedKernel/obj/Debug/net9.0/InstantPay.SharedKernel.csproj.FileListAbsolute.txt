@@ -12,6 +12,7 @@ D:\InstantPay\InstantPay.SharedKernel\obj\Debug\net9.0\ref\InstantPay.SharedKern
 C:\Instant Projects\Instant-Payment-API\InstantPay.SharedKernel\bin\Debug\net9.0\InstantPay.SharedKernel.deps.json
 C:\Instant Projects\Instant-Payment-API\InstantPay.SharedKernel\bin\Debug\net9.0\InstantPay.SharedKernel.dll
 C:\Instant Projects\Instant-Payment-API\InstantPay.SharedKernel\bin\Debug\net9.0\InstantPay.SharedKernel.pdb
+C:\Instant Projects\Instant-Payment-API\InstantPay.SharedKernel\obj\Debug\net9.0\InstantPay.SharedKernel.csproj.AssemblyReference.cache
 C:\Instant Projects\Instant-Payment-API\InstantPay.SharedKernel\obj\Debug\net9.0\InstantPay.SharedKernel.GeneratedMSBuildEditorConfig.editorconfig
 C:\Instant Projects\Instant-Payment-API\InstantPay.SharedKernel\obj\Debug\net9.0\InstantPay.SharedKernel.AssemblyInfoInputs.cache
 C:\Instant Projects\Instant-Payment-API\InstantPay.SharedKernel\obj\Debug\net9.0\InstantPay.SharedKernel.AssemblyInfo.cs
