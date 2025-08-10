@@ -22,6 +22,14 @@ namespace InstantPay.SharedKernel.Entity
     {
         public string ErrorMessage { get; set; } = null!;
         public bool IsSuccessful { get; set; }
+        public string? Username { get; set; }
+        public string? Oldbalance { get; set; }
+        public string? NewBalance { get; set; }
+        public string? Amount { get; set; }
+        public string? TxnType { get; set; }
+        public string? CrdrType { get; set; }
+        public string? Remarks { get; set; }
+        public DateTime? Txndate { get; set; }
     }
 
 }

@@ -1,3 +1,5 @@
 C:\Instant Projects\Instant-Payment-API\publish\InstantPay.SharedKernel.dll
 C:\Instant Projects\Instant-Payment-API\publish\InstantPay.SharedKernel.deps.json
 C:\Instant Projects\Instant-Payment-API\publish\InstantPay.SharedKernel.pdb
+C:\Instant Projects\Instant-Payment-API\publish\Microsoft.AspNetCore.Http.Features.dll
+C:\Instant Projects\Instant-Payment-API\publish\Microsoft.Extensions.Primitives.dll

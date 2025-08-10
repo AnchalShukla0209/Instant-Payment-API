@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("InstantPay.SharedKernel")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+1b3e9193755757d1167d1801e619998a30bdc370")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5ff7584d3cde4ddc66efe44f22b1250aafdfad6b")]
 [assembly: System.Reflection.AssemblyProductAttribute("InstantPay.SharedKernel")]
 [assembly: System.Reflection.AssemblyTitleAttribute("InstantPay.SharedKernel")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

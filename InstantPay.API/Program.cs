@@ -99,6 +99,7 @@ builder.Services.AddScoped<IOtpService, OtpService>();
 builder.Services.AddScoped<IMasterService, MasterService>();
 builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddScoped<IClientOperation, ClientOperation>();
+builder.Services.AddScoped<IClientUserOperation, ClientUserOperation>();
 builder.Services.AddScoped<IFileHandler>(provider =>
 {
     var env = provider.GetRequiredService<IWebHostEnvironment>();

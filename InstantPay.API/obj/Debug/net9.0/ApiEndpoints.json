@@ -230,6 +230,256 @@
     "ReturnTypes": []
   },
   {
+    "ContainingType": "InstantPay.API.Controller.ClientUserController",
+    "Method": "ClientReport",
+    "RelativePath": "api/ClientUser/Client-Report",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "InstantPay.Application.DTOs.EncryptedRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InstantPay.API.Controller.ClientUserController",
+    "Method": "GetClientDetail",
+    "RelativePath": "api/ClientUser/clientId",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "Id",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InstantPay.API.Controller.ClientUserController",
+    "Method": "CreateOrUpdateClient",
+    "RelativePath": "api/ClientUser/CreateOrUpdateClient",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "Id",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "ClientId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "CompanyName",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "UserName",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "EmailId",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "Phone",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "Password",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "PanCard",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "AadharCard",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "UserType",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "CustomerName",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "AddressLine1",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "AddressLine2",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "State",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "City",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "Pincode",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "ShopAddress",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "ShopState",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "ShopCity",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "ShopZipCode",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "Recharge",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "MoneyTransfer",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "AEPS",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "BillPayment",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "MicroATM",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "Status",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "lat",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "longitute",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "TxnPin",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "WLID",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "PancopyFile",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      },
+      {
+        "Name": "AadharFrontFile",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      },
+      {
+        "Name": "AadharBackFile",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      },
+      {
+        "Name": "LogoFile",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InstantPay.API.Controller.ClientUserController",
+    "Method": "DeleteClientFile",
+    "RelativePath": "api/ClientUser/delete-file",
+    "HttpMethod": "DELETE",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "clientId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "fileType",
+        "Type": "System.String",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InstantPay.API.Controller.ClientUserController",
+    "Method": "WalletTransaction",
+    "RelativePath": "api/ClientUser/wallet-transaction",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "InstantPay.SharedKernel.Entity.WalletTransactionRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
     "ContainingType": "InstantPay.API.Controller.DashboardController",
     "Method": "GetDashboard",
     "RelativePath": "api/Dashboard",

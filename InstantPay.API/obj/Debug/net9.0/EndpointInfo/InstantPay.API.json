@@ -329,6 +329,354 @@
         }
       }
     },
+    "/api/ClientUser/Client-Report": {
+      "post": {
+        "tags": [
+          "ClientUser"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EncryptedRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EncryptedRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/EncryptedRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/ClientUser/CreateOrUpdateClient": {
+      "post": {
+        "tags": [
+          "ClientUser"
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "Id": {
+                    "type": "integer",
+                    "format": "int32"
+                  },
+                  "ClientId": {
+                    "type": "integer",
+                    "format": "int32"
+                  },
+                  "CompanyName": {
+                    "type": "string"
+                  },
+                  "UserName": {
+                    "type": "string"
+                  },
+                  "EmailId": {
+                    "type": "string"
+                  },
+                  "Phone": {
+                    "type": "string"
+                  },
+                  "Password": {
+                    "type": "string"
+                  },
+                  "PanCard": {
+                    "type": "string"
+                  },
+                  "AadharCard": {
+                    "type": "string"
+                  },
+                  "UserType": {
+                    "type": "string"
+                  },
+                  "CustomerName": {
+                    "type": "string"
+                  },
+                  "AddressLine1": {
+                    "type": "string"
+                  },
+                  "AddressLine2": {
+                    "type": "string"
+                  },
+                  "State": {
+                    "type": "string"
+                  },
+                  "City": {
+                    "type": "string"
+                  },
+                  "Pincode": {
+                    "type": "string"
+                  },
+                  "ShopAddress": {
+                    "type": "string"
+                  },
+                  "ShopState": {
+                    "type": "string"
+                  },
+                  "ShopCity": {
+                    "type": "string"
+                  },
+                  "ShopZipCode": {
+                    "type": "string"
+                  },
+                  "Recharge": {
+                    "type": "string"
+                  },
+                  "MoneyTransfer": {
+                    "type": "string"
+                  },
+                  "AEPS": {
+                    "type": "string"
+                  },
+                  "BillPayment": {
+                    "type": "string"
+                  },
+                  "MicroATM": {
+                    "type": "string"
+                  },
+                  "Status": {
+                    "type": "string"
+                  },
+                  "lat": {
+                    "type": "string"
+                  },
+                  "longitute": {
+                    "type": "string"
+                  },
+                  "TxnPin": {
+                    "type": "string"
+                  },
+                  "WLID": {
+                    "type": "string"
+                  },
+                  "PancopyFile": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "AadharFrontFile": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "AadharBackFile": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "LogoFile": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              },
+              "encoding": {
+                "Id": {
+                  "style": "form"
+                },
+                "ClientId": {
+                  "style": "form"
+                },
+                "CompanyName": {
+                  "style": "form"
+                },
+                "UserName": {
+                  "style": "form"
+                },
+                "EmailId": {
+                  "style": "form"
+                },
+                "Phone": {
+                  "style": "form"
+                },
+                "Password": {
+                  "style": "form"
+                },
+                "PanCard": {
+                  "style": "form"
+                },
+                "AadharCard": {
+                  "style": "form"
+                },
+                "UserType": {
+                  "style": "form"
+                },
+                "CustomerName": {
+                  "style": "form"
+                },
+                "AddressLine1": {
+                  "style": "form"
+                },
+                "AddressLine2": {
+                  "style": "form"
+                },
+                "State": {
+                  "style": "form"
+                },
+                "City": {
+                  "style": "form"
+                },
+                "Pincode": {
+                  "style": "form"
+                },
+                "ShopAddress": {
+                  "style": "form"
+                },
+                "ShopState": {
+                  "style": "form"
+                },
+                "ShopCity": {
+                  "style": "form"
+                },
+                "ShopZipCode": {
+                  "style": "form"
+                },
+                "Recharge": {
+                  "style": "form"
+                },
+                "MoneyTransfer": {
+                  "style": "form"
+                },
+                "AEPS": {
+                  "style": "form"
+                },
+                "BillPayment": {
+                  "style": "form"
+                },
+                "MicroATM": {
+                  "style": "form"
+                },
+                "Status": {
+                  "style": "form"
+                },
+                "lat": {
+                  "style": "form"
+                },
+                "longitute": {
+                  "style": "form"
+                },
+                "TxnPin": {
+                  "style": "form"
+                },
+                "WLID": {
+                  "style": "form"
+                },
+                "PancopyFile": {
+                  "style": "form"
+                },
+                "AadharFrontFile": {
+                  "style": "form"
+                },
+                "AadharBackFile": {
+                  "style": "form"
+                },
+                "LogoFile": {
+                  "style": "form"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/ClientUser/clientId": {
+      "get": {
+        "tags": [
+          "ClientUser"
+        ],
+        "parameters": [
+          {
+            "name": "Id",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/ClientUser/delete-file": {
+      "delete": {
+        "tags": [
+          "ClientUser"
+        ],
+        "parameters": [
+          {
+            "name": "clientId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "fileType",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/ClientUser/wallet-transaction": {
+      "post": {
+        "tags": [
+          "ClientUser"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WalletTransactionRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WalletTransactionRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/WalletTransactionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/Dashboard": {
       "get": {
         "tags": [

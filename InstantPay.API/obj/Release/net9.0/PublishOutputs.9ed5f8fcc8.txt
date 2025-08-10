@@ -30,6 +30,7 @@ C:\Instant Projects\Instant-Payment-API\publish\Microsoft.SqlServer.Server.dll
 C:\Instant Projects\Instant-Payment-API\publish\Microsoft.Win32.SystemEvents.dll
 C:\Instant Projects\Instant-Payment-API\publish\MongoDB.Bson.dll
 C:\Instant Projects\Instant-Payment-API\publish\MongoDB.Driver.dll
+C:\Instant Projects\Instant-Payment-API\publish\Newtonsoft.Json.dll
 C:\Instant Projects\Instant-Payment-API\publish\SharpCompress.dll
 C:\Instant Projects\Instant-Payment-API\publish\Snappier.dll
 C:\Instant Projects\Instant-Payment-API\publish\Swashbuckle.AspNetCore.Swagger.dll

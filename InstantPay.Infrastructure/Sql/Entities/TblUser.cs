@@ -50,8 +50,7 @@ public partial class TblUser
 
     public string? MicroAtm { get; set; }
     public string? Status { get; set; }
-
-    public string? AepsStatus { get; set; }
+    public string? PlanId { get; set; }
 
     public string? Lat { get; set; }
     public string? Longitute { get; set; }
@@ -76,8 +75,6 @@ public partial class TblUser
 
     public string? TxnPin { get; set; }
     public string? MerchargeCode { get; set; }
-
-    public string? PlanId { get; set; }
 
     public string? Username { get; set; }
 

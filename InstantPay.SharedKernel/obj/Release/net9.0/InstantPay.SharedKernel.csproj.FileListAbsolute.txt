@@ -21,3 +21,4 @@ C:\Instant Projects\Instant-Payment-API\InstantPay.SharedKernel\obj\Release\net9
 C:\Instant Projects\Instant-Payment-API\InstantPay.SharedKernel\obj\Release\net9.0\refint\InstantPay.SharedKernel.dll
 C:\Instant Projects\Instant-Payment-API\InstantPay.SharedKernel\obj\Release\net9.0\InstantPay.SharedKernel.pdb
 C:\Instant Projects\Instant-Payment-API\InstantPay.SharedKernel\obj\Release\net9.0\ref\InstantPay.SharedKernel.dll
+C:\Instant Projects\Instant-Payment-API\InstantPay.SharedKernel\obj\Release\net9.0\InstantPay.SharedKernel.csproj.AssemblyReference.cache

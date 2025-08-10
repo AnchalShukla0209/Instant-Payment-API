@@ -13,6 +13,7 @@ namespace InstantPay.SharedKernel.Entity
         public int pageSize { get; set; } = 0;
         public string? fromDate { get; set; }
         public string? toDate { get; set; }
+       
     }
 
     public class GetUsersWithMainBalanceResponse

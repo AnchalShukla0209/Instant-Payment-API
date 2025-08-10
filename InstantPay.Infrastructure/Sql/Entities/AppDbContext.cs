@@ -435,7 +435,7 @@ public partial class AppDbContext : DbContext
                 .HasMaxLength(255)
                 .IsUnicode(false)
                 .HasColumnName("AEPS");
-            entity.Property(e => e.AepsStatus)
+            entity.Property(e => e.Aeps)
                 .HasMaxLength(255)
                 .IsUnicode(false);
             entity.Property(e => e.BillPayment)

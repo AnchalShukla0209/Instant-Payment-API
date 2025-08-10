@@ -90,7 +90,7 @@ namespace InstantPay.Application.Services
                             OpeningBal = t.OldBal,
                             Amount = t.Amount,
                             Closing = t.NewBal,
-                            Status = "Success",
+                            Status = t.CrdrType,
                             APIName = string.Empty,
                             ComingFrom = string.Empty,
                             MasterDistributor = string.Empty,
