@@ -600,5 +600,57 @@
       }
     ],
     "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InstantPay.API.Controller.SlabsController",
+    "Method": "GetMargin",
+    "RelativePath": "api/Slabs/GetMargin",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "serviceName",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "pageIndex",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "pageSize",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "InstantPay.SharedKernel.Entity.PagedResult\u00601[[InstantPay.SharedKernel.Entity.SlabInfoDto, InstantPay.SharedKernel, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "InstantPay.API.Controller.SlabsController",
+    "Method": "Update",
+    "RelativePath": "api/Slabs/update",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "command",
+        "Type": "InstantPay.SharedKernel.Entity.UpdateCommissionCommand",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
   }
 ]

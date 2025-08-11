@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("InstantPay.API")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5ff7584d3cde4ddc66efe44f22b1250aafdfad6b")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+ae2958b8ea4e1d48adc50289f4a247cc93fe7416")]
 [assembly: System.Reflection.AssemblyProductAttribute("InstantPay.API")]
 [assembly: System.Reflection.AssemblyTitleAttribute("InstantPay.API")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
