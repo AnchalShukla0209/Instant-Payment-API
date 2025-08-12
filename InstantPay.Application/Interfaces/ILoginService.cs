@@ -15,5 +15,7 @@ namespace InstantPay.Application.Interfaces
         Task<OTPSuccessResponse?> VerifyOTP(OtpLoginLogDto request);
 
         Task<LoginResponseDto?> ResendOTP(OtpLoginLogDto request);
+
+        Task<ServiceRightsData> GetUserRightsInfoDet(int Id);
     }
 }

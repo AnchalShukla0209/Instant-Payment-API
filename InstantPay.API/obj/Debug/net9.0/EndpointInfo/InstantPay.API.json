@@ -782,6 +782,28 @@
         }
       }
     },
+    "/api/Login/get-rightsinfo": {
+      "get": {
+        "tags": [
+          "Login"
+        ],
+        "parameters": [
+          {
+            "name": "Id",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/Master/GetSuperAdminDashboardData": {
       "post": {
         "tags": [

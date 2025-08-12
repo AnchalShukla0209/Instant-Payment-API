@@ -1,4 +1,5 @@
-﻿using InstantPay.Application.DTOs;
+﻿using Azure.Core;
+using InstantPay.Application.DTOs;
 using InstantPay.Application.Interfaces;
 using InstantPay.SharedKernel.Entity;
 using Microsoft.Extensions.Configuration;
@@ -98,6 +99,21 @@ public class LoginService : ILoginService
             Token = "",
             messaege = "OTP Resend Failed"
         };
+    }
+
+    
+    public async Task<ServiceRightsData> GetUserRightsInfoDet(int Id)
+    {
+        try
+        {
+            var data = await _userRepository.GetUserRightsInfo(Id);
+            return data;
+        }
+        catch (Exception ex)
+        {
+            return null;
+        }
+
     }
 
 }

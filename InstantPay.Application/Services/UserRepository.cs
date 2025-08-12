@@ -47,7 +47,7 @@ namespace InstantPay.Application.Services
                         x.LoginTime >= todays && x.LoginTime <= todays.AddDays(1))
                     .AnyAsync();
 
-                if(IsOtpRequiredAsyncs)
+                if (IsOtpRequiredAsyncs)
                 {
                     string otp = new Random().Next(1000, 9999).ToString();
                     await _otpService.SendOtpAsync(tblSUser.Mobileno, otp);
@@ -58,8 +58,8 @@ namespace InstantPay.Application.Services
                         Password = tblSUser.Password,
                         Status = tblSUser.Status,
                         Usertype = "SuperAdmin",
-                        IsOtpRequired= IsOtpRequiredAsyncs,
-                        OTP= otp
+                        IsOtpRequired = IsOtpRequiredAsyncs,
+                        OTP = otp
                     };
                 }
                 return new User
@@ -69,8 +69,8 @@ namespace InstantPay.Application.Services
                     Password = tblSUser.Password,
                     Status = tblSUser.Status,
                     Usertype = "SuperAdmin",
-                    IsOtpRequired= IsOtpRequiredAsyncs,
-                    OTP=""
+                    IsOtpRequired = IsOtpRequiredAsyncs,
+                    OTP = ""
                 };
             }
 
@@ -109,7 +109,7 @@ namespace InstantPay.Application.Services
                 IsOtpRequired = IsOtpRequiredAsync,
                 OTP = ""
             };
-            
+
         }
 
         public async Task<TblUser?> GetUserByIdAsync(int userId) =>
@@ -138,11 +138,11 @@ namespace InstantPay.Application.Services
                 await _context.SaveChangesAsync();
                 return true;
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 return false;
             }
-            
+
         }
 
         public async Task<string> ResendOTPAsyncn(OtpLoginLogDto dto)
@@ -150,17 +150,17 @@ namespace InstantPay.Application.Services
             try
             {
                 string MobNo = "";
-                if(dto.usertype== "Retailer")
+                if (dto.usertype == "Retailer")
                 {
                     var tblUser = await _context.TblUsers
                     .FirstOrDefaultAsync(u => u.Id == Convert.ToInt32(dto.userid) && u.Status == "Active");
-                    if(tblUser==null)
+                    if (tblUser == null)
                     {
                         return "";
                     }
                     MobNo = tblUser.Phone.Trim();
                 }
-                else if(dto.usertype== "SuperAdmin")
+                else if (dto.usertype == "SuperAdmin")
                 {
                     var tblUser = await _context.TblSuperadmins
                     .FirstOrDefaultAsync(u => u.Id == Convert.ToInt32(dto.userid) && u.Status == "Active");
@@ -177,6 +177,37 @@ namespace InstantPay.Application.Services
             catch (Exception ex)
             {
                 return "";
+            }
+
+        }
+
+
+        public async Task<ServiceRightsData> GetUserRightsInfo(int Id)
+        {
+            try
+            {
+                var tblUser = await _context.TblUsers
+        .FirstOrDefaultAsync(u => u.Id == Convert.ToInt32(Id) && u.Status == "Active");
+
+                if (tblUser == null)
+                {
+                    return null;
+                }
+
+                var servData = new ServiceRightsData
+                {
+                    aeps = tblUser.Aeps,
+                    microatm = tblUser.MicroAtm,
+                    moneytransfer = tblUser.MoneyTransfer,
+                    billpayment = tblUser.BillPayment,
+                    recharge = tblUser.Recharge
+                };
+
+                return servData;
+            }
+            catch (Exception ex)
+            {
+                return null;
             }
 
         }

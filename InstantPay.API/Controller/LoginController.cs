@@ -60,5 +60,13 @@ namespace InstantPay.API.Controller
             var encryptedResponse = _aes.Encrypt(responseJson);
             return Ok(new { data = encryptedResponse });
         }
+
+        [HttpGet("get-rightsinfo")]
+        public async Task<IActionResult> GetRightsinfo(int Id)
+        {
+            var response = await _loginService.GetUserRightsInfoDet(Id);
+            return Ok(new { data = response });
+        }
+
     }
 }

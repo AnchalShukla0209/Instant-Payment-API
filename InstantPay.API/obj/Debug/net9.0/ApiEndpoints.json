@@ -507,6 +507,22 @@
   },
   {
     "ContainingType": "InstantPay.API.Controller.LoginController",
+    "Method": "GetRightsinfo",
+    "RelativePath": "api/Login/get-rightsinfo",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "Id",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InstantPay.API.Controller.LoginController",
     "Method": "ResendOTP",
     "RelativePath": "api/Login/resendotp",
     "HttpMethod": "POST",

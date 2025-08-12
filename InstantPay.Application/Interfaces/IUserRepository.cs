@@ -15,5 +15,6 @@ namespace InstantPay.Application.Interfaces
         Task<TblUser?> GetUserByIdAsync(int userId);
         Task<bool> LogOtpLoginAsync(OtpLoginLogDto dto);
         Task<string> ResendOTPAsyncn(OtpLoginLogDto dto);
+        Task<ServiceRightsData> GetUserRightsInfo(int Id);
     }
 }
