@@ -81,6 +81,7 @@ builder.Services.AddCors(options =>
     {
         policy.WithOrigins(
             "http://instantpay-angular-ui.s3-website-us-east-1.amazonaws.com",
+            "https://test.instantpayment.thedemo.co.in",
             "http://localhost:4200"
         )
         .AllowAnyHeader()
