@@ -106,6 +106,7 @@ builder.Services.AddScoped<ISlabReadRepository, SlabReadRepository>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IServiceService, ServicesService>();
 builder.Services.AddScoped<IBankRepository, BankService>();
+builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IFileHandler>(provider =>
 {
     var env = provider.GetRequiredService<IWebHostEnvironment>();
