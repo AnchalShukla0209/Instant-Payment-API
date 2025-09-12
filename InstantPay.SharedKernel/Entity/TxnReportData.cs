@@ -54,4 +54,44 @@ namespace InstantPay.SharedKernel.Entity
     }
 
 
+    public class TxnDetailsData
+    {
+        [Key]
+        public int TransId { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public string AccountNo { get; set; } = string.Empty;
+        public decimal? Cost { get; set; }
+        public string ServiceName { get; set; } = string.Empty;
+        public string UserName { get; set; } = string.Empty;
+        public string UserId { get; set; }
+    }
+
+    public class TxnRequest
+    {
+        public int TxnId { get; set; }
+    }
+
+    public class TxnUpdateRequest
+    {
+        public string Status { get; set; } = string.Empty;
+        public string Remarks { get; set; } = string.Empty;
+        public int TransId { get; set; }
+        public int UserId { get; set; }
+        public string ServiceName { get; set; } = string.Empty;
+        public decimal Amount { get; set; }
+        public string AccountNo { get; set; } = string.Empty;
+        public string UserName { get; set; } = string.Empty;
+        public decimal TxnAmount { get; set; }
+        public string TxnPin { get; set; } = string.Empty;
+    }
+
+    public class TxnUpdateResponse
+    {
+        public string ErrorMsg { get; set; } = string.Empty;
+        public bool Flag { get; set; }   // true = success, false = failure
+    }
+
+
+
+
 }

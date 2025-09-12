@@ -126,7 +126,7 @@ namespace InstantPay.SharedKernel.Entity
         public string? AadharBack { get; set; }
         
         
-        public string? Recharge { get; set; }
+        public string? MobileRecharge { get; set; }
         public string? MoneyTransfer { get; set; }
         public string? AEPS { get; set; }
         public string? BillPayment { get; set; }

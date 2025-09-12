@@ -178,7 +178,7 @@ namespace InstantPay.Application.Services
                     ShopCity = request.ShopCity,
                     ShipZipcode = request.ShopZipCode,
 
-                    Recharge = request.Recharge,
+                    MobileRecharge = request.Recharge,
                     MoneyTransfer = request.MoneyTransfer,
                     Aeps = request.AEPS,
                     BillPayment = request.BillPayment,
@@ -247,7 +247,7 @@ namespace InstantPay.Application.Services
                 client.ShopCity = request.ShopCity;
                 client.ShipZipcode = request.ShopZipCode;
 
-                client.Recharge = request.Recharge;
+                client.MobileRecharge = request.Recharge;
                 client.MoneyTransfer = request.MoneyTransfer;
                 client.Aeps = request.AEPS;
                 client.BillPayment = request.BillPayment;
@@ -367,7 +367,7 @@ namespace InstantPay.Application.Services
             Pancopy = t1.Pancopy,
             AadharFront = t1.AadharFront,
             AadharBack = t1.AadharBack,
-            Recharge = t1.Recharge,
+            MobileRecharge = t1.MobileRecharge,
             MoneyTransfer = t1.MoneyTransfer,
             AEPS = t1.Aeps,
             BillPayment = t1.BillPayment,

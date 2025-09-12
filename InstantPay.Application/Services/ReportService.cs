@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace InstantPay.Application.Services
 {
-    public class ReportService:IReportService
+    public class ReportService : IReportService
     {
         private readonly AppDbContext _context;
         public ReportService(AppDbContext context)
@@ -20,7 +20,7 @@ namespace InstantPay.Application.Services
 
         public async Task<PaginatedTxnResultDto> GetTransactionReportAsync(
     string serviceType, string status, string dateFrom, string dateTo,
-    int userId, int pageIndex=1, int pageSize=50)
+    int userId, int pageIndex = 1, int pageSize = 50)
         {
             serviceType = serviceType?.Trim().ToUpper();
             status = status?.Trim().ToUpper();
@@ -69,7 +69,7 @@ namespace InstantPay.Application.Services
                             Success = string.Empty,
                             Failed = string.Empty,
                             APIRes = tonp.Apiresponse ?? string.Empty,
-                            flagforTrans=0
+                            flagforTrans = 0
                         };
             }
             else if (serviceType == "LESSER REPORT" || serviceType == "ADMIN LESSER REPORT")
@@ -123,29 +123,29 @@ namespace InstantPay.Application.Services
                               && (string.IsNullOrEmpty(dateTo) || tds.ReqDate.Value.Date <= DateTime.Parse(dateTo).Date)
                               && (string.IsNullOrEmpty(status) || tds.Status.Trim().ToUpper() == status)
 
-                                select new TxnReportData
-                                {
-                                    Id = tds.TransId,
-                                    TXN_ID = tds.TransId.ToString(),
-                                    BankRefNo = tds.BankName ?? string.Empty,
-                                    UserName = tud.Username ?? string.Empty,
-                                    OperatorName = tds.OperatorName ?? string.Empty,
-                                    AccountNo = tds.AccountNo ?? string.Empty,
-                                    OpeningBal = tds.OldBal,
-                                    Amount = tds.Amount,
-                                    Closing = Convert.ToDecimal(tds.NewBal),
-                                    Status = tds.Status ?? string.Empty,
-                                    APIName = tds.ApiName ?? string.Empty,
-                                    ComingFrom = tds.ComingFrom ?? string.Empty,
-                                    MasterDistributor = tum.Name ?? string.Empty,
-                                    Distributor = tua.Name ?? string.Empty,
-                                    TimeStamp = tds.ReqDate,
-                                    UpdatedTime = tds.UpdateDate,
-                                    Success = string.Empty,
-                                    Failed = string.Empty,
-                                    APIRes = tds.ApiRes ?? string.Empty,
-                                    flagforTrans = 1
-                                };
+                        select new TxnReportData
+                        {
+                            Id = tds.TransId,
+                            TXN_ID = tds.TransId.ToString(),
+                            BankRefNo = tds.BankName ?? string.Empty,
+                            UserName = tud.Username ?? string.Empty,
+                            OperatorName = tds.OperatorName ?? string.Empty,
+                            AccountNo = tds.AccountNo ?? string.Empty,
+                            OpeningBal = tds.OldBal,
+                            Amount = tds.Amount,
+                            Closing = Convert.ToDecimal(tds.NewBal),
+                            Status = tds.Status ?? string.Empty,
+                            APIName = tds.ApiName ?? string.Empty,
+                            ComingFrom = tds.ComingFrom ?? string.Empty,
+                            MasterDistributor = tum.Name ?? string.Empty,
+                            Distributor = tua.Name ?? string.Empty,
+                            TimeStamp = tds.ReqDate,
+                            UpdatedTime = tds.UpdateDate,
+                            Success = string.Empty,
+                            Failed = string.Empty,
+                            APIRes = tds.ApiRes ?? string.Empty,
+                            flagforTrans = 1
+                        };
             }
             var totalTransactions = await query.CountAsync();
             var totalAmount = await query.SumAsync(x => (decimal?)x.Amount) ?? 0;
@@ -165,7 +165,118 @@ namespace InstantPay.Application.Services
             };
         }
 
-     
+
+        public async Task<TxnDetailsData> GetTxnDetails(int txnId)
+        {
+            var txn = await (from t in _context.TransactionDetails
+                             where t.TransId == txnId
+                             select new TxnDetailsData
+                             {
+                                 TransId = t.TransId,
+                                 Status = t.Status ?? string.Empty,
+                                 AccountNo = t.AccountNo ?? string.Empty,
+                                 Cost = t.Cost,
+                                 ServiceName = t.ServiceName ?? string.Empty,
+                                 UserName = t.UserName ?? string.Empty,
+                                 UserId = t.UserId ?? string.Empty
+                             }).FirstOrDefaultAsync();
+
+            if (txn == null)
+            {
+                return null;
+            }
+
+            return txn;
+        }
+
+        public async Task<TxnUpdateResponse> UpdateTxnStatus(TxnUpdateRequest request, int actionById)
+        {
+            // 2. Validate Refund PIN
+            var admin = await _context.TblSuperadmins.FirstOrDefaultAsync(x => x.Id == actionById);
+            if (admin == null)
+            {
+                return (new TxnUpdateResponse { ErrorMsg = "User Not Found in SuperAdmin", Flag = false });
+            }
+
+           
+            using var dbTxn = await _context.Database.BeginTransactionAsync();
+            try
+            {
+
+                var txn = await _context.TransactionDetails.FirstOrDefaultAsync(t => t.TransId == request.TransId);
+                if (txn == null)
+                {
+                    return (new TxnUpdateResponse { ErrorMsg = "Transaction not found", Flag = false });
+                }
+
+                if (!string.Equals(request.Status?.Trim(), "REFUND", StringComparison.OrdinalIgnoreCase))
+                {
+                    txn.Status = request.Status;
+                    txn.AdminRemarks = request.Remarks;
+                    txn.UpdateDate = DateTime.UtcNow;
+                    _context.TransactionDetails.Update(txn);
+                    await _context.SaveChangesAsync();
+                }
+
+                if (string.Equals(request.Status?.Trim(), "REFUND", StringComparison.OrdinalIgnoreCase))
+                {
+                    bool isPinValid = string.Equals(request.TxnPin?.Trim(), admin.Refundpin?.Trim(), StringComparison.OrdinalIgnoreCase)
+                             || string.Equals(request.Status?.Trim(), "SUCCESS", StringComparison.OrdinalIgnoreCase);
+
+                    if (!isPinValid)
+                    {
+                        return (new TxnUpdateResponse { ErrorMsg = "Invalid Refund Pin", Flag = false });
+                    }
+
+                    var user = await _context.TblUsers.FirstOrDefaultAsync(u => u.Id == request.UserId);
+                    if (user != null)
+                    {
+                        var lastBalance = await _context.Tbluserbalances
+                            .Where(b => b.UserId == request.UserId)
+                            .OrderByDescending(b => b.Id)
+                            .Select(b => b.NewBal)
+                            .FirstOrDefaultAsync();
+
+                        decimal oldBal = (decimal)lastBalance;
+                        decimal newBal = oldBal + request.Amount;
+
+                        var walletTxn = new Tbluserbalance
+                        {
+                            TxnAmount = request.TxnAmount,
+                            SurCom = 0,
+                            Tds = 0,
+                            UserId = request.UserId,
+                            UserName = request.UserName,
+                            OldBal = oldBal,
+                            Amount = request.Amount,
+                            NewBal = newBal,
+                            TxnType = request.ServiceName,
+                            CrdrType = "Credit",
+                            Remarks = $"Reverse Amount Credit For {request.ServiceName}",
+                            WlId = user.Wlid,
+                            Txndate = DateTime.UtcNow
+                        };
+
+                        await _context.Tbluserbalances.AddAsync(walletTxn);
+                        await _context.SaveChangesAsync();
+                    }
+                }
+
+                await dbTxn.CommitAsync();
+                if (string.Equals(request.Status?.Trim(), "REFUND", StringComparison.OrdinalIgnoreCase))
+                {
+                    return (new TxnUpdateResponse { ErrorMsg = "Refund has been initiated Successfully", Flag = true });
+                }
+                return (new TxnUpdateResponse { ErrorMsg = "Transaction Details Updated Successfully", Flag = true });
+            }
+            catch (Exception ex)
+            {
+                await dbTxn.RollbackAsync();
+                return new TxnUpdateResponse { ErrorMsg = "Internal Server Error", Flag = false };
+            }
+        }
+
+
 
 
     }

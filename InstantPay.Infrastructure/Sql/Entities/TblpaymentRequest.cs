@@ -1,39 +1,46 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace InstantPay.Infrastructure.Sql.Entities;
 
-public partial class TblpaymentRequest
+[Table("TblPaymentRequest")]
+public class TblPaymentRequest
 {
-    public int Id { get; set; }
+    [Key]
+    public Guid PaymentId { get; set; } = Guid.NewGuid();
 
-    public string UserId { get; set; } = null!;
+    [Required]
+    public Guid BankId { get; set; }
 
-    public string? UserName { get; set; }
+    [Required]
+    public int UserId { get; set; }
 
-    public string? BankName { get; set; }
+    [Column(TypeName = "decimal(16,2)")]
+    public decimal Amount { get; set; }
 
-    public string? BankId { get; set; }
+    [Required, MaxLength(20)]
+    public string TxnId { get; set; }
 
-    public decimal? Amount { get; set; }
+    [Required, MaxLength(10)]
+    public string DeposideMode { get; set; }
 
-    public decimal? Charge { get; set; }
+    [MaxLength(50)]
+    public string TxnSlipFileName { get; set; }
 
-    public decimal? TransferAmount { get; set; }
+    [MaxLength(100)]
+    public string TxnSlipPath { get; set; }
 
-    public string? TxnId { get; set; }
+    [MaxLength(20)]
+    public string Status { get; set; }
 
-    public string? DepositMode { get; set; }
+    [MaxLength(250)]
+    public string AdminRemarks { get; set; }
 
-    public string? TxnSlip { get; set; }
-
-    public string? Status { get; set; }
-
-    public DateTime? Reqdate { get; set; }
-
-    public DateTime? Updatedate { get; set; }
-
-    public string? AminRemarks { get; set; }
-
-    public string? Usertype { get; set; }
+    public int CreatedBy { get; set; }
+    public DateTime CreatedOn { get; set; } = DateTime.UtcNow;
+    public int? ModifiedBy { get; set; }
+    public DateTime? ModifiedOn { get; set; }
+    public bool IsDeleted { get; set; } = false;
 }

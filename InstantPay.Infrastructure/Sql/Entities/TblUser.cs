@@ -40,7 +40,7 @@ public partial class TblUser
 
     public string? AadharBack { get; set; }
 
-    public string? Recharge { get; set; }
+    public string? MobileRecharge { get; set; }
 
     public string? MoneyTransfer { get; set; }
 

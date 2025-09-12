@@ -88,6 +88,7 @@ builder.Services.AddCors(options =>
         .AllowAnyMethod();
     });
 });
+builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(Program).Assembly));
 builder.Services.AddHttpClient();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
@@ -102,6 +103,9 @@ builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddScoped<IClientOperation, ClientOperation>();
 builder.Services.AddScoped<IClientUserOperation, ClientUserOperation>();
 builder.Services.AddScoped<ISlabReadRepository, SlabReadRepository>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<IServiceService, ServicesService>();
+builder.Services.AddScoped<IBankRepository, BankService>();
 builder.Services.AddScoped<IFileHandler>(provider =>
 {
     var env = provider.GetRequiredService<IWebHostEnvironment>();

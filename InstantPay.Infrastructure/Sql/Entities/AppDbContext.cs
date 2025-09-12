@@ -1,6 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using InstantPay.SharedKernel.Entity;
 using Microsoft.EntityFrameworkCore;
+using System;
+using System.Collections.Generic;
 
 namespace InstantPay.Infrastructure.Sql.Entities;
 
@@ -67,7 +68,7 @@ public partial class AppDbContext : DbContext
 
     public virtual DbSet<Tbloperator> Tbloperators { get; set; }
 
-    public virtual DbSet<TblpaymentRequest> TblpaymentRequests { get; set; }
+    public virtual DbSet<TblPaymentRequest> TblPaymentRequest { get; set; }
 
     public virtual DbSet<Tblpaymentcharge> Tblpaymentcharges { get; set; }
 
@@ -82,6 +83,10 @@ public partial class AppDbContext : DbContext
     public virtual DbSet<Tbluserbalance> Tbluserbalances { get; set; }
 
     public virtual DbSet<TransactionDetail> TransactionDetails { get; set; }
+
+    public DbSet<Notification> Notifications { get; set; }
+    public DbSet<BankMaster> BankMaster { get; set; }
+
 
     public async Task BeginTransactionAsync()
     {
@@ -512,7 +517,7 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.PlanId)
                 .HasMaxLength(255)
                 .IsUnicode(false);
-            entity.Property(e => e.Recharge)
+            entity.Property(e => e.MobileRecharge)
                 .HasMaxLength(255)
                 .IsUnicode(false);
             entity.Property(e => e.RegDate).HasColumnType("datetime");
@@ -1137,46 +1142,7 @@ public partial class AppDbContext : DbContext
                 .HasColumnName("WLShare");
         });
 
-        modelBuilder.Entity<TblpaymentRequest>(entity =>
-        {
-            entity.ToTable("tblpaymentRequest", "dbo");
-
-            entity.Property(e => e.AminRemarks).IsUnicode(false);
-            entity.Property(e => e.Amount).HasColumnType("decimal(18, 2)");
-            entity.Property(e => e.BankId)
-                .HasMaxLength(255)
-                .IsUnicode(false);
-            entity.Property(e => e.BankName)
-                .HasMaxLength(255)
-                .IsUnicode(false);
-            entity.Property(e => e.Charge).HasColumnType("decimal(18, 2)");
-            entity.Property(e => e.DepositMode)
-                .HasMaxLength(255)
-                .IsUnicode(false);
-            entity.Property(e => e.Reqdate)
-                .HasColumnType("datetime")
-                .HasColumnName("reqdate");
-            entity.Property(e => e.Status)
-                .HasMaxLength(255)
-                .IsUnicode(false);
-            entity.Property(e => e.TransferAmount).HasColumnType("decimal(18, 2)");
-            entity.Property(e => e.TxnId)
-                .HasMaxLength(255)
-                .IsUnicode(false);
-            entity.Property(e => e.TxnSlip)
-                .HasMaxLength(255)
-                .IsUnicode(false);
-            entity.Property(e => e.Updatedate).HasColumnType("datetime");
-            entity.Property(e => e.UserId)
-                .HasMaxLength(255)
-                .IsUnicode(false);
-            entity.Property(e => e.UserName)
-                .HasMaxLength(255)
-                .IsUnicode(false);
-            entity.Property(e => e.Usertype)
-                .HasMaxLength(255)
-                .IsUnicode(false);
-        });
+        
 
         modelBuilder.Entity<Tblpaymentcharge>(entity =>
         {
@@ -1451,6 +1417,21 @@ public partial class AppDbContext : DbContext
                .HasMaxLength(255)
                .IsUnicode(false)
                .HasColumnName("ServiceId");
+        });
+
+        modelBuilder.Entity<Notification>()
+               .Property(n => n.CreatedAt)
+               .HasDefaultValueSql("GETDATE()");
+
+        modelBuilder.Entity<Notification>()
+            .Property(n => n.UpdatedAt)
+            .HasDefaultValueSql("GETDATE()");
+
+        modelBuilder.Entity<BankMaster>(entity =>
+        {
+            entity.HasIndex(e => e.BankName)
+                  .IsUnique()
+                  .HasFilter("[IsDeleted] = 0"); // Prevent duplicate active names
         });
 
         OnModelCreatingPartial(modelBuilder);

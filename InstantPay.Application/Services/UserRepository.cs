@@ -200,7 +200,7 @@ namespace InstantPay.Application.Services
                     microatm = tblUser.MicroAtm,
                     moneytransfer = tblUser.MoneyTransfer,
                     billpayment = tblUser.BillPayment,
-                    recharge = tblUser.Recharge
+                    mobilerecharge = tblUser.MobileRecharge
                 };
 
                 return servData;
