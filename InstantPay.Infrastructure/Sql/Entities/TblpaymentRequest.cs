@@ -29,17 +29,17 @@ public class TblPaymentRequest
     [MaxLength(50)]
     public string TxnSlipFileName { get; set; }
 
-    [MaxLength(100)]
+    [MaxLength(500)]
     public string TxnSlipPath { get; set; }
 
     [MaxLength(20)]
     public string Status { get; set; }
 
     [MaxLength(250)]
-    public string AdminRemarks { get; set; }
+    public string? AdminRemarks { get; set; }
 
     public int CreatedBy { get; set; }
-    public DateTime CreatedOn { get; set; } = DateTime.UtcNow;
+    public DateTime? CreatedOn { get; set; } 
     public int? ModifiedBy { get; set; }
     public DateTime? ModifiedOn { get; set; }
     public bool IsDeleted { get; set; } = false;

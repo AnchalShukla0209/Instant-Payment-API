@@ -31,6 +31,7 @@ namespace InstantPay.Application.Services
             using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable);
 
             var user = await _context.TblUsers.FindAsync(request.UserId);
+            string UserName = user.Name + "-" + user.Phone;
             if (user == null)
                 return new ResponseSuccess
                 {
@@ -86,7 +87,7 @@ namespace InstantPay.Application.Services
             _context.Tbluserbalances.Add(new Tbluserbalance
             {
                 UserId = request.UserId,
-                UserName = user.Name,
+                UserName = UserName,
                 OldBal = currentBalance,
                 Amount = request.Amount,
                 NewBal = newBalance,
@@ -151,7 +152,7 @@ namespace InstantPay.Application.Services
                 _context.Tbluserbalances.Add(new Tbluserbalance
                 {
                     UserId = request.UserId,
-                    UserName = user.Name,
+                    UserName = UserName,
                     OldBal = newBalance,
                     Amount = request.Amount,
                     NewBal = currentBalance,
@@ -168,7 +169,7 @@ namespace InstantPay.Application.Services
             _context.TransactionDetails.Add(new TransactionDetail
             {
                 UserId = Convert.ToString(request.UserId),
-                UserName = user.Name,
+                UserName = UserName,
                 WlId = "1",
                 MdId = "0",
                 AdId = "0",

@@ -11,7 +11,7 @@ namespace InstantPay.API.Controller
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
+    //[Authorize]
     public class MasterController : ControllerBase
     {
         private readonly IMasterService _masterService;
@@ -25,22 +25,62 @@ namespace InstantPay.API.Controller
         [HttpPost("GetSuperAdminDashboardData")]
         public async Task<IActionResult> GetSuperAdminDashboardData(EncryptedRequest request)
         {
-            var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == "userid");
-            var usernameclaim = User.Claims.FirstOrDefault(c => c.Type == "username");
-            if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+            var userId = Request.Headers["userid"].FirstOrDefault();
+            var username = Request.Headers["username"].FirstOrDefault();
+
+            if (string.IsNullOrWhiteSpace(userId) || !int.TryParse(userId, out int uid))
             {
-                return Unauthorized(new { message = "Invalid token or user ID." });
+                return Unauthorized(new { message = "Invalid or missing userId" });
             }
-            if (usernameclaim == null || string.IsNullOrWhiteSpace(usernameclaim.Value))
+
+            if (string.IsNullOrWhiteSpace(username))
             {
-                return Unauthorized(new { message = "Invalid token or user ID." });
+                return Unauthorized(new { message = "Invalid or missing username" });
             }
             var decryptedJson = _aes.Decrypt(request.Data);
             var data = JsonSerializer.Deserialize<Superadmindashboardpayload>(decryptedJson);
-            var result = await _masterService.GetSuperAdminDashboardData(data.ServiceId, userId, usernameclaim.Value, (int)data.Year);
+            var result = await _masterService.GetSuperAdminDashboardData(data.ServiceId, uid, username, (int)data.Year);
             var json = JsonSerializer.Serialize(result);
             var encrypted = _aes.Encrypt(json);
             return Ok(new { data = encrypted });
+        }
+
+        [HttpPost("MasterUserDataForDD")]
+        public async Task<IActionResult> GetUserMasterUserDataForDD( string Mode="")
+        {
+            var userId = Request.Headers["userid"].FirstOrDefault();
+            var username = Request.Headers["username"].FirstOrDefault();
+
+            if (string.IsNullOrWhiteSpace(userId) || !int.TryParse(userId, out int uid))
+            {
+                return Unauthorized(new { message = "Invalid or missing userId" });
+            }
+
+            if (string.IsNullOrWhiteSpace(username))
+            {
+                return Unauthorized(new { message = "Invalid or missing username" });
+            }
+            var result = await _masterService.GetUserMasterDD(Mode);
+            return Ok(result);
+        }
+
+        [HttpPost("CheckServiceStatus")]
+        public async Task<IActionResult> CheckServiceStatus(string Mode = "", int UserId=0)
+        {
+            var userId = Request.Headers["userid"].FirstOrDefault();
+            var username = Request.Headers["username"].FirstOrDefault();
+
+            if (string.IsNullOrWhiteSpace(userId) || !int.TryParse(userId, out int uid))
+            {
+                return Unauthorized(new { message = "Invalid or missing userId" });
+            }
+
+            if (string.IsNullOrWhiteSpace(username))
+            {
+                return Unauthorized(new { message = "Invalid or missing username" });
+            }
+            var result = await _masterService.GetServiceStatus(Mode,UserId);
+            return Ok(result);
         }
 
     }

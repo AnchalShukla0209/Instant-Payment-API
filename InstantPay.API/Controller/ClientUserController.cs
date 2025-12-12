@@ -10,7 +10,7 @@ using System.Text.Json;
 
 namespace InstantPay.API.Controller
 {
-    [Authorize]
+    //[Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class ClientUserController : ControllerBase
@@ -26,15 +26,17 @@ namespace InstantPay.API.Controller
         [HttpPost("Client-Report")]
         public async Task<IActionResult> ClientReport(EncryptedRequest request)
         {
-            var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == "userid");
-            var usernameclaim = User.Claims.FirstOrDefault(c => c.Type == "username");
-            if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+            var userId = Request.Headers["userid"].FirstOrDefault();
+            var username = Request.Headers["username"].FirstOrDefault();
+
+            if (string.IsNullOrWhiteSpace(userId) || !int.TryParse(userId, out int uid))
             {
-                return Unauthorized(new { message = "Invalid token or user ID." });
+                return Unauthorized(new { message = "Invalid or missing userId" });
             }
-            if (usernameclaim == null || string.IsNullOrWhiteSpace(usernameclaim.Value))
+
+            if (string.IsNullOrWhiteSpace(username))
             {
-                return Unauthorized(new { message = "Invalid token or user ID." });
+                return Unauthorized(new { message = "Invalid or missing username" });
             }
             var decryptedJson = _aes.Decrypt(request.Data);
             var data = JsonSerializer.Deserialize<GetClientUserQuery>(decryptedJson);
@@ -79,15 +81,17 @@ namespace InstantPay.API.Controller
         [HttpPost("wallet-transaction")]
         public async Task<IActionResult> WalletTransaction([FromBody] WalletTransactionRequest request)
         {
-            var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == "userid");
-            var usernameclaim = User.Claims.FirstOrDefault(c => c.Type == "username");
-            if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+            var userId = Request.Headers["userid"].FirstOrDefault();
+            var username = Request.Headers["username"].FirstOrDefault();
+
+            if (string.IsNullOrWhiteSpace(userId) || !int.TryParse(userId, out int uid))
             {
-                return Unauthorized(new { message = "Invalid token or user ID." });
+                return Unauthorized(new { message = "Invalid or missing userId" });
             }
-            if (usernameclaim == null || string.IsNullOrWhiteSpace(usernameclaim.Value))
+
+            if (string.IsNullOrWhiteSpace(username))
             {
-                return Unauthorized(new { message = "Invalid token or user ID." });
+                return Unauthorized(new { message = "Invalid or missing username" });
             }
             var response = await _reportservice.AddWalletToClientUser(request);
             return Ok(response);

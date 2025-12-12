@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace InstantPay.API.Controller
 {
-    [Authorize]
+    //[Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class PaymentController : ControllerBase
@@ -21,88 +21,187 @@ namespace InstantPay.API.Controller
         [HttpPost]
         public async Task<IActionResult> Create([FromForm] PaymentRequestDto request)
         {
-            var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == "userid");
-            var usernameclaim = User.Claims.FirstOrDefault(c => c.Type == "username");
-            if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+            try
             {
-                return Unauthorized(new { message = "Invalid token or user ID." });
-            }
-            if (usernameclaim == null || string.IsNullOrWhiteSpace(usernameclaim.Value))
-            {
-                return Unauthorized(new { message = "Invalid token or user ID." });
-            }
+                var userId = Request.Headers["userid"].FirstOrDefault();
+                var username = Request.Headers["username"].FirstOrDefault();
 
-            var id = await _paymentService.CreatePaymentRequestAsync(request, userId);
-            return CreatedAtAction(nameof(GetById), new { id }, new { PaymentId = id });
+                if (string.IsNullOrWhiteSpace(userId) || !int.TryParse(userId, out int uid))
+                {
+                    return Unauthorized(new { message = "Invalid or missing userId" });
+                }
+
+                if (string.IsNullOrWhiteSpace(username))
+                {
+                    return Unauthorized(new { message = "Invalid or missing username" });
+                }
+
+                var id = await _paymentService.CreatePaymentRequestAsync(request, uid);
+                return Ok(id);
+            }
+            catch (ArgumentException ae)
+            {
+                return BadRequest(new { Success = false, Message = ae.Message });
+            }
+            catch (IOException ex)
+            {
+
+                return BadRequest(new { Success = false, Message = ex.Message });
+            }
+            catch (Exception ae)
+            {
+                return BadRequest(new { Success = false, Message = ae.Message });
+            }
+            
         }
 
         [HttpPut]
         public async Task<IActionResult> Update([FromBody] PaymentUpdateDto request)
         {
-            var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == "userid");
-            var usernameclaim = User.Claims.FirstOrDefault(c => c.Type == "username");
-            if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+            try
             {
-                return Unauthorized(new { message = "Invalid token or user ID." });
+                var userId = Request.Headers["userid"].FirstOrDefault();
+                var username = Request.Headers["username"].FirstOrDefault();
+
+                if (string.IsNullOrWhiteSpace(userId) || !int.TryParse(userId, out int uid))
+                {
+                    return Unauthorized(new { message = "Invalid or missing userId" });
+                }
+
+                if (string.IsNullOrWhiteSpace(username))
+                {
+                    return Unauthorized(new { message = "Invalid or missing username" });
+                }
+                await _paymentService.UpdatePaymentAsync(request);
+                return NoContent();
             }
-            if (usernameclaim == null || string.IsNullOrWhiteSpace(usernameclaim.Value))
+            catch (ArgumentException ae)
             {
-                return Unauthorized(new { message = "Invalid token or user ID." });
+                return BadRequest(new { Success = false, Message = ae.Message });
             }
-            await _paymentService.UpdatePaymentAsync(request);
-            return NoContent();
+            catch (IOException ex)
+            {
+
+                return BadRequest(new { Success = false, Message = ex.Message });
+            }
+            catch (Exception ae)
+            {
+                return BadRequest(new { Success = false, Message = ae.Message });
+            }
         }
 
         [HttpGet]
         public async Task<IActionResult> GetAll([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10,
             [FromQuery] string status = null, [FromQuery] DateTime? fromDate = null, [FromQuery] DateTime? toDate = null)
         {
-            var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == "userid");
-            var usernameclaim = User.Claims.FirstOrDefault(c => c.Type == "username");
-            if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+            try
             {
-                return Unauthorized(new { message = "Invalid token or user ID." });
+                var userId = Request.Headers["userid"].FirstOrDefault();
+                var username = Request.Headers["username"].FirstOrDefault();
+
+                if (string.IsNullOrWhiteSpace(userId) || !int.TryParse(userId, out int uid))
+                {
+                    return Unauthorized(new { message = "Invalid or missing userId" });
+                }
+
+                if (string.IsNullOrWhiteSpace(username))
+                {
+                    return Unauthorized(new { message = "Invalid or missing username" });
+                }
+                var result = await _paymentService.GetAllPaymentsAsync(pageNumber, pageSize, status, fromDate, toDate);
+                return Ok(new { result.Payments, result.TotalCount });
             }
-            if (usernameclaim == null || string.IsNullOrWhiteSpace(usernameclaim.Value))
+            catch (ArgumentException ae)
             {
-                return Unauthorized(new { message = "Invalid token or user ID." });
+                return BadRequest(new { Success = false, Message = ae.Message });
             }
-            var result = await _paymentService.GetAllPaymentsAsync(pageNumber, pageSize, status, fromDate, toDate);
-            return Ok(new { result.Payments, result.TotalCount });
+            catch (IOException ex)
+            {
+
+                return BadRequest(new { Success = false, Message = ex.Message });
+            }
+            catch (Exception ae)
+            {
+                return BadRequest(new { Success = false, Message = ae.Message });
+            }
         }
 
         [HttpGet("download/{id}")]
         public async Task<IActionResult> Download(Guid id)
         {
-            var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == "userid");
-            var usernameclaim = User.Claims.FirstOrDefault(c => c.Type == "username");
-            if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+            try
             {
-                return Unauthorized(new { message = "Invalid token or user ID." });
+                var userId = Request.Headers["userid"].FirstOrDefault();
+                var username = Request.Headers["username"].FirstOrDefault();
+
+                if (string.IsNullOrWhiteSpace(userId) || !int.TryParse(userId, out int uid))
+                {
+                    return Unauthorized(new { message = "Invalid or missing userId" });
+                }
+
+                if (string.IsNullOrWhiteSpace(username))
+                {
+                    return Unauthorized(new { message = "Invalid or missing username" });
+                }
+                var file = await _paymentService.DownloadTxnSlipAsync(id);
+                return File(file.FileContent, file.ContentType, file.FileName);
             }
-            if (usernameclaim == null || string.IsNullOrWhiteSpace(usernameclaim.Value))
+            catch (FileNotFoundException ex)
             {
-                return Unauthorized(new { message = "Invalid token or user ID." });
+
+                return BadRequest(new { Success = false, Message = ex.Message });
             }
-            var file = await _paymentService.DownloadTxnSlipAsync(id);
-            return File(file.FileContent, file.ContentType, file.FileName);
+
+            catch (ArgumentException ae)
+            {
+                return BadRequest(new { Success = false, Message = ae.Message });
+            }
+            catch (IOException ex)
+            {
+
+                return BadRequest(new { Success = false, Message = ex.Message });
+            }
+           
+            catch (Exception ae)
+            {
+                return BadRequest(new { Success = false, Message = ae.Message });
+            }
+
         }
 
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(Guid id)
         {
-            var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == "userid");
-            var usernameclaim = User.Claims.FirstOrDefault(c => c.Type == "username");
-            if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+            try
             {
-                return Unauthorized(new { message = "Invalid token or user ID." });
+                var userId = Request.Headers["userid"].FirstOrDefault();
+                var username = Request.Headers["username"].FirstOrDefault();
+
+                if (string.IsNullOrWhiteSpace(userId) || !int.TryParse(userId, out int uid))
+                {
+                    return Unauthorized(new { message = "Invalid or missing userId" });
+                }
+
+                if (string.IsNullOrWhiteSpace(username))
+                {
+                    return Unauthorized(new { message = "Invalid or missing username" });
+                }
+                var result = await _paymentService.GetPaymentByIdAsync(id);
+                return Ok(result);
             }
-            if (usernameclaim == null || string.IsNullOrWhiteSpace(usernameclaim.Value))
+            catch (ArgumentException ae)
             {
-                return Unauthorized(new { message = "Invalid token or user ID." });
+                return BadRequest(new { Success = false, Message = ae.Message });
             }
-            var result = await _paymentService.DownloadTxnSlipAsync(id);
-            return Ok(result);
+            catch (IOException ex)
+            {
+
+                return BadRequest(new { Success = false, Message = ex.Message });
+            }
+            catch (Exception ae)
+            {
+                return BadRequest(new { Success = false, Message = ae.Message });
+            }
         }
 
 

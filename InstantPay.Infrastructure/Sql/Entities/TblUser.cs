@@ -40,6 +40,7 @@ public partial class TblUser
 
     public string? AadharBack { get; set; }
 
+    [Column("Recharge")]
     public string? MobileRecharge { get; set; }
 
     public string? MoneyTransfer { get; set; }
@@ -87,6 +88,7 @@ public partial class TblUser
     public string? ShipZipcode { get; set; }
 
     public string? Latlongstatus { get; set; }
+    public string? MPin { get; set; }
 
     
 }

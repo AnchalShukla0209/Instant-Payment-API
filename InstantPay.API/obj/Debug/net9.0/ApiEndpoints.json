@@ -1,5 +1,247 @@
 [
   {
+    "ContainingType": "InstantPay.API.Controller.AEPSController",
+    "Method": "ExecuteAsync",
+    "RelativePath": "api/AEPS/AgentEKYC",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "InstantPay.SharedKernel.RequestPayload.AgentEKYCRequestDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InstantPay.API.Controller.AEPSController",
+    "Method": "AgentStatus",
+    "RelativePath": "api/AEPS/agentstatus",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "agentId",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "mob",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "aadharnumber",
+        "Type": "System.String",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InstantPay.API.Controller.AEPSController",
+    "Method": "CheckAgentDailyLogin",
+    "RelativePath": "api/AEPS/CheckAgentDailyLogin",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InstantPay.API.Controller.AEPSController",
+    "Method": "CreateAgent",
+    "RelativePath": "api/AEPS/createAgent",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "InstantPay.SharedKernel.RequestPayload.CreateAgentRequestDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InstantPay.API.Controller.AEPSController",
+    "Method": "JPBBalanceEnquiry",
+    "RelativePath": "api/AEPS/JPBBalanceEnquiry",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "InstantPay.SharedKernel.RequestPayload.BalanceInquiryRequestDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InstantPay.API.Controller.AEPSController",
+    "Method": "JPBCashWithdrawal",
+    "RelativePath": "api/AEPS/JPBCashWithdrawal",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "InstantPay.SharedKernel.RequestPayload.CashWithdrawalRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InstantPay.API.Controller.AEPSController",
+    "Method": "JPBMiniStatement",
+    "RelativePath": "api/AEPS/JPBMiniStatement",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "InstantPay.SharedKernel.RequestPayload.MiniStatementRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InstantPay.API.Controller.AuthController",
+    "Method": "Unlock",
+    "RelativePath": "api/Auth/unlock",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "InstantPay.SharedKernel.Entity.UnlockRequestDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InstantPay.API.Controller.BankController",
+    "Method": "GetAll",
+    "RelativePath": "api/Bank",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "pageNumber",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "pageSize",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InstantPay.API.Controller.BankController",
+    "Method": "Create",
+    "RelativePath": "api/Bank",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "bank",
+        "Type": "InstantPay.SharedKernel.Entity.BankDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InstantPay.API.Controller.BankController",
+    "Method": "GetById",
+    "RelativePath": "api/Bank/{id}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Guid",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InstantPay.API.Controller.BankController",
+    "Method": "Update",
+    "RelativePath": "api/Bank/{id}",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Guid",
+        "IsRequired": true
+      },
+      {
+        "Name": "bank",
+        "Type": "InstantPay.SharedKernel.Entity.BankDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InstantPay.API.Controller.BankController",
+    "Method": "Delete",
+    "RelativePath": "api/Bank/{id}",
+    "HttpMethod": "DELETE",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Guid",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InstantPay.API.Controller.BankController",
+    "Method": "GetAllActive",
+    "RelativePath": "api/Bank/active",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InstantPay.API.Controller.BankController",
+    "Method": "GetBankDropdown",
+    "RelativePath": "api/Bank/BankListForJPB",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
     "ContainingType": "InstantPay.API.Controller.ClientController",
     "Method": "ClientReport",
     "RelativePath": "api/Client/Client-Report",
@@ -420,6 +662,11 @@
         "IsRequired": false
       },
       {
+        "Name": "MPin",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
         "Name": "PancopyFile",
         "Type": "Microsoft.AspNetCore.Http.IFormFile",
         "IsRequired": false
@@ -490,6 +737,27 @@
     "ReturnTypes": []
   },
   {
+    "ContainingType": "InstantPay.API.Controller.DashboardController",
+    "Method": "GetUserBalance",
+    "RelativePath": "api/Dashboard/GetWalletBalance",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "UserId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "UserName",
+        "Type": "System.String",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
     "ContainingType": "InstantPay.API.Controller.LoginController",
     "Method": "Login",
     "RelativePath": "api/Login",
@@ -555,6 +823,27 @@
   },
   {
     "ContainingType": "InstantPay.API.Controller.MasterController",
+    "Method": "CheckServiceStatus",
+    "RelativePath": "api/Master/CheckServiceStatus",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "Mode",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "UserId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InstantPay.API.Controller.MasterController",
     "Method": "GetSuperAdminDashboardData",
     "RelativePath": "api/Master/GetSuperAdminDashboardData",
     "HttpMethod": "POST",
@@ -565,6 +854,22 @@
         "Name": "request",
         "Type": "InstantPay.Application.DTOs.EncryptedRequest",
         "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InstantPay.API.Controller.MasterController",
+    "Method": "GetUserMasterUserDataForDD",
+    "RelativePath": "api/Master/MasterUserDataForDD",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "Mode",
+        "Type": "System.String",
+        "IsRequired": false
       }
     ],
     "ReturnTypes": []
@@ -660,6 +965,131 @@
     "ReturnTypes": []
   },
   {
+    "ContainingType": "InstantPay.API.Controller.PaymentController",
+    "Method": "Create",
+    "RelativePath": "api/Payment",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "BankId",
+        "Type": "System.Guid",
+        "IsRequired": false
+      },
+      {
+        "Name": "UserId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "Amount",
+        "Type": "System.Decimal",
+        "IsRequired": false
+      },
+      {
+        "Name": "TxnId",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "DeposideMode",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "TxnSlip",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InstantPay.API.Controller.PaymentController",
+    "Method": "Update",
+    "RelativePath": "api/Payment",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "InstantPay.SharedKernel.Entity.PaymentUpdateDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InstantPay.API.Controller.PaymentController",
+    "Method": "GetAll",
+    "RelativePath": "api/Payment",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "pageNumber",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "pageSize",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "status",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "fromDate",
+        "Type": "System.Nullable\u00601[[System.DateTime, System.Private.CoreLib, Version=9.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      },
+      {
+        "Name": "toDate",
+        "Type": "System.Nullable\u00601[[System.DateTime, System.Private.CoreLib, Version=9.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InstantPay.API.Controller.PaymentController",
+    "Method": "GetById",
+    "RelativePath": "api/Payment/{id}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Guid",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InstantPay.API.Controller.PaymentController",
+    "Method": "Download",
+    "RelativePath": "api/Payment/download/{id}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Guid",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
     "ContainingType": "InstantPay.API.Controller.RechargeController",
     "Method": "SubmitRecharge",
     "RelativePath": "api/Recharge/submit",
@@ -686,6 +1116,22 @@
       {
         "Name": "request",
         "Type": "InstantPay.SharedKernel.Entity.TxnRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InstantPay.API.Controller.ReportController",
+    "Method": "GetUserTransactionReportAsync",
+    "RelativePath": "api/Report/GetUserTransactionReportAsync",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "InstantPay.Application.DTOs.EncryptedRequest",
         "IsRequired": true
       }
     ],

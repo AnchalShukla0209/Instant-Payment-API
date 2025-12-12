@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace InstantPay.Infrastructure.Sql.Entities;
 
+[Table("tbluserbalance")]
 public partial class Tbluserbalance
 {
     public int Id { get; set; }
@@ -29,6 +31,7 @@ public partial class Tbluserbalance
 
     public decimal? TxnAmount { get; set; }
 
+    [Column("Sur_Com")]
     public decimal? SurCom { get; set; }
 
     public decimal? Tds { get; set; }

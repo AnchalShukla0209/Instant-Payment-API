@@ -4,6 +4,9 @@ C:\Instant Projects\Instant-Payment-API\publish\InstantPay.Infrastructure.pdb
 C:\Instant Projects\Instant-Payment-API\publish\Azure.Core.dll
 C:\Instant Projects\Instant-Payment-API\publish\Azure.Identity.dll
 C:\Instant Projects\Instant-Payment-API\publish\DnsClient.dll
+C:\Instant Projects\Instant-Payment-API\publish\MediatR.dll
+C:\Instant Projects\Instant-Payment-API\publish\MediatR.Contracts.dll
+C:\Instant Projects\Instant-Payment-API\publish\MediatR.Extensions.Microsoft.DependencyInjection.dll
 C:\Instant Projects\Instant-Payment-API\publish\Microsoft.AspNetCore.Http.Features.dll
 C:\Instant Projects\Instant-Payment-API\publish\Microsoft.Bcl.AsyncInterfaces.dll
 C:\Instant Projects\Instant-Payment-API\publish\Microsoft.Data.SqlClient.dll
@@ -32,6 +35,7 @@ C:\Instant Projects\Instant-Payment-API\publish\Microsoft.SqlServer.Server.dll
 C:\Instant Projects\Instant-Payment-API\publish\Microsoft.Win32.SystemEvents.dll
 C:\Instant Projects\Instant-Payment-API\publish\MongoDB.Bson.dll
 C:\Instant Projects\Instant-Payment-API\publish\MongoDB.Driver.dll
+C:\Instant Projects\Instant-Payment-API\publish\Newtonsoft.Json.dll
 C:\Instant Projects\Instant-Payment-API\publish\SharpCompress.dll
 C:\Instant Projects\Instant-Payment-API\publish\Snappier.dll
 C:\Instant Projects\Instant-Payment-API\publish\System.ClientModel.dll

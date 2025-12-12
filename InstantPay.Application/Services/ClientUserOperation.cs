@@ -96,7 +96,8 @@ namespace InstantPay.Application.Services
                          : string.Empty,
                      ADName = t2 != null ? t2.Name : "NA",
                      MDName = t3 != null ? t3.Name : "NA",
-                     CreatedDate = t1.RegDate
+                     CreatedDate = t1.RegDate,
+                     MPin = t1.MPin,
                  })
                 .Skip((request.pageIndex - 1) * request.pageSize)
                 .Take(request.pageSize)
@@ -197,7 +198,8 @@ namespace InstantPay.Application.Services
                     DeviceInfo = "",
                     DeviceId = "",
                     Lat = request.lat,
-                    Longitute = request.longitute
+                    Longitute = request.longitute,
+                    MPin = _aes.Encrypt(request.MPin)
 
                 };
 
@@ -264,6 +266,7 @@ namespace InstantPay.Application.Services
                 client.DeviceId = "";
                 client.Lat = request.lat;
                 client.Longitute = request.longitute;
+                client.MPin = _aes.Encrypt(request.MPin);
 
 
 
@@ -376,8 +379,9 @@ namespace InstantPay.Application.Services
             Status = t1.Status,
             RegDate = t1.RegDate,
             TxnPin = t1.TxnPin,
-            ClientId = t1.Id
-            
+            ClientId = t1.Id,
+            MPin = _aes.Decrypt(t1.MPin)
+
             }
             ).FirstOrDefaultAsync();
 
@@ -444,85 +448,96 @@ namespace InstantPay.Application.Services
 
         public async Task<WalletTransactionResponse> AddWalletToClientUser(WalletTransactionRequest request)
         {
-            var dto = request;
-            using var transaction = await _context.Database.BeginTransactionAsync();
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+
+            try
             {
-                try
+                // ✅ Step 1: Validate user
+                var user = await _context.TblUsers
+                    .Where(x => x.Id == request.UserId)
+                    .Select(x => new { x.Id, x.Username, x.Phone })
+                    .FirstOrDefaultAsync();
+
+                if (user is null)
                 {
-                    var user = await _context.TblUsers
-                        .Where(x => x.Id == dto.UserId)
-                        .Select(x => new { x.Id, x.Username, x.Phone })
-                        .FirstOrDefaultAsync();
-
-                    if (user is null)
-                    {
-                        return new WalletTransactionResponse { ErrorMessage = "User not found.", IsSuccessful = false };
-                    }
-
-                    var admin = await _context.TblSuperadmins
-                        .Where(x => x.Id == dto.ActionById)
-                        .Select(x => x.TxnPin)
-                        .FirstOrDefaultAsync();
-
-                    if (admin is null)
-                    {
-                        return new WalletTransactionResponse { ErrorMessage = "Admin not found.", IsSuccessful = false };
-                    }
-
-                    if (!string.Equals(dto.TxnPin.Trim(), admin.Trim(), StringComparison.Ordinal))
-                    {
-                        return new WalletTransactionResponse { ErrorMessage = "Invalid Txn Pin", IsSuccessful = false };
-                    }
-
-                    var oldBalance = await _context.Tbluserbalances
-                        .Where(b => Convert.ToInt32(b.UserId) == dto.UserId && b.UserName.Trim().ToLower() == user.Username.Trim().ToLower())
-                        .OrderByDescending(b => b.Id)
-                        .Select(b => b.NewBal)
-                        .FirstOrDefaultAsync();
-
-                    var newBalance = dto.Status == WalletOperationStatus.Credit ? (oldBalance ?? 0) + dto.Amount : (oldBalance ?? 0) - dto.Amount;
-                    var txnType = dto.Status == WalletOperationStatus.Credit ? "WALLET TOPUP BY ADMIN" : "WALLET DEBIT BY ADMIN";
-                    var remarks = $"{txnType} For Account No {user.Phone} | {(dto.Status == WalletOperationStatus.Credit ? "Credit" : "Debit")} by Services | Wallet {(dto.Status == WalletOperationStatus.Credit ? "TopUp" : "Debit")} BY Admin Account";
-
-                    _context.Tbluserbalances.Add(new Tbluserbalance
-                    {
-                        TxnAmount = dto.Amount,
-                        SurCom = 0,
-                        Tds = 0,
-                        UserId = dto.UserId,
-                        UserName = user.Username,
-                        OldBal = oldBalance,
-                        Amount = dto.Amount,
-                        NewBal = newBalance,
-                        TxnType = txnType,
-                        CrdrType = dto.Status == WalletOperationStatus.Credit ? "Credit" : "Debit",
-                        Remarks = remarks,
-                        Txndate = DateTime.Now
-                    });
-
-                    await _context.SaveChangesAsync();
-                    await transaction.CommitAsync();
-                    return new WalletTransactionResponse
-                    {
-                        Username = user.Username,
-                        Oldbalance = Convert.ToString(oldBalance),
-                        NewBalance = Convert.ToString(newBalance),
-                        Amount = Convert.ToString(dto.Amount),
-                        TxnType = Convert.ToString(txnType),
-                        CrdrType = Convert.ToString(dto.Status == WalletOperationStatus.Credit ? "Credit" : "Debit"),
-                        Remarks = Convert.ToString(remarks),
-                        Txndate = DateTime.Now,
-                        ErrorMessage = dto.Status == WalletOperationStatus.Credit ? "Balance Credited Successfully" : "Balance Debited Successfully",
-                        IsSuccessful = true
-                    };
+                    return new WalletTransactionResponse { ErrorMessage = "User not found.", IsSuccessful = false };
                 }
-                catch (Exception ex)
+
+                // ✅ Step 2: Validate admin & TxnPin
+                var adminPin = await _context.TblSuperadmins
+                    .Where(x => x.Id == request.ActionById)
+                    .Select(x => x.TxnPin)
+                    .FirstOrDefaultAsync();
+
+                if (adminPin is null)
                 {
-                    await transaction.RollbackAsync();
-                    return new WalletTransactionResponse { ErrorMessage = ex.Message, IsSuccessful = false };
+                    return new WalletTransactionResponse { ErrorMessage = "Admin not found.", IsSuccessful = false };
                 }
+
+                if (!string.Equals(request.TxnPin?.Trim(), adminPin.Trim(), StringComparison.Ordinal))
+                {
+                    return new WalletTransactionResponse { ErrorMessage = "Invalid Txn Pin", IsSuccessful = false };
+                }
+
+                // ✅ Step 3: Get last balance
+                var oldBalance = await _context.Tbluserbalances
+                    .Where(b => b.UserId == request.UserId && b.UserName.ToLower() == user.Username.ToLower())
+                    .OrderByDescending(b => b.Id)
+                    .Select(b => b.NewBal)
+                    .FirstOrDefaultAsync() ?? 0m;
+
+                // ✅ Step 4: Compute new balance & transaction type
+                bool isCredit = request.Status == WalletOperationStatus.Credit;
+                var newBalance = isCredit ? oldBalance + request.Amount : oldBalance - request.Amount;
+
+                var txnType = isCredit ? "WALLET TOPUP BY ADMIN" : "WALLET DEBIT BY ADMIN";
+                var crdrType = isCredit ? "Credit" : "Debit";
+                var remarks = $"{txnType} For Account No {user.Phone} | {crdrType} by Services | Wallet {crdrType} BY Admin Account";
+
+                // ✅ Step 5: Insert transaction
+                var walletEntry = new Tbluserbalance
+                {
+                    TxnAmount = request.Amount,
+                    SurCom = 0,
+                    Tds = 0,
+                    UserId = request.UserId,
+                    UserName = user.Username,
+                    OldBal = oldBalance,
+                    Amount = request.Amount,
+                    NewBal = newBalance,
+                    TxnType = txnType,
+                    CrdrType = crdrType,
+                    Remarks = remarks,
+                    Txndate = DateTime.Now
+                };
+
+                _context.Tbluserbalances.Add(walletEntry);
+
+                // ✅ Save + Commit
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return new WalletTransactionResponse
+                {
+                    Username = user.Username,
+                    Oldbalance = oldBalance.ToString("F2"),
+                    NewBalance = newBalance.ToString("F2"),
+                    Amount = request.Amount.ToString("F2"),
+                    TxnType = txnType,
+                    CrdrType = crdrType,
+                    Remarks = remarks,
+                    Txndate = walletEntry.Txndate,
+                    ErrorMessage = isCredit ? "Balance Credited Successfully" : "Balance Debited Successfully",
+                    IsSuccessful = true
+                };
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return new WalletTransactionResponse { ErrorMessage = ex.Message, IsSuccessful = false };
             }
         }
+
 
     }
 }

@@ -14,6 +14,7 @@ namespace InstantPay.SharedKernel.Entity
         public int Id { get; set; }
         public string? TXN_ID { get; set; }
         public string? BankRefNo { get; set; }
+        public string? BRId { get; set; }
         public string? UserName { get; set; }
         public string? OperatorName { get; set; }
         public string? AccountNo { get; set; }
@@ -49,6 +50,18 @@ namespace InstantPay.SharedKernel.Entity
         public string? dateFrom { get; set; } = "";
         public string? dateTo { get; set; } = "";
         public int? userId { get; set; } = 0;
+        public int? pageIndex { get; set; } = 0;
+        public int? pageSize { get; set; } = 0;
+    }
+
+    public class TxnReportUserPayload
+    {
+        public string? serviceType { get; set; } = "";
+        public string? status { get; set; } = "";
+        public string? dateFrom { get; set; } = "";
+        public string? dateTo { get; set; } = "";
+        public int? userId { get; set; } = 0;
+        public string? userName { get; set; } = "";
         public int? pageIndex { get; set; } = 0;
         public int? pageSize { get; set; } = 0;
     }

@@ -14,5 +14,6 @@ namespace InstantPay.Application.Interfaces
         Task<(IEnumerable<PaymentResponseDto> Payments, int TotalCount)>
         GetAllPaymentsAsync(int pageNumber, int pageSize, string status, DateTime? fromDate, DateTime? toDate);
         Task<(byte[] FileContent, string FileName, string ContentType)> DownloadTxnSlipAsync(Guid paymentId);
+        Task<PaymentResponseDto> GetPaymentByIdAsync(Guid paymentId);
     }
 }

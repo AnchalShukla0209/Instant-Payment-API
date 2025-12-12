@@ -87,6 +87,11 @@ public partial class AppDbContext : DbContext
     public DbSet<Notification> Notifications { get; set; }
     public DbSet<BankMaster> BankMaster { get; set; }
 
+    public DbSet<JioPaymentAPILog> JioPaymentAPILogs { get; set; }
+    public DbSet<JPAgentDailyLogin> JPAgentDailyLogins { get; set; }
+    public DbSet<JPBBankMaster> JPBBankMasters { get; set; }
+    public DbSet<AgentInfoJPB> AgentInfoJPBs { get; set; }
+
 
     public async Task BeginTransactionAsync()
     {
@@ -95,15 +100,15 @@ public partial class AppDbContext : DbContext
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
 #warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
-        => optionsBuilder.UseSqlServer("Data Source=198.38.81.244,1232;Initial Catalog=Sbit_Aanchal;User ID=Sbit_Aanchal;Password=Aanchal@801076;MultipleActiveResultSets=True;TrustServerCertificate=True");
+        => optionsBuilder.UseSqlServer("Data Source=198.38.81.244,1232;Initial Catalog=InstantPayment_Db;User ID=InstantPayment_Db;Password=Chandan@1234;MultipleActiveResultSets=True;TrustServerCertificate=True");
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.HasDefaultSchema("Sbit_Aanchal");
+        modelBuilder.HasDefaultSchema("InstantPayment_Db");
 
         modelBuilder.Entity<Aepsbanklist>(entity =>
         {
-            entity.ToTable("aepsbanklist", "dbo");
+            entity.ToTable("aepsbanklist", "InstantPayment_Db");
 
             entity.Property(e => e.BankName)
                 .HasMaxLength(255)
@@ -115,6 +120,16 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.Status)
                 .HasMaxLength(255)
                 .IsUnicode(false);
+        });
+
+        modelBuilder.Entity<AgentInfoJPB>(eb =>
+        {
+            eb.ToTable("AgentInfoJPB", "InstantPayment_Db");
+            eb.HasKey(e => e.Id);
+            eb.Property(e => e.ApplicationNumber).HasMaxLength(100);
+            eb.Property(e => e.AgentRefNo).HasMaxLength(100);
+            eb.Property(e => e.Status).HasMaxLength(50);
+            eb.Property(e => e.UserType).HasMaxLength(20);
         });
 
         modelBuilder.Entity<AepsdailyLogin>(entity =>
@@ -134,7 +149,7 @@ public partial class AppDbContext : DbContext
 
         modelBuilder.Entity<Apilog>(entity =>
         {
-            entity.ToTable("apilogs", "dbo");
+            entity.ToTable("apilogs", "InstantPayment_Db");
 
             entity.Property(e => e.Apiname)
                 .HasMaxLength(255)
@@ -145,9 +160,37 @@ public partial class AppDbContext : DbContext
                 .HasColumnName("reqdatae");
         });
 
+        modelBuilder.Entity<JioPaymentAPILog>(eb =>
+        {
+            eb.ToTable("JioPaymentAPILogs", "InstantPayment_Db");
+            eb.HasKey(e => e.Id);
+            eb.Property(e => e.APIURL).HasMaxLength(200);
+            eb.Property(e => e.Method).HasMaxLength(100);
+            eb.Property(e => e.SuccessCode).HasMaxLength(10);
+            eb.Property(e => e.Service).HasMaxLength(100);
+            eb.Property(e => e.Mode).HasMaxLength(100);
+        });
+
+        modelBuilder.Entity<JPBBankMaster> (eb =>
+        {
+            eb.ToTable("JPBBankMaster", "InstantPayment_Db");
+            eb.HasKey(e => e.Id);
+            eb.Property(e => e.IssuerBankName).HasMaxLength(200);
+            eb.Property(e => e.BankCode).HasMaxLength(100);
+            eb.Property(e => e.IIN).HasMaxLength(50);
+        });
+
+        modelBuilder.Entity<JPAgentDailyLogin>(eb =>
+        {
+            eb.ToTable("JPAgentDailyLogin", "InstantPayment_Db");
+            eb.HasKey(e => e.Id);
+            eb.Property(e => e.AgentLoginId).HasMaxLength(100);
+            eb.Property(e => e.AgentPinCode).HasMaxLength(10);
+        });
+
         modelBuilder.Entity<BbpsOperator>(entity =>
         {
-            entity.ToTable("BbpsOperator", "dbo");
+            entity.ToTable("BbpsOperator", "InstantPayment_Db");
 
             entity.Property(e => e.BillType)
                 .HasMaxLength(255)
@@ -178,7 +221,7 @@ public partial class AppDbContext : DbContext
 
         modelBuilder.Entity<BeneReg>(entity =>
         {
-            entity.ToTable("BeneReg", "dbo");
+            entity.ToTable("BeneReg", "InstantPayment_Db");
 
             entity.Property(e => e.AccountNo)
                 .HasMaxLength(255)
@@ -217,7 +260,7 @@ public partial class AppDbContext : DbContext
 
         modelBuilder.Entity<Finotoken>(entity =>
         {
-            entity.ToTable("finotoken", "dbo");
+            entity.ToTable("finotoken", "InstantPayment_Db");
 
             entity.Property(e => e.Reqdate)
                 .HasColumnType("datetime")
@@ -227,7 +270,7 @@ public partial class AppDbContext : DbContext
 
         modelBuilder.Entity<SenderReg>(entity =>
         {
-            entity.ToTable("SenderReg", "dbo");
+            entity.ToTable("SenderReg", "InstantPayment_Db");
 
             entity.Property(e => e.Address)
                 .HasMaxLength(255)
@@ -252,7 +295,7 @@ public partial class AppDbContext : DbContext
 
         modelBuilder.Entity<TblApiwallet>(entity =>
         {
-            entity.ToTable("tblAPIWallet", "dbo");
+            entity.ToTable("tblAPIWallet", "InstantPayment_Db");
 
             entity.Property(e => e.Amount).HasColumnType("decimal(18, 2)");
             entity.Property(e => e.CrDrType)
@@ -287,7 +330,7 @@ public partial class AppDbContext : DbContext
 
         modelBuilder.Entity<TblBankDetail>(entity =>
         {
-            entity.ToTable("tblBankDetails", "dbo");
+            entity.ToTable("tblBankDetails", "InstantPayment_Db");
 
             entity.Property(e => e.AccountNumber)
                 .HasMaxLength(255)
@@ -328,7 +371,7 @@ public partial class AppDbContext : DbContext
 
         modelBuilder.Entity<TblPasswordattmt>(entity =>
         {
-            entity.ToTable("tblPasswordattmt", "dbo");
+            entity.ToTable("tblPasswordattmt", "InstantPayment_Db");
 
             entity.Property(e => e.Ipaddress)
                 .HasMaxLength(255)
@@ -344,7 +387,7 @@ public partial class AppDbContext : DbContext
 
         modelBuilder.Entity<TblService>(entity =>
         {
-            entity.ToTable("tblService", "dbo");
+            entity.ToTable("tblService", "InstantPayment_Db");
 
             entity.Property(e => e.Category)
                 .HasMaxLength(255)
@@ -361,7 +404,7 @@ public partial class AppDbContext : DbContext
 
         modelBuilder.Entity<TblSlabName>(entity =>
         {
-            entity.ToTable("tblSlabName", "dbo");
+            entity.ToTable("tblSlabName", "InstantPayment_Db");
 
             entity.Property(e => e.CommissionType)
                 .HasMaxLength(255)
@@ -392,7 +435,7 @@ public partial class AppDbContext : DbContext
 
         modelBuilder.Entity<TblSuperadmin>(entity =>
         {
-            entity.ToTable("tblSuperadmin", "dbo");
+            entity.ToTable("tblSuperadmin", "InstantPayment_Db");
 
             entity.Property(e => e.Dmtapi)
                 .HasMaxLength(255)
@@ -424,7 +467,7 @@ public partial class AppDbContext : DbContext
 
         modelBuilder.Entity<TblUser>(entity =>
         {
-            entity.ToTable("tblUsers", "dbo");
+            entity.ToTable("tblUsers", "InstantPayment_Db");
 
             entity.Property(e => e.AadharBack)
                 .HasMaxLength(255)
@@ -558,7 +601,7 @@ public partial class AppDbContext : DbContext
 
         modelBuilder.Entity<TblWlUser>(entity =>
         {
-            entity.ToTable("tblWlUsers", "dbo");
+            entity.ToTable("tblWlUsers", "InstantPayment_Db");
 
             entity.Property(e => e.AadharBack)
                 .HasMaxLength(255)
@@ -648,7 +691,7 @@ public partial class AppDbContext : DbContext
 
         modelBuilder.Entity<TblWlbalance>(entity =>
         {
-            entity.ToTable("tblWLbalance", "dbo");
+            entity.ToTable("tblWLbalance", "InstantPayment_Db");
 
             entity.Property(e => e.Amount).HasColumnType("decimal(18, 2)");
             entity.Property(e => e.CrdrType)
@@ -681,7 +724,7 @@ public partial class AppDbContext : DbContext
 
         modelBuilder.Entity<Tblapionlinepayment>(entity =>
         {
-            entity.ToTable("tblapionlinepayment", "dbo");
+            entity.ToTable("tblapionlinepayment", "InstantPayment_Db");
 
             entity.Property(e => e.Amount).HasColumnType("decimal(18, 2)");
             entity.Property(e => e.ApiRequest).IsUnicode(false);
@@ -739,7 +782,7 @@ public partial class AppDbContext : DbContext
 
         modelBuilder.Entity<Tblapiuser>(entity =>
         {
-            entity.ToTable("tblapiusers", "dbo");
+            entity.ToTable("tblapiusers", "InstantPayment_Db");
 
             entity.Property(e => e.AadharBack)
                 .HasMaxLength(255)
@@ -827,7 +870,7 @@ public partial class AppDbContext : DbContext
 
         modelBuilder.Entity<Tblbanklist>(entity =>
         {
-            entity.ToTable("tblbanklist", "dbo");
+            entity.ToTable("tblbanklist", "InstantPayment_Db");
 
             entity.Property(e => e.BankId)
                 .HasMaxLength(255)
@@ -849,7 +892,7 @@ public partial class AppDbContext : DbContext
 
         modelBuilder.Entity<Tblcommissionslab>(entity =>
         {
-            entity.ToTable("tblcommissionslab", "dbo");
+            entity.ToTable("tblcommissionslab", "InstantPayment_Db");
 
             entity.Property(e => e.Adshare)
                 .HasColumnType("decimal(18, 2)")
@@ -893,7 +936,7 @@ public partial class AppDbContext : DbContext
 
         modelBuilder.Entity<Tblcommplan>(entity =>
         {
-            entity.ToTable("tblcommplan", "dbo");
+            entity.ToTable("tblcommplan", "InstantPayment_Db");
 
             entity.Property(e => e.PlanName)
                 .HasMaxLength(255)
@@ -912,7 +955,7 @@ public partial class AppDbContext : DbContext
 
         modelBuilder.Entity<Tbliservedyouonboarding>(entity =>
         {
-            entity.ToTable("tbliservedyouonboarding", "dbo");
+            entity.ToTable("tbliservedyouonboarding", "InstantPayment_Db");
 
             entity.Property(e => e.ApprovedDate).HasColumnType("datetime");
             entity.Property(e => e.Bcaddress)
@@ -992,7 +1035,7 @@ public partial class AppDbContext : DbContext
 
         modelBuilder.Entity<TblloginOtp>(entity =>
         {
-            entity.ToTable("tblloginOTP", "dbo");
+            entity.ToTable("tblloginOTP", "InstantPayment_Db");
 
             entity.Property(e => e.Ipaddress)
                 .HasMaxLength(255)
@@ -1009,7 +1052,7 @@ public partial class AppDbContext : DbContext
 
         modelBuilder.Entity<Tblloginlog>(entity =>
         {
-            entity.ToTable("tblloginlogs", "dbo");
+            entity.ToTable("tblloginlogs", "InstantPayment_Db");
 
             entity.Property(e => e.Ipaddress)
                 .HasMaxLength(255)
@@ -1029,7 +1072,7 @@ public partial class AppDbContext : DbContext
 
         modelBuilder.Entity<Tblonlinepayment>(entity =>
         {
-            entity.ToTable("tblonlinepayment", "dbo");
+            entity.ToTable("tblonlinepayment", "InstantPayment_Db");
 
             entity.Property(e => e.AadharCard)
                 .HasMaxLength(255)
@@ -1104,7 +1147,7 @@ public partial class AppDbContext : DbContext
 
         modelBuilder.Entity<Tbloperator>(entity =>
         {
-            entity.ToTable("tbloperator", "dbo");
+            entity.ToTable("tbloperator", "InstantPayment_Db");
 
             entity.Property(e => e.Apiname)
                 .HasMaxLength(255)
@@ -1146,7 +1189,7 @@ public partial class AppDbContext : DbContext
 
         modelBuilder.Entity<Tblpaymentcharge>(entity =>
         {
-            entity.ToTable("tblpaymentcharge", "dbo");
+            entity.ToTable("tblpaymentcharge", "InstantPayment_Db");
 
             entity.Property(e => e.Charge).HasColumnType("decimal(18, 2)");
             entity.Property(e => e.ChargeType)
@@ -1159,7 +1202,7 @@ public partial class AppDbContext : DbContext
 
         modelBuilder.Entity<Tblpayouttxn>(entity =>
         {
-            entity.ToTable("tblpayouttxn", "dbo");
+            entity.ToTable("tblpayouttxn", "InstantPayment_Db");
 
             entity.Property(e => e.AccountNo)
                 .HasMaxLength(255)
@@ -1214,7 +1257,7 @@ public partial class AppDbContext : DbContext
 
         modelBuilder.Entity<Tblretailer>(entity =>
         {
-            entity.ToTable("tblretailer", "dbo");
+            entity.ToTable("tblretailer", "InstantPayment_Db");
 
             entity.Property(e => e.EmailId)
                 .HasMaxLength(255)
@@ -1236,7 +1279,7 @@ public partial class AppDbContext : DbContext
 
         modelBuilder.Entity<TblretailerWallet>(entity =>
         {
-            entity.ToTable("tblretailerWallet", "dbo");
+            entity.ToTable("tblretailerWallet", "InstantPayment_Db");
 
             entity.Property(e => e.Accountno)
                 .HasMaxLength(255)
@@ -1278,7 +1321,7 @@ public partial class AppDbContext : DbContext
 
         modelBuilder.Entity<Tblsystemupdate>(entity =>
         {
-            entity.ToTable("tblsystemupdate", "dbo");
+            entity.ToTable("tblsystemupdate", "InstantPayment_Db");
 
             entity.Property(e => e.Lastupdate)
                 .HasColumnType("datetime")
@@ -1287,7 +1330,7 @@ public partial class AppDbContext : DbContext
 
         modelBuilder.Entity<Tbluserbalance>(entity =>
         {
-            entity.ToTable("tbluserbalance", "dbo");
+            entity.ToTable("tbluserbalance", "InstantPayment_Db");
 
             entity.Property(e => e.Amount).HasColumnType("decimal(18, 2)");
             entity.Property(e => e.CrdrType)
@@ -1322,7 +1365,7 @@ public partial class AppDbContext : DbContext
         {
             entity.HasKey(e => e.TransId);
 
-            entity.ToTable("TransactionDetails", "dbo");
+            entity.ToTable("TransactionDetails", "InstantPayment_Db");
 
             entity.Property(e => e.AccountNo)
                 .HasMaxLength(255)

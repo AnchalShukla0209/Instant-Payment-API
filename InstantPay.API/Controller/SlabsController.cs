@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace InstantPay.API.Controller
 {
-    [Authorize]
+    //[Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class SlabsController : ControllerBase
@@ -18,15 +18,17 @@ namespace InstantPay.API.Controller
         [HttpGet("GetMargin")]
         public async Task<ActionResult<PagedResult<SlabInfoDto>>> GetMargin([FromQuery] string? serviceName, [FromQuery] int pageIndex = 1, [FromQuery] int pageSize = 50)
         {
-            var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == "userid");
-            var usernameclaim = User.Claims.FirstOrDefault(c => c.Type == "username");
-            if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+            var userId = Request.Headers["userid"].FirstOrDefault();
+            var username = Request.Headers["username"].FirstOrDefault();
+
+            if (string.IsNullOrWhiteSpace(userId) || !int.TryParse(userId, out int uid))
             {
-                return Unauthorized(new { message = "Invalid token or user ID." });
+                return Unauthorized(new { message = "Invalid or missing userId" });
             }
-            if (usernameclaim == null || string.IsNullOrWhiteSpace(usernameclaim.Value))
+
+            if (string.IsNullOrWhiteSpace(username))
             {
-                return Unauthorized(new { message = "Invalid token or user ID." });
+                return Unauthorized(new { message = "Invalid or missing username" });
             }
             var result = await _mediator.GetSlabInfoAsync(serviceName, pageIndex, pageSize);
             return Ok(result);
@@ -35,15 +37,17 @@ namespace InstantPay.API.Controller
         [HttpPost("update")]
         public async Task<IActionResult> Update([FromBody] UpdateCommissionCommand command)
         {
-            var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == "userid");
-            var usernameclaim = User.Claims.FirstOrDefault(c => c.Type == "username");
-            if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+            var userId = Request.Headers["userid"].FirstOrDefault();
+            var username = Request.Headers["username"].FirstOrDefault();
+
+            if (string.IsNullOrWhiteSpace(userId) || !int.TryParse(userId, out int uid))
             {
-                return Unauthorized(new { message = "Invalid token or user ID." });
+                return Unauthorized(new { message = "Invalid or missing userId" });
             }
-            if (usernameclaim == null || string.IsNullOrWhiteSpace(usernameclaim.Value))
+
+            if (string.IsNullOrWhiteSpace(username))
             {
-                return Unauthorized(new { message = "Invalid token or user ID." });
+                return Unauthorized(new { message = "Invalid or missing username" });
             }
             var result = await _mediator.Handle(command);
             return Ok(result);

@@ -9,7 +9,7 @@ using System.Text.Json;
 
 namespace InstantPay.API.Controller
 {
-    [Authorize]
+    //[Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class OperatorController : ControllerBase

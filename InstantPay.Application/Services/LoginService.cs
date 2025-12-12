@@ -31,7 +31,8 @@ public class LoginService : ILoginService
         {
             new Claim("userid", user.Id.ToString()),
             new Claim("username", user.Username ?? ""),
-            new Claim("usertype", user.Usertype ?? "SuperAdmin")
+            new Claim("usertype", user.Usertype ?? "SuperAdmin"),
+            new Claim("mobileno", user.Phoneno??"")
         };
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
@@ -41,7 +42,7 @@ public class LoginService : ILoginService
             issuer: _config["Jwt:Issuer"],
             audience: _config["Jwt:Audience"],
             claims: claims,
-            expires: DateTime.UtcNow.AddHours(1),
+            expires: DateTime.UtcNow.AddMinutes(30),
             signingCredentials: creds
         );
 
@@ -52,7 +53,8 @@ public class LoginService : ILoginService
             OTP = user.OTP ?? "",
             IsOtpRequired = user.IsOtpRequired ?? false,
             Token = new JwtSecurityTokenHandler().WriteToken(token),
-            messaege=""
+            messaege="",
+            Phoneno= user.Phoneno
         };
     }
 

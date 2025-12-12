@@ -12,7 +12,7 @@ namespace InstantPay.API.Controller
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize]
+    //[Authorize]
     public class RechargeController : ControllerBase
     {
         private readonly IRechargeService _rechargeService;
@@ -27,9 +27,9 @@ namespace InstantPay.API.Controller
         public async Task<IActionResult> SubmitRecharge(EncryptedRequest request)
         {
             var decryptedJson = _aes.Decrypt(request.Data);
-            var jsonString = JsonSerializer.Deserialize<string>(decryptedJson);
+            //var jsonString = JsonSerializer.Deserialize<string>(decryptedJson);
 
-            var dto = JsonSerializer.Deserialize<EncryptedWrapperDto>(jsonString, new JsonSerializerOptions
+            var dto = JsonSerializer.Deserialize<EncryptedWrapperDto>(decryptedJson, new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true
             });

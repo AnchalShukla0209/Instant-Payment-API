@@ -1,5 +1,6 @@
 ﻿using InstantPay.Application.Interfaces;
 using InstantPay.Infrastructure.Security;
+using InstantPay.SharedKernel.Results;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -9,7 +10,7 @@ namespace InstantPay.API.Controller
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
+    //[Authorize]
     public class DashboardController : ControllerBase
     {
         private readonly IDashboardService _dashboardService;
@@ -23,23 +24,41 @@ namespace InstantPay.API.Controller
         [HttpGet]
         public async Task<IActionResult> GetDashboard()
         {
-            var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == "userid");
-            var usernameclaim = User.Claims.FirstOrDefault(c => c.Type == "username");
-            if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
-            {
-                return Unauthorized(new { message = "Invalid token or user ID." });
-            }
+            var userId = Request.Headers["userid"].FirstOrDefault();
+            var username = Request.Headers["username"].FirstOrDefault();
 
-            if (usernameclaim == null || string.IsNullOrWhiteSpace(usernameclaim.Value))
-            {
-                return Unauthorized(new { message = "Invalid token or user ID." });
-            }
+            if (string.IsNullOrWhiteSpace(userId) || !int.TryParse(userId, out int uid))
+                return Unauthorized(new { message = "Invalid or missing userId" });
 
-            var result = await _dashboardService.GetDashboardAsync(userId, usernameclaim.Value);
+            if (string.IsNullOrWhiteSpace(username))
+                return Unauthorized(new { message = "Invalid or missing username" });
+
+            var result = await _dashboardService.GetDashboardAsync(uid, username);
             var json = JsonSerializer.Serialize(result);
             var encrypted = _aes.Encrypt(json);
 
             return Ok(new { data = encrypted });
+        }
+
+        [HttpGet("GetWalletBalance")]
+        public async Task<IActionResult> GetUserBalance([FromQuery] GetWalletBalanceRequest request)
+        {
+            var userId = Request.Headers["userid"].FirstOrDefault();
+            var username = Request.Headers["username"].FirstOrDefault();
+
+            if (string.IsNullOrWhiteSpace(userId) || !int.TryParse(userId, out int uid))
+                return Unauthorized(new { message = "Invalid or missing userId" });
+
+            if (string.IsNullOrWhiteSpace(username))
+                return Unauthorized(new { message = "Invalid or missing username" });
+
+            var balance = await _dashboardService.GetUserBalance(request);
+            if (balance.Balance == 0)
+            {
+                return NotFound("Wallet balance not found for this user.");
+            }
+
+            return Ok(balance);
         }
     }
 }

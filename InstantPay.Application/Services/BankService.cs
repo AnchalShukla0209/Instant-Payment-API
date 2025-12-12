@@ -2,6 +2,7 @@
 using InstantPay.Infrastructure.Security;
 using InstantPay.Infrastructure.Sql.Entities;
 using InstantPay.SharedKernel.Entity;
+using InstantPay.SharedKernel.Results;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using MongoDB.Bson.IO;
@@ -67,7 +68,7 @@ namespace InstantPay.Application.Services
                 }).FirstOrDefaultAsync();
         }
 
-        public async Task<Guid> CreateAsync(BankDto bank)
+        public async Task<Guid> CreateAsync(BankDto bank, int CreatedBy)
         {
             if (await ExistsByNameAsync(bank.BankName))
                 throw new Exception("Duplicate Bank Name not allowed.");
@@ -89,7 +90,7 @@ namespace InstantPay.Application.Services
             return entity.BankId;
         }
 
-        public async Task UpdateAsync(BankDto bank)
+        public async Task UpdateAsync(BankDto bank, int ModifiedBy)
         {
             if (await ExistsByNameAsync(bank.BankName, bank.BankId))
                 throw new Exception("Duplicate Bank Name not allowed.");
@@ -103,19 +104,22 @@ namespace InstantPay.Application.Services
             entity.IFSCCode = bank.IFSCCode;
             entity.PhoneNo = bank.PhoneNo;
             entity.TxnCharge = bank.TxnCharge;
-            entity.ModifiedBy = 1;
+            entity.IsActive = bank.IsActive;
+            entity.ModifiedBy = ModifiedBy;
             entity.ModifiedOn = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
         }
 
-        public async Task DeleteAsync(Guid bankId)
+        public async Task DeleteAsync(Guid bankId, int ModifiedBy)
         {
             var entity = await _context.BankMaster.FindAsync(bankId);
             if (entity == null)
                 throw new Exception("Bank not found.");
 
             entity.IsDeleted = true;
+            entity.ModifiedBy = ModifiedBy;
+            entity.ModifiedOn = DateTime.UtcNow;
             await _context.SaveChangesAsync();
         }
 
@@ -125,6 +129,21 @@ namespace InstantPay.Application.Services
                 .AnyAsync(x => x.BankName == bankName && !x.IsDeleted &&
                                (!excludeId.HasValue || x.BankId != excludeId.Value));
         }
+
+        public async Task<List<BankDropdownDto>> GetBankListForJPB()
+        {
+            return await _context.JPBBankMasters
+                .Where(x => x.IsActive)
+                .AsNoTracking()
+                .OrderBy(x => x.IssuerBankName)
+                .Select(x => new BankDropdownDto
+                {
+                    bankName = x.IssuerBankName,
+                    nbin = x.IIN
+                })
+                .ToListAsync();
+        }
+
     }
 
 }

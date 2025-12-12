@@ -14,6 +14,7 @@ namespace InstantPay.Application.DTOs
         public string? OTP { get; set; }
         public bool? IsOtpRequired { get; set; }
         public string? messaege { get; set; }
+        public string? Phoneno { get; set; }
     }
 
     public class OTPSuccessResponse

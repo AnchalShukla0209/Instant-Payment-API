@@ -22,4 +22,5 @@ public partial class TblSuperadmin
     public string? Refundpin { get; set; }
 
     public string? Dmtapi { get; set; }
+    public string? Mpin { get; set; }
 }

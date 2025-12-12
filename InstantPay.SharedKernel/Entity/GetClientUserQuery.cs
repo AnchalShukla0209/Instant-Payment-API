@@ -41,6 +41,7 @@ namespace InstantPay.SharedKernel.Entity
         public string MDName { get; set; }
         public string ADName { get; set; }
         public decimal MainBalance { get; set; }
+        public string? MPin { get; set; }
     }
     public class CreateOrUpdateClientUserCommand
     {
@@ -74,6 +75,7 @@ namespace InstantPay.SharedKernel.Entity
         public string? longitute { get; set; }
         public string TxnPin { get; set; }
         public string WLID { get; set; }
+        public string MPin { get; set; }
         public IFormFile? PancopyFile { get; set; }
         public IFormFile? AadharFrontFile { get; set; }
         public IFormFile? AadharBackFile { get; set; }
@@ -136,6 +138,7 @@ namespace InstantPay.SharedKernel.Entity
 
         public DateTime? RegDate { get; set; }
         public string? TxnPin { get; set; }
+        public string? MPin { get; set; }
     }
 
     public class DeleteClientUserFileCommand

@@ -18,15 +18,15 @@ var configuration = builder.Configuration;
 string dbProvider = configuration["DatabaseProvider"] ?? "Sql";
 if (dbProvider == "Mongo")
 {
-   
+
     builder.Services.Configure<MongoDbSettings>(configuration.GetSection("ConnectionStrings:Mongo"));
-  
+
 }
 else
 {
     builder.Services.AddDbContext<AppDbContext>(options =>
         options.UseSqlServer(configuration.GetConnectionString("Sql")));
-    
+
 }
 builder.Services.AddEndpointsApiExplorer();
 
@@ -52,10 +52,15 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddSwaggerGen(options =>
 {
-   
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "InstantPay API",
+        Version = "v1"
+    });
+
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
-        Description = "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\"",
+        Description = "JWT Authorization header using the Bearer scheme.",
         Name = "Authorization",
         In = ParameterLocation.Header,
         Type = SecuritySchemeType.Http,
@@ -65,8 +70,10 @@ builder.Services.AddSwaggerGen(options =>
     options.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
         {
-            new OpenApiSecurityScheme {
-                Reference = new OpenApiReference {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
                     Type = ReferenceType.SecurityScheme,
                     Id = "Bearer"
                 }
@@ -75,6 +82,8 @@ builder.Services.AddSwaggerGen(options =>
         }
     });
 });
+
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAllFrontends", policy =>
@@ -82,12 +91,20 @@ builder.Services.AddCors(options =>
         policy.WithOrigins(
             "http://instantpay-angular-ui.s3-website-us-east-1.amazonaws.com",
             "https://test.instantpayment.thedemo.co.in",
+            "https://demo2.instantpayment.co.in",
             "http://localhost:4200"
         )
         .AllowAnyHeader()
         .AllowAnyMethod();
     });
 });
+
+builder.Services.AddHttpClient("JIO", client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(20);
+});
+
+builder.Services.AddMemoryCache();
 builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(Program).Assembly));
 builder.Services.AddHttpClient();
 builder.Services.AddHttpContextAccessor();
@@ -107,6 +124,13 @@ builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IServiceService, ServicesService>();
 builder.Services.AddScoped<IBankRepository, BankService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IAEPSService, AEPSService>();
+builder.Services.AddScoped<IJPBBalanceEnquiry, JPBBalanceEnquiry>();
+builder.Services.AddScoped<IJPBMiniStatement, JPBMiniStatement>();
+builder.Services.AddScoped<IJPPCashWithdrawal, JPPCashWithdrawal>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddHttpClient("JIO", client => client.Timeout = TimeSpan.FromSeconds(20));
 builder.Services.AddScoped<IFileHandler>(provider =>
 {
     var env = provider.GetRequiredService<IWebHostEnvironment>();
@@ -117,7 +141,10 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment() || app.Environment.IsProduction())
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "InstantPay API v1");
+    });
 }
 
 app.UseHttpsRedirection();

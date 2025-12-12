@@ -59,7 +59,8 @@ namespace InstantPay.Application.Services
                         Status = tblSUser.Status,
                         Usertype = "SuperAdmin",
                         IsOtpRequired = IsOtpRequiredAsyncs,
-                        OTP = otp
+                        OTP = otp,
+                        Phoneno= tblSUser.Mobileno
                     };
                 }
                 return new User
@@ -70,7 +71,8 @@ namespace InstantPay.Application.Services
                     Status = tblSUser.Status,
                     Usertype = "SuperAdmin",
                     IsOtpRequired = IsOtpRequiredAsyncs,
-                    OTP = ""
+                    OTP = "",
+                    Phoneno = tblSUser.Mobileno
                 };
             }
 
@@ -96,7 +98,8 @@ namespace InstantPay.Application.Services
                     Status = tblUser.Status,
                     Usertype = "Retailer",
                     IsOtpRequired = IsOtpRequiredAsync,
-                    OTP = otp
+                    OTP = otp,
+                    Phoneno = tblUser.Phone
                 };
             }
             return new User
@@ -107,7 +110,8 @@ namespace InstantPay.Application.Services
                 Status = tblUser.Status,
                 Usertype = "Retailer",
                 IsOtpRequired = IsOtpRequiredAsync,
-                OTP = ""
+                OTP = "",
+                Phoneno = tblUser.Phone
             };
 
         }
@@ -136,6 +140,8 @@ namespace InstantPay.Application.Services
 
                 _context.Tblloginlogs.Add(log);
                 await _context.SaveChangesAsync();
+
+                InsertData(dto.userid);
                 return true;
             }
             catch (Exception ex)
@@ -144,6 +150,22 @@ namespace InstantPay.Application.Services
             }
 
         }
+
+        public void InsertData(string userId)
+        {
+                Tblloginlog log = new Tblloginlog
+                {
+                    Usertype = "USER",
+                    UserId = userId,
+                    Macaddress = "aaa",
+                    Ipaddress = _httpContextAccessor.HttpContext.Connection.RemoteIpAddress?.ToString(),
+                    LoginTime = DateTime.Now
+                };
+
+            _context.Tblloginlogs.Add(log);
+            _context.SaveChanges();
+        }
+
 
         public async Task<string> ResendOTPAsyncn(OtpLoginLogDto dto)
         {

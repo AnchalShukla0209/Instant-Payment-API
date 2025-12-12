@@ -16,5 +16,9 @@ namespace InstantPay.Application.Interfaces
         Task<TxnDetailsData> GetTxnDetails(int txnId);
 
         Task<TxnUpdateResponse> UpdateTxnStatus(TxnUpdateRequest request, int actionById);
+
+        Task<PaginatedTxnResultDto> GetUserTransactionReportAsync(
+   string serviceType, string status, string dateFrom, string dateTo,
+   int userId, string username, int pageIndex = 1, int pageSize = 50);
     }
 }

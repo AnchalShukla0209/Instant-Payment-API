@@ -38,7 +38,7 @@ namespace InstantPay.Application.Services
             if (DateOnly.TryParse(request.toDate, out var parsedToDate))
                 toDate = parsedToDate;
 
-            var balanceQuery = _context.Tbluserbalances.AsQueryable();
+            var balanceQuery = _context.TblWlbalances.AsQueryable();
 
 
             if (fromDate.HasValue)
@@ -75,7 +75,7 @@ namespace InstantPay.Application.Services
 
             var result = users.Select(u =>
             {
-                var lookupKey = (u.Id, (u.UserName ?? string.Empty).Trim().ToLowerInvariant());
+                var lookupKey = (u.Id.ToString(), (u.UserName ?? string.Empty).Trim().ToLowerInvariant());
                 return new UserBalanceDto
                 {
                     Id = u.Id,
@@ -88,6 +88,7 @@ namespace InstantPay.Application.Services
                     MainBalance = balanceDict.TryGetValue(lookupKey, out var bal) ? bal : 0m
                 };
             }).ToList();
+
 
 
 
@@ -378,7 +379,7 @@ namespace InstantPay.Application.Services
                         return new WalletTransactionResponse { ErrorMessage = "Invalid Txn Pin", IsSuccessful = false };
                     }
 
-                    var oldBalance = await _context.Tbluserbalances
+                    var oldBalance = await _context.TblWlbalances
                         .Where(b => Convert.ToInt32(b.UserId) == dto.UserId && b.UserName.Trim().ToLower() == user.UserName.Trim().ToLower())
                         .OrderByDescending(b => b.Id)
                         .Select(b => b.NewBal)
@@ -388,12 +389,12 @@ namespace InstantPay.Application.Services
                     var txnType = dto.Status == WalletOperationStatus.Credit ? "WALLET TOPUP BY ADMIN" : "WALLET DEBIT BY ADMIN";
                     var remarks = $"{txnType} For Account No {user.Phone} | {(dto.Status == WalletOperationStatus.Credit ? "Credit" : "Debit")} by Services | Wallet {(dto.Status == WalletOperationStatus.Credit ? "TopUp" : "Debit")} BY Admin Account";
 
-                    _context.Tbluserbalances.Add(new Tbluserbalance
+                    _context.TblWlbalances.Add(new TblWlbalance
                     {
                         TxnAmount = dto.Amount,
-                        SurCom = 0,
+                        SurComm = 0,
                         Tds = 0,
-                        UserId = dto.UserId,
+                        UserId = Convert.ToString(dto.UserId),
                         UserName = user.UserName,
                         OldBal = oldBalance,
                         Amount = dto.Amount,

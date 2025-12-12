@@ -178,3 +178,7 @@ C:\Instant Projects\Instant-Payment-API\InstantPay.API\obj\Release\net9.0\Instan
 C:\Instant Projects\Instant-Payment-API\InstantPay.API\obj\Release\net9.0\ref\InstantPay.API.dll
 C:\Instant Projects\Instant-Payment-API\InstantPay.API\bin\Release\net9.0\InstantPay.API.staticwebassets.runtime.json
 C:\Instant Projects\Instant-Payment-API\InstantPay.API\bin\Release\net9.0\Newtonsoft.Json.dll
+C:\Instant Projects\Instant-Payment-API\InstantPay.API\bin\Release\net9.0\MediatR.dll
+C:\Instant Projects\Instant-Payment-API\InstantPay.API\bin\Release\net9.0\MediatR.Contracts.dll
+C:\Instant Projects\Instant-Payment-API\InstantPay.API\bin\Release\net9.0\MediatR.Extensions.Microsoft.DependencyInjection.dll
+C:\Instant Projects\Instant-Payment-API\InstantPay.API\bin\Release\net9.0\BouncyCastle.Crypto.dll

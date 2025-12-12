@@ -25,4 +25,17 @@ namespace InstantPay.SharedKernel.Entity
         public int ServiceId { get; set; }
     }
 
+    public class UserMasterDataForDD
+    {
+        public int Id { get; set; } = 0;
+        public string Name { get; set; }
+    }
+
+    public class ServiceStatusResponse
+    {
+        
+        public bool UserServiceActive { get; set; }
+        public bool ServiceActive { get; set; }
+    }
+
 }

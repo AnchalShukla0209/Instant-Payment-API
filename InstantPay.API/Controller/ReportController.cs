@@ -13,7 +13,7 @@ namespace InstantPay.API.Controller
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize]
+    //[Authorize]
     public class ReportController : ControllerBase
     {
         private readonly IReportService _reportservice;
@@ -27,15 +27,17 @@ namespace InstantPay.API.Controller
         [HttpPost("Txn-Report")]
         public async Task<IActionResult> TxnReport(EncryptedRequest request)
         {
-            var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == "userid");
-            var usernameclaim = User.Claims.FirstOrDefault(c => c.Type == "username");
-            if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+            var userId = Request.Headers["userid"].FirstOrDefault();
+            var username = Request.Headers["username"].FirstOrDefault();
+
+            if (string.IsNullOrWhiteSpace(userId) || !int.TryParse(userId, out int uid))
             {
-                return Unauthorized(new { message = "Invalid token or user ID." });
+                return Unauthorized(new { message = "Invalid or missing userId" });
             }
-            if (usernameclaim == null || string.IsNullOrWhiteSpace(usernameclaim.Value))
+
+            if (string.IsNullOrWhiteSpace(username))
             {
-                return Unauthorized(new { message = "Invalid token or user ID." });
+                return Unauthorized(new { message = "Invalid or missing username" });
             }
             var decryptedJson = _aes.Decrypt(request.Data);
             var data = JsonSerializer.Deserialize<TxnReportPayload>(decryptedJson);
@@ -48,16 +50,18 @@ namespace InstantPay.API.Controller
         [HttpPost("Get-TxnDetails")]
         public async Task<IActionResult> GetTxnDetails([FromBody] TxnRequest request)
         {
-            var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == "userid");
-            var usernameclaim = User.Claims.FirstOrDefault(c => c.Type == "username");
-            if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+            var userId = Request.Headers["userid"].FirstOrDefault();
+            var username = Request.Headers["username"].FirstOrDefault();
+
+            if (string.IsNullOrWhiteSpace(userId) || !int.TryParse(userId, out int uid))
             {
-                return Unauthorized(new { message = "Invalid token or user ID." });
+                return Unauthorized(new { message = "Invalid or missing userId" });
             }
-            if (usernameclaim == null || string.IsNullOrWhiteSpace(usernameclaim.Value))
+
+            if (string.IsNullOrWhiteSpace(username))
             {
-                return Unauthorized(new { message = "Invalid token or user ID." });
-            } 
+                return Unauthorized(new { message = "Invalid or missing username" });
+            }
             var result = await _reportservice.GetTxnDetails(request.TxnId);
             return Ok(result);
         }
@@ -65,13 +69,43 @@ namespace InstantPay.API.Controller
         [HttpPost("Update-TxnStatus")]
         public async Task<IActionResult> UpdateTxnStatus([FromBody] TxnUpdateRequest request)
         {
-            var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == "userid");
-            if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int actionById))
+            var userId = Request.Headers["userid"].FirstOrDefault();
+            var username = Request.Headers["username"].FirstOrDefault();
+
+            if (string.IsNullOrWhiteSpace(userId) || !int.TryParse(userId, out int uid))
             {
-                return Unauthorized(new { message = "Invalid token or user ID." });
+                return Unauthorized(new { message = "Invalid or missing userId" });
             }
-            var result = await _reportservice.UpdateTxnStatus(request, actionById);
+
+            if (string.IsNullOrWhiteSpace(username))
+            {
+                return Unauthorized(new { message = "Invalid or missing username" });
+            }
+            var result = await _reportservice.UpdateTxnStatus(request, uid);
             return Ok(result);
+        }
+
+        [HttpPost("GetUserTransactionReportAsync")]
+        public async Task<IActionResult> GetUserTransactionReportAsync(EncryptedRequest request)
+        {
+            var userId = Request.Headers["userid"].FirstOrDefault();
+            var username = Request.Headers["username"].FirstOrDefault();
+
+            if (string.IsNullOrWhiteSpace(userId) || !int.TryParse(userId, out int uid))
+            {
+                return Unauthorized(new { message = "Invalid or missing userId" });
+            }
+
+            if (string.IsNullOrWhiteSpace(username))
+            {
+                return Unauthorized(new { message = "Invalid or missing username" });
+            }
+            var decryptedJson = _aes.Decrypt(request.Data);
+            var data = JsonSerializer.Deserialize<TxnReportUserPayload>(decryptedJson);
+            var result = await _reportservice.GetUserTransactionReportAsync(data.serviceType, data.status, data.dateFrom, data.dateTo,  (int)data.userId, data.userName, (int)data.pageIndex, (int)data.pageSize);
+            var json = JsonSerializer.Serialize(result);
+            var encrypted = _aes.Encrypt(json);
+            return Ok(new { data = encrypted });
         }
 
 

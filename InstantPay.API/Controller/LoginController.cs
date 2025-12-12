@@ -53,6 +53,18 @@ namespace InstantPay.API.Controller
         [HttpPost("resendotp")]
         public async Task<IActionResult> ResendOTP(EncryptedRequest request)
         {
+            var userId = Request.Headers["userid"].FirstOrDefault();
+            var username = Request.Headers["username"].FirstOrDefault();
+
+            if (string.IsNullOrWhiteSpace(userId) || !int.TryParse(userId, out int uid))
+            {
+                return Unauthorized(new { message = "Invalid or missing userId" });
+            }
+
+            if (string.IsNullOrWhiteSpace(username))
+            {
+                return Unauthorized(new { message = "Invalid or missing username" });
+            }
             var decryptedJson = _aes.Decrypt(request.Data);
             var login = JsonSerializer.Deserialize<OtpLoginLogDto>(decryptedJson);
             var response = await _loginService.ResendOTP(login);

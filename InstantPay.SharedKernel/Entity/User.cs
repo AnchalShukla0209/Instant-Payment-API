@@ -15,6 +15,7 @@ namespace InstantPay.SharedKernel.Entity
         public string? Usertype { get; set; }
         public string? OTP { get; set; }
         public bool? IsOtpRequired { get; set; }
+        public string? Phoneno { get; set; }
     }
 
     public class OtpLoginLogDto
@@ -29,5 +30,26 @@ namespace InstantPay.SharedKernel.Entity
         public int? Year { get; set; }
         
     }
+
+    
+    public record UnlockRequestDto
+    {
+        public string? UserId { get; init; } = "";
+        public string? Method { get; init; } = ""; 
+        public string? Value { get; init; } = ""; 
+        public string? UserType { get; init; } = ""; 
+    }
+
+    public record UnlockResponseDto
+    {
+        public string Token { get; init; } = "";
+        public string Username { get; init; } = "";
+        public string Usertype { get; init; } = "";
+        public string message { get; init; } = "";
+        public string OTP { get; init; } = "";
+        public bool IsOtpRequired { get; init; } = false;
+        public string Phoneno { get; init; } = "";
+    }
+
 
 }
