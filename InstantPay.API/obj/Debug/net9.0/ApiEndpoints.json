@@ -767,7 +767,7 @@
     "Parameters": [
       {
         "Name": "request",
-        "Type": "InstantPay.Application.DTOs.EncryptedRequest",
+        "Type": "InstantPay.Application.DTOs.LoginRequestDto",
         "IsRequired": true
       }
     ],

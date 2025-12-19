@@ -200,7 +200,7 @@ namespace InstantPay.Application.Services
             if (model == null) throw new ArgumentNullException(nameof(model));
             if (string.IsNullOrWhiteSpace(model.Aadhaar)) return new CashWithdrawalResponseDto { Success = false, ResponseMessage = "Aadhaar is required", ResponseCode = "33", accessToken = model.AccessToken, appIdentifierToken = model.AppIdentifierToken };
             if (string.IsNullOrWhiteSpace(model.FingerprintXml)) return new CashWithdrawalResponseDto { Success = false, ResponseMessage = "PID XML or PidBase64 required", ResponseCode = "33", accessToken = model.AccessToken, appIdentifierToken = model.AppIdentifierToken };
-            if (model.Amount <= 0) return new CashWithdrawalResponseDto { Success = false, ResponseMessage = "Amount is required", ResponseCode = "33", accessToken = model.AccessToken, appIdentifierToken= model.AppIdentifierToken };
+            if (model.Amount <= 0) return new CashWithdrawalResponseDto { Success = false, ResponseMessage = "Amount is required", ResponseCode = "33", accessToken = model.AccessToken, appIdentifierToken = model.AppIdentifierToken };
 
             var cfg = _config.GetSection("JPBAEPS");
             string channelId = cfg.GetValue<string>("channelId") ?? "7215";
@@ -234,7 +234,7 @@ namespace InstantPay.Application.Services
             }
             catch (Exception ex)
             {
-                return new CashWithdrawalResponseDto { Success = false, ResponseMessage = "finger print data is missing", ResponseCode = "33", accessToken= accessToken, appIdentifierToken= appIdToken };
+                return new CashWithdrawalResponseDto { Success = false, ResponseMessage = "finger print data is missing", ResponseCode = "33", accessToken = accessToken, appIdentifierToken = appIdToken };
             }
 
             // timestamp (IST) and uid
@@ -336,7 +336,7 @@ namespace InstantPay.Application.Services
                 ServiceName = "AEPS",
                 OperatorName = "AEPS_CASH_WITHDRAWAL",
                 OpId = null,
-                Mobileno = model.Aadhaar.Length >= 12 ? new string('X', 8) + model.Aadhaar.Substring(model.Aadhaar.Length - 4): model.Aadhaar,
+                Mobileno = model.Aadhaar.Length >= 12 ? new string('X', 8) + model.Aadhaar.Substring(model.Aadhaar.Length - 4) : model.Aadhaar,
                 OldBal = currentBalance,
                 Amount = model.Amount,
                 Comm = 0m,
@@ -379,16 +379,17 @@ namespace InstantPay.Application.Services
 
             while (attempts < maxAttempts)
             {
+                string traceId = Guid.NewGuid().ToString();
                 attempts++;
                 using var req = new HttpRequestMessage(HttpMethod.Post, apiUrl);
                 req.Content = new StringContent(requestBody, Encoding.UTF8, "application/json");
 
                 // headers
                 req.Headers.Add("x-channel-id", channelId);
-                
+
                 if (!string.IsNullOrEmpty(appIdToken)) req.Headers.Add("x-appid-token", appIdToken);
                 if (!string.IsNullOrEmpty(accessToken)) req.Headers.Add("x-app-access-token", accessToken);
-                req.Headers.Add("x-trace-id", Guid.NewGuid().ToString());
+                req.Headers.Add("x-trace-id", traceId);
                 req.Headers.Add("x-device-info", deviceInfoJson);
 
                 var clientId = (cfg.GetValue<string>("clientId") ?? "");
@@ -403,7 +404,7 @@ namespace InstantPay.Application.Services
                     responseContent = await resp.Content.ReadAsStringAsync(cancellationToken);
 
                     await LogApiAsync(apiUrl, "POST", resp.IsSuccessStatusCode ? "00" : resp.StatusCode.ToString(),
-                                      null, deviceInfoJson+ "x-appid-token:"+ appIdToken+ ",x-app-access-token:"+ accessToken, requestBody, responseContent, "AEPS", "CashWithdrawal");
+                                      null, deviceInfoJson + "x-appid-token:" + appIdToken + ",x-app-access-token:" + accessToken+", traceid: "+ traceId + "", requestBody, responseContent, "AEPS", "CashWithdrawal");
 
                     tx.ApiRes = responseContent;
                     _context.TransactionDetails.Update(tx);
@@ -420,148 +421,171 @@ namespace InstantPay.Application.Services
                         await _context.SaveChangesAsync(cancellationToken);
                     }
                     catch { /* ignore DB update errors */ }
+                    bool isSessionExpired = false;
 
-                    if (resp.IsSuccessStatusCode)
+                    using var docD = JsonDocument.Parse(responseContent);
+                    if (docD.RootElement.TryGetProperty("code", out var codeEls))
                     {
-                        // parse into strongly typed model (your API DTO)
-                        try
+                        var codeString = codeEls.GetRawText().Trim('"');
+                        if (codeString == "33306") isSessionExpired = true;
+                    }
+                    if (!isSessionExpired && docD.RootElement.TryGetProperty("message", out var msgEls))
+                    {
+                        var msg = msgEls.GetString();
+                        if (!string.IsNullOrEmpty(msg) && msg.IndexOf("Invalid Session", StringComparison.OrdinalIgnoreCase) >= 0)
+                            isSessionExpired = true;
+                    }
+                    if (!isSessionExpired)
+                    {
+                        if (docD.RootElement.TryGetProperty("error", out var errEl) && errEl.TryGetProperty("code", out var errCodeEl))
                         {
-                            var parsed = JsonConvert.DeserializeObject<CashWithdrawalResponseDto>(responseContent);
-
-                            try
-                            {
-                                if (parsed?.ResponseData?.Transaction != null)
-                                {
-                                    int slabId = model.Amount switch
-                                    {
-                                        0 => 0,
-                                        <= 500 => 47,
-                                        <= 2999 => 48,
-                                        3000 => 49,
-                                        <= 10000 => 50,
-                                        _ => 0
-                                    };
-
-                                    int mainPlanId = Convert.ToInt32(userData.PlanId);
-                                    decimal rtComm = await GetCommissionAsync(mainPlanId, slabId, model.Amount, "RT");
-                                    decimal adComm = await GetCommissionAsync(mainPlanId, slabId, model.Amount, "AD");
-                                    decimal mdComm = await GetCommissionAsync(mainPlanId, slabId, model.Amount, "MD");
-                                    decimal wlComm = await GetCommissionAsync(mainPlanId, slabId, model.Amount, "WL");
-
-                                    if (userData.Usertype == "RT")
-                                    {
-                                        if (userData.Adid == "0" && userData.Mdid == "0")
-                                        {
-                                            wlComm -= rtComm;
-                                            adComm = 0;
-                                            mdComm = 0;
-                                        }
-                                        else if (userData.Adid == "0" && userData.Mdid != "0")
-                                        {
-                                            mdComm -= rtComm;
-                                            wlComm -= mdComm;
-                                            adComm = 0;
-                                        }
-                                        else if (userData.Adid != "0" && userData.Mdid != "0")
-                                        {
-                                            adComm -= rtComm;
-                                            mdComm -= adComm;
-                                            wlComm -= mdComm;
-                                        }
-                                        else if (userData.Adid != "0" && userData.Mdid == "0")
-                                        {
-                                            adComm -= rtComm;
-                                            mdComm = 0;
-                                            wlComm -= adComm;
-                                        }
-                                    }
-
-                                    tx.Comm = rtComm;
-                                    tx.AdComm = adComm;
-                                    tx.MdComm = mdComm;
-                                    tx.WlComm = wlComm;
-                                    tx.Tds = rtComm * 5 / 100;
-
-                                    decimal tds = rtComm * 5 / 100;
-                                    decimal cost = (model.Amount + rtComm) - tds;
-                                    decimal Newbal = currentBalance + cost;
-
-                                    tx.ApiTxnId = parsed.ResponseData.Transaction.TransactionId ?? tx.ApiTxnId;
-                                    tx.ApiMsg = Truncate(parsed.ResponseMessage, 500);
-
-                                    // compute new balance using Option B (Old + Amount)
-                                    decimal computedNewBal = currentBalance + model.Amount;
-
-                                    // prefer API returned balance if parseable
-                                    if (parsed.ResponseData?.Account?.Balance != null)
-                                    {
-                                        if (decimal.TryParse(parsed.ResponseData.Account.Balance, NumberStyles.Number | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var parsedBal))
-                                        {
-                                            computedNewBal = parsedBal;
-                                        }
-                                    }
-                                    tx.NewBal=parsed.ResponseCode == "00" && parsed.ResponseMessage.ToUpper() == "SUCCESS" ? Convert.ToString(Newbal) : Convert.ToString(currentBalance);
-                                    tx.UpdateDate = DateTime.Now;
-                                    tx.Status = parsed.ResponseCode == "00" && parsed.ResponseMessage.ToUpper() == "SUCCESS" ? "SUCCESS" : "FAILED";
-                                    tx.Brid = parsed.ResponseData.Transaction.Rrn ?? tx.Brid;
-                                    _context.TransactionDetails.Update(tx);
-                                    await _context.SaveChangesAsync(cancellationToken);
-
-                                    // insert single Tbluserbalance entry
-                                    try
-                                    {
-                                        if (parsed.ResponseCode == "00" && parsed.ResponseMessage.ToUpper() == "SUCCESS")
-                                        {
-                                            var ub = new Tbluserbalance
-                                            {
-                                                UserId = userData.Id,
-                                                UserName = userData.Name + "-" + userData.Phone,
-                                                OldBal = currentBalance,
-                                                Amount = model.Amount,
-                                                NewBal = Newbal,
-                                                TxnType = "AEPS_CASH_WITHDRAWAL",
-                                                CrdrType = "CR", // Option B => credit
-                                                Remarks = $"AEPS Withdrawal TXN:{tx.TxnId}",
-                                                WlId = userData.Wlid,
-                                                Txndate = DateTime.Now,
-                                                TxnAmount = model.Amount,
-                                                SurCom = rtComm,
-                                                Tds = tds
-                                            };
-
-                                            await _context.Tbluserbalances.AddAsync(ub, cancellationToken);
-                                            await _context.SaveChangesAsync(cancellationToken);
-                                        }
-                                    }
-                                    catch (Exception ubEx)
-                                    {
-                                        await LogApiAsync(apiUrl, "DB", "33", ubEx.Message, deviceInfoJson, requestBody, responseContent, "AEPS", "CashWithdrawal_TblUserBalance");
-                                    }
-                                }
-                            }
-                            catch { /* ignore db update error */ }
-                            parsed.Success = parsed.ResponseMessage == "SUCCESS" && parsed.ResponseCode == "00" ? true : false;
-                            parsed.appIdentifierToken = appIdToken;
-                            parsed.accessToken = accessToken;
-                            return parsed;
-                        }
-                        catch (Exception parseEx)
-                        {
-                            // return best-effort success wrapper (map message)
-                            return new CashWithdrawalResponseDto
-                            {
-                                Success = true,
-                                ResponseCode = "00",
-                                ResponseMessage = "Success but parsing failed: " + parseEx.Message,
-                                ResponseData = null,
-                                accessToken = accessToken,
-                                appIdentifierToken = appIdToken
-                            };
+                            var ecode = errCodeEl.GetString();
+                            if (ecode == "33306" || ecode == "2369") isSessionExpired = true;
                         }
                     }
 
-                    // detect session expiry (same checks as MiniStatement)
-                    bool isSessionExpired = false;
+                    if (!isSessionExpired)
+                    {
+                        if (resp.IsSuccessStatusCode)
+                        {
+                            // parse into strongly typed model (your API DTO)
+                            try
+                            {
+                                var parsed = JsonConvert.DeserializeObject<CashWithdrawalResponseDto>(responseContent);
+
+                                try
+                                {
+                                    if (parsed?.ResponseData?.Transaction != null)
+                                    {
+                                        int slabId = model.Amount switch
+                                        {
+                                            0 => 0,
+                                            <= 500 => 47,
+                                            <= 2999 => 48,
+                                            3000 => 49,
+                                            <= 10000 => 50,
+                                            _ => 0
+                                        };
+
+                                        int mainPlanId = Convert.ToInt32(userData.PlanId);
+                                        decimal rtComm = await GetCommissionAsync(mainPlanId, slabId, model.Amount, "RT");
+                                        decimal adComm = await GetCommissionAsync(mainPlanId, slabId, model.Amount, "AD");
+                                        decimal mdComm = await GetCommissionAsync(mainPlanId, slabId, model.Amount, "MD");
+                                        decimal wlComm = await GetCommissionAsync(mainPlanId, slabId, model.Amount, "WL");
+
+                                        if (userData.Usertype == "RT")
+                                        {
+                                            if (userData.Adid == "0" && userData.Mdid == "0")
+                                            {
+                                                wlComm -= rtComm;
+                                                adComm = 0;
+                                                mdComm = 0;
+                                            }
+                                            else if (userData.Adid == "0" && userData.Mdid != "0")
+                                            {
+                                                mdComm -= rtComm;
+                                                wlComm -= mdComm;
+                                                adComm = 0;
+                                            }
+                                            else if (userData.Adid != "0" && userData.Mdid != "0")
+                                            {
+                                                adComm -= rtComm;
+                                                mdComm -= adComm;
+                                                wlComm -= mdComm;
+                                            }
+                                            else if (userData.Adid != "0" && userData.Mdid == "0")
+                                            {
+                                                adComm -= rtComm;
+                                                mdComm = 0;
+                                                wlComm -= adComm;
+                                            }
+                                        }
+
+                                        tx.Comm = rtComm;
+                                        tx.AdComm = adComm;
+                                        tx.MdComm = mdComm;
+                                        tx.WlComm = wlComm;
+                                        tx.Tds = rtComm * 5 / 100;
+
+                                        decimal tds = rtComm * 5 / 100;
+                                        decimal cost = (model.Amount + rtComm) - tds;
+                                        decimal Newbal = currentBalance + cost;
+
+                                        tx.ApiTxnId = parsed.ResponseData.Transaction.TransactionId ?? tx.ApiTxnId;
+                                        tx.ApiMsg = Truncate(parsed.ResponseMessage, 500);
+
+                                        // compute new balance using Option B (Old + Amount)
+                                        decimal computedNewBal = currentBalance + model.Amount;
+
+                                        // prefer API returned balance if parseable
+                                        if (parsed.ResponseData?.Account?.Balance != null)
+                                        {
+                                            if (decimal.TryParse(parsed.ResponseData.Account.Balance, NumberStyles.Number | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var parsedBal))
+                                            {
+                                                computedNewBal = parsedBal;
+                                            }
+                                        }
+                                        tx.NewBal = parsed.ResponseCode == "00" && parsed.ResponseMessage.ToUpper() == "SUCCESS" ? Convert.ToString(Newbal) : Convert.ToString(currentBalance);
+                                        tx.UpdateDate = DateTime.Now;
+                                        tx.Status = parsed.ResponseCode == "00" && parsed.ResponseMessage.ToUpper() == "SUCCESS" ? "SUCCESS" : "FAILED";
+                                        tx.Brid = parsed.ResponseData.Transaction.Rrn ?? tx.Brid;
+                                        _context.TransactionDetails.Update(tx);
+                                        await _context.SaveChangesAsync(cancellationToken);
+
+                                        // insert single Tbluserbalance entry
+                                        try
+                                        {
+                                            if (parsed.ResponseCode == "00" && parsed.ResponseMessage.ToUpper() == "SUCCESS")
+                                            {
+                                                var ub = new Tbluserbalance
+                                                {
+                                                    UserId = userData.Id,
+                                                    UserName = userData.Name + "-" + userData.Phone,
+                                                    OldBal = currentBalance,
+                                                    Amount = model.Amount,
+                                                    NewBal = Newbal,
+                                                    TxnType = "AEPS_CASH_WITHDRAWAL",
+                                                    CrdrType = "CR", // Option B => credit
+                                                    Remarks = $"AEPS Withdrawal TXN:{tx.TxnId}",
+                                                    WlId = userData.Wlid,
+                                                    Txndate = DateTime.Now,
+                                                    TxnAmount = model.Amount,
+                                                    SurCom = rtComm,
+                                                    Tds = tds
+                                                };
+
+                                                await _context.Tbluserbalances.AddAsync(ub, cancellationToken);
+                                                await _context.SaveChangesAsync(cancellationToken);
+                                            }
+                                        }
+                                        catch (Exception ubEx)
+                                        {
+                                            await LogApiAsync(apiUrl, "DB", "33", ubEx.Message, deviceInfoJson+", x-traceid:"+ traceId + "", requestBody, responseContent, "AEPS", "CashWithdrawal_TblUserBalance");
+                                        }
+                                    }
+                                }
+                                catch { /* ignore db update error */ }
+                                parsed.Success = parsed.ResponseMessage == "SUCCESS" && parsed.ResponseCode == "00" ? true : false;
+                                parsed.appIdentifierToken = appIdToken;
+                                parsed.accessToken = accessToken;
+                                return parsed;
+                            }
+                            catch (Exception parseEx)
+                            {
+                                // return best-effort success wrapper (map message)
+                                return new CashWithdrawalResponseDto
+                                {
+                                    Success = true,
+                                    ResponseCode = "00",
+                                    ResponseMessage = "Success but parsing failed: " + parseEx.Message,
+                                    ResponseData = null,
+                                    accessToken = accessToken,
+                                    appIdentifierToken = appIdToken
+                                };
+                            }
+                        }
+                    }
+
                     try
                     {
                         using var doc = JsonDocument.Parse(responseContent);
@@ -597,7 +621,12 @@ namespace InstantPay.Application.Services
                         if (fallbackTokens == null)
                         {
                             try { tx.Status = "FAILED"; tx.ApiRes = Truncate(RedactSensitive(responseContent), 4000); tx.UpdateDate = DateTime.Now; _context.TransactionDetails.Update(tx); await _context.SaveChangesAsync(cancellationToken); } catch { }
-                            return new CashWithdrawalResponseDto { Success = false, ResponseCode = "22", ResponseMessage = "Session expired and refresh failed", ResponseData = null,
+                            return new CashWithdrawalResponseDto
+                            {
+                                Success = false,
+                                ResponseCode = "22",
+                                ResponseMessage = "Session expired and refresh failed",
+                                ResponseData = null,
                                 accessToken = accessToken,
                                 appIdentifierToken = appIdToken
                             };
@@ -628,7 +657,12 @@ namespace InstantPay.Application.Services
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
                     try { tx.Status = "CANCELLED"; tx.UpdateDate = DateTime.Now; _context.TransactionDetails.Update(tx); await _context.SaveChangesAsync(cancellationToken); } catch { }
-                    return new CashWithdrawalResponseDto { Success = false, ResponseCode = "33", ResponseMessage = "Request canceled", ResponseData = null,
+                    return new CashWithdrawalResponseDto
+                    {
+                        Success = false,
+                        ResponseCode = "33",
+                        ResponseMessage = "Request canceled",
+                        ResponseData = null,
                         accessToken = accessToken,
                         appIdentifierToken = appIdToken
                     };
@@ -637,14 +671,24 @@ namespace InstantPay.Application.Services
                 {
                     await LogApiAsync(apiUrl, "POST", "33", ex.Message, deviceInfoJson, requestBody, null, "AEPS", "CashWithdrawal");
                     try { tx.Status = "FAILED"; tx.AdminRemarks = ex.Message; tx.UpdateDate = DateTime.Now; _context.TransactionDetails.Update(tx); await _context.SaveChangesAsync(cancellationToken); } catch { }
-                    return new CashWithdrawalResponseDto { Success = false, ResponseCode = "33", ResponseMessage = "Unexpected error: " + ex.Message, ResponseData = null,
+                    return new CashWithdrawalResponseDto
+                    {
+                        Success = false,
+                        ResponseCode = "33",
+                        ResponseMessage = "Unexpected error: " + ex.Message,
+                        ResponseData = null,
                         accessToken = accessToken,
                         appIdentifierToken = appIdToken
                     };
                 }
             } // end while
 
-            return new CashWithdrawalResponseDto { Success = false, ResponseCode = "33", ResponseMessage = "Unhandled flow", ResponseData = null,
+            return new CashWithdrawalResponseDto
+            {
+                Success = false,
+                ResponseCode = "33",
+                ResponseMessage = "Unhandled flow",
+                ResponseData = null,
                 accessToken = accessToken,
                 appIdentifierToken = appIdToken
             };

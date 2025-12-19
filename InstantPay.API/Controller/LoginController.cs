@@ -22,19 +22,10 @@ namespace InstantPay.API.Controller
         }
         [AllowAnonymous]
         [HttpPost]
-        public async Task<IActionResult> Login(EncryptedRequest request)
+        public async Task<IActionResult> Login(LoginRequestDto request)
         {
-            var decryptedJson = _aes.Decrypt(request.Data);
-            var login = JsonSerializer.Deserialize<LoginRequestDto>(decryptedJson);
-            var EncPassword = _aes.Encrypt(_aes.Encrypt(login.password));
-            login.password = EncPassword;
-            var response = await _loginService.LoginAsync(login);
-            if (response == null)
-                return Unauthorized(new { message = "Invalid username or password" });
-
-            var responseJson = JsonSerializer.Serialize(response);
-            var encryptedResponse = _aes.Encrypt(responseJson);
-            return Ok(new { data = encryptedResponse });
+            var response = await _loginService.LoginAsync(request);
+            return Ok(new { data = response });
         }
 
         [AllowAnonymous]

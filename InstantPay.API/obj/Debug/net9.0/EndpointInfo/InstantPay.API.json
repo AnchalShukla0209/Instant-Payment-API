@@ -1135,17 +1135,17 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/EncryptedRequest"
+                "$ref": "#/components/schemas/LoginRequestDto"
               }
             },
             "text/json": {
               "schema": {
-                "$ref": "#/components/schemas/EncryptedRequest"
+                "$ref": "#/components/schemas/LoginRequestDto"
               }
             },
             "application/*+json": {
               "schema": {
-                "$ref": "#/components/schemas/EncryptedRequest"
+                "$ref": "#/components/schemas/LoginRequestDto"
               }
             }
           }
@@ -2353,6 +2353,20 @@
         "type": "object",
         "properties": {
           "serviceName": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "LoginRequestDto": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string",
+            "nullable": true
+          },
+          "password": {
             "type": "string",
             "nullable": true
           }

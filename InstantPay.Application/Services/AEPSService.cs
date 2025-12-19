@@ -466,7 +466,7 @@ namespace InstantPay.Application.Services
             while (attempts < maxAttempts)
             {
                 attempts++;
-
+                string traceId = Guid.NewGuid().ToString();
                 using var req = new HttpRequestMessage(HttpMethod.Post, apiUrl);
                 req.Content = new StringContent(requestBody, Encoding.UTF8, "application/json");
 
@@ -474,7 +474,7 @@ namespace InstantPay.Application.Services
                 req.Headers.Add("x-channel-id", channelId);
                 if (!string.IsNullOrEmpty(appIdToken)) req.Headers.Add("x-appid-token", appIdToken);
                 if (!string.IsNullOrEmpty(accessToken)) req.Headers.Add("x-app-access-token", accessToken);
-                req.Headers.Add("x-trace-id", Guid.NewGuid().ToString());
+                req.Headers.Add("x-trace-id", traceId);
                 req.Headers.Add("x-device-info", deviceInfoJson);
                 req.Headers.Add("clientId", cfg.GetValue<string>("clientId") ?? "");
 
@@ -487,7 +487,7 @@ namespace InstantPay.Application.Services
                     responseContent = await resp.Content.ReadAsStringAsync(cancellationToken);
 
                     // log
-                    await LogApiAsync(apiUrl, "POST", resp.IsSuccessStatusCode ? "00" : resp.StatusCode.ToString(), null, deviceInfoJson, requestBody, responseContent, "AEPS", "AgentCreate");
+                    await LogApiAsync(apiUrl, "POST", resp.IsSuccessStatusCode ? "00" : resp.StatusCode.ToString(), null, deviceInfoJson+"TraceId: "+ traceId + ",x-appid-token: "+ appIdToken + ", x-app-access-token:"+ accessToken + "", requestBody, responseContent, "AEPS", "AgentCreate");
 
                     // if success -> break and process
                     if (resp.IsSuccessStatusCode)
@@ -495,7 +495,7 @@ namespace InstantPay.Application.Services
                         dynamic resultObj = JsonConvert.DeserializeObject(responseContent);
 
                         // check expected success shape, prefer resultObj.data.applicationNumber
-                        string applicationNumber = resultObj?.data?.applicationNumber ?? string.Empty;
+                        string applicationNumber = resultObj?.data?.applicationNumber ?? resultObj?.applicationNumber ?? string.Empty;
                         string status = resultObj?.status ?? (resultObj?.data?.status ?? string.Empty);
                         var msg = "";
 
@@ -742,6 +742,7 @@ namespace InstantPay.Application.Services
 
             while (attempts < maxAttempts)
             {
+                string traceid = Guid.NewGuid().ToString();
                 attempts++;
                 using var req = new HttpRequestMessage(HttpMethod.Post, apiUrl);
                 req.Content = new StringContent(requestBody, Encoding.UTF8, "application/json");
@@ -750,7 +751,7 @@ namespace InstantPay.Application.Services
                 req.Headers.Add("x-channel-id", channelId);
                 if (!string.IsNullOrEmpty(appIdToken)) req.Headers.Add("x-appid-token", appIdToken);
                 if (!string.IsNullOrEmpty(accessToken)) req.Headers.Add("x-app-access-token", accessToken);
-                req.Headers.Add("x-trace-id", Guid.NewGuid().ToString());
+                req.Headers.Add("x-trace-id", traceid);
                 req.Headers.Add("x-device-info", deviceInfoJson);
                 req.Headers.Add("clientId", _config["JPBAEPS:clientId"]);
 
@@ -762,7 +763,7 @@ namespace InstantPay.Application.Services
                     responseContent = await resp.Content.ReadAsStringAsync(cancellationToken);
 
                     // log
-                    await LogApiAsync(apiUrl, "POST", resp.IsSuccessStatusCode ? "00" : resp.StatusCode.ToString(), null, deviceInfoJson, requestBody, responseContent, "AEPS", "AgentEKYC");
+                    await LogApiAsync(apiUrl, "POST", resp.IsSuccessStatusCode ? "00" : resp.StatusCode.ToString(), null, deviceInfoJson+", traceid: "+ traceid + ", AuthToken: "+ accessToken + ", x-appid-token: "+ appIdToken + "", requestBody, responseContent, "AEPS", "AgentEKYC");
 
                     if (resp.IsSuccessStatusCode)
                     {

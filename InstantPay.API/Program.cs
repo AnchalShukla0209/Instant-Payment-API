@@ -83,30 +83,27 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
-
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAllFrontends", policy =>
     {
         policy.WithOrigins(
-            "http://instantpay-angular-ui.s3-website-us-east-1.amazonaws.com",
-            "https://test.instantpayment.thedemo.co.in",
             "https://demo2.instantpayment.co.in",
             "http://localhost:4200"
         )
         .AllowAnyHeader()
-        .AllowAnyMethod();
+        .AllowAnyMethod()
+        .AllowCredentials(); // required for auth cookies/tokens
     });
 });
 
 builder.Services.AddHttpClient("JIO", client =>
 {
-    client.Timeout = TimeSpan.FromSeconds(20);
+    client.Timeout = TimeSpan.FromSeconds(50);
 });
 
 builder.Services.AddMemoryCache();
 builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(Program).Assembly));
-builder.Services.AddHttpClient();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<ILoginService, LoginService>();
@@ -129,8 +126,6 @@ builder.Services.AddScoped<IAEPSService, AEPSService>();
 builder.Services.AddScoped<IJPBBalanceEnquiry, JPBBalanceEnquiry>();
 builder.Services.AddScoped<IJPBMiniStatement, JPBMiniStatement>();
 builder.Services.AddScoped<IJPPCashWithdrawal, JPPCashWithdrawal>();
-builder.Services.AddHttpContextAccessor();
-builder.Services.AddHttpClient("JIO", client => client.Timeout = TimeSpan.FromSeconds(20));
 builder.Services.AddScoped<IFileHandler>(provider =>
 {
     var env = provider.GetRequiredService<IWebHostEnvironment>();
@@ -151,6 +146,6 @@ app.UseHttpsRedirection();
 app.UseCors("AllowAllFrontends");
 app.UseAuthentication();
 app.UseAuthorization();
-app.MapControllers();
 app.UseStaticFiles();
+app.MapControllers();
 app.Run();

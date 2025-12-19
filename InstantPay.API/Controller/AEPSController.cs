@@ -26,18 +26,45 @@ namespace InstantPay.API.Controller
         [HttpGet("agentstatus")]
         public async Task<IActionResult> AgentStatus(string agentId, string mob, string aadharnumber)
         {
-            var userId = Request.Headers["userid"].FirstOrDefault();
-            var username = Request.Headers["username"].FirstOrDefault();
+            int uid = 0;
+            string username = null;
 
-            if (string.IsNullOrWhiteSpace(userId) || !int.TryParse(userId, out int uid))
+            // 1️⃣ Try JWT claims FIRST
+            var userIdClaim = User?.FindFirst("userid");
+            var usernameClaim = User?.FindFirst("username");
+
+            if (userIdClaim != null &&
+                int.TryParse(userIdClaim.Value, out uid) &&
+                usernameClaim != null &&
+                !string.IsNullOrWhiteSpace(usernameClaim.Value))
             {
-                return Unauthorized(new { message = "Invalid or missing userId" });
+                username = usernameClaim.Value;
             }
 
-            if (string.IsNullOrWhiteSpace(username))
+            // 2️⃣ If JWT not available → fallback to Headers
+            if (uid == 0 || string.IsNullOrWhiteSpace(username))
             {
-                return Unauthorized(new { message = "Invalid or missing username" });
+                var headerUserId = Request.Headers["userid"].FirstOrDefault();
+                var headerUsername = Request.Headers["username"].FirstOrDefault();
+
+                if (!string.IsNullOrWhiteSpace(headerUserId) &&
+                    int.TryParse(headerUserId, out uid) &&
+                    !string.IsNullOrWhiteSpace(headerUsername))
+                {
+                    username = headerUsername;
+                }
             }
+
+            // 3️⃣ Unauthorized ONLY if both sources failed
+            if (uid == 0 || string.IsNullOrWhiteSpace(username))
+            {
+                return Unauthorized(new
+                {
+                    message = "Invalid or missing userid/username in token and headers"
+                });
+            }
+
+
             var result = await _service.GetJioAgentAEPSLogin(agentId, mob, aadharnumber);
             return Ok(result);
         }
@@ -45,20 +72,46 @@ namespace InstantPay.API.Controller
         [HttpGet("CheckAgentDailyLogin")]
         public async Task<IActionResult> CheckAgentDailyLogin()
         {
-            var userId = Request.Headers["userid"].FirstOrDefault();
-            var username = Request.Headers["username"].FirstOrDefault();
+            int uid = 0;
+            string username = null;
 
-            if (string.IsNullOrWhiteSpace(userId) || !int.TryParse(userId, out int uid))
+            // 1️⃣ Try JWT claims FIRST
+            var userIdClaim = User?.FindFirst("userid");
+            var usernameClaim = User?.FindFirst("username");
+
+            if (userIdClaim != null &&
+                int.TryParse(userIdClaim.Value, out uid) &&
+                usernameClaim != null &&
+                !string.IsNullOrWhiteSpace(usernameClaim.Value))
             {
-                return Unauthorized(new { message = "Invalid or missing userId" });
+                username = usernameClaim.Value;
             }
 
-            if (string.IsNullOrWhiteSpace(username))
+            // 2️⃣ If JWT not available → fallback to Headers
+            if (uid == 0 || string.IsNullOrWhiteSpace(username))
             {
-                return Unauthorized(new { message = "Invalid or missing username" });
+                var headerUserId = Request.Headers["userid"].FirstOrDefault();
+                var headerUsername = Request.Headers["username"].FirstOrDefault();
+
+                if (!string.IsNullOrWhiteSpace(headerUserId) &&
+                    int.TryParse(headerUserId, out uid) &&
+                    !string.IsNullOrWhiteSpace(headerUsername))
+                {
+                    username = headerUsername;
+                }
             }
+
+            // 3️⃣ Unauthorized ONLY if both sources failed
+            if (uid == 0 || string.IsNullOrWhiteSpace(username))
+            {
+                return Unauthorized(new
+                {
+                    message = "Invalid or missing userid/username in token and headers"
+                });
+            }
+
             var result = await _service.CheckAgentDailyLoginAsync(uid);
-            if(result.StatusCode=="401")
+            if (result.StatusCode == "401")
             {
                 return Unauthorized(new { message = "Invalid or missing username" });
             }
@@ -68,18 +121,44 @@ namespace InstantPay.API.Controller
         [HttpPost("createAgent")]
         public async Task<IActionResult> CreateAgent([FromBody] CreateAgentRequestDto request)
         {
-            var userId = Request.Headers["userid"].FirstOrDefault();
-            var username = Request.Headers["username"].FirstOrDefault();
+            int uid = 0;
+            string username = null;
 
-            if (string.IsNullOrWhiteSpace(userId) || !int.TryParse(userId, out int uid))
+            // 1️⃣ Try JWT claims FIRST
+            var userIdClaim = User?.FindFirst("userid");
+            var usernameClaim = User?.FindFirst("username");
+
+            if (userIdClaim != null &&
+                int.TryParse(userIdClaim.Value, out uid) &&
+                usernameClaim != null &&
+                !string.IsNullOrWhiteSpace(usernameClaim.Value))
             {
-                return Unauthorized(new { message = "Invalid or missing userId" });
+                username = usernameClaim.Value;
             }
 
-            if (string.IsNullOrWhiteSpace(username))
+            // 2️⃣ If JWT not available → fallback to Headers
+            if (uid == 0 || string.IsNullOrWhiteSpace(username))
             {
-                return Unauthorized(new { message = "Invalid or missing username" });
+                var headerUserId = Request.Headers["userid"].FirstOrDefault();
+                var headerUsername = Request.Headers["username"].FirstOrDefault();
+
+                if (!string.IsNullOrWhiteSpace(headerUserId) &&
+                    int.TryParse(headerUserId, out uid) &&
+                    !string.IsNullOrWhiteSpace(headerUsername))
+                {
+                    username = headerUsername;
+                }
             }
+
+            // 3️⃣ Unauthorized ONLY if both sources failed
+            if (uid == 0 || string.IsNullOrWhiteSpace(username))
+            {
+                return Unauthorized(new
+                {
+                    message = "Invalid or missing userid/username in token and headers"
+                });
+            }
+
             var res = await _service.CreateAgentAsync(request);
             return Ok(res);
         }
@@ -87,18 +166,44 @@ namespace InstantPay.API.Controller
         [HttpPost("AgentEKYC")]
         public async Task<IActionResult> ExecuteAsync([FromBody] AgentEKYCRequestDto request)
         {
-            var userId = Request.Headers["userid"].FirstOrDefault();
-            var username = Request.Headers["username"].FirstOrDefault();
+            int uid = 0;
+            string username = null;
 
-            if (string.IsNullOrWhiteSpace(userId) || !int.TryParse(userId, out int uid))
+            // 1️⃣ Try JWT claims FIRST
+            var userIdClaim = User?.FindFirst("userid");
+            var usernameClaim = User?.FindFirst("username");
+
+            if (userIdClaim != null &&
+                int.TryParse(userIdClaim.Value, out uid) &&
+                usernameClaim != null &&
+                !string.IsNullOrWhiteSpace(usernameClaim.Value))
             {
-                return Unauthorized(new { message = "Invalid or missing userId" });
+                username = usernameClaim.Value;
             }
 
-            if (string.IsNullOrWhiteSpace(username))
+            // 2️⃣ If JWT not available → fallback to Headers
+            if (uid == 0 || string.IsNullOrWhiteSpace(username))
             {
-                return Unauthorized(new { message = "Invalid or missing username" });
+                var headerUserId = Request.Headers["userid"].FirstOrDefault();
+                var headerUsername = Request.Headers["username"].FirstOrDefault();
+
+                if (!string.IsNullOrWhiteSpace(headerUserId) &&
+                    int.TryParse(headerUserId, out uid) &&
+                    !string.IsNullOrWhiteSpace(headerUsername))
+                {
+                    username = headerUsername;
+                }
             }
+
+            // 3️⃣ Unauthorized ONLY if both sources failed
+            if (uid == 0 || string.IsNullOrWhiteSpace(username))
+            {
+                return Unauthorized(new
+                {
+                    message = "Invalid or missing userid/username in token and headers"
+                });
+            }
+
             var res = await _service.AgentEKYCAsync(request);
             return Ok(res);
         }
@@ -106,18 +211,44 @@ namespace InstantPay.API.Controller
         [HttpPost("JPBBalanceEnquiry")]
         public async Task<IActionResult> JPBBalanceEnquiry([FromBody] BalanceInquiryRequestDto request)
         {
-            var userId = Request.Headers["userid"].FirstOrDefault();
-            var username = Request.Headers["username"].FirstOrDefault();
+            int uid = 0;
+            string username = null;
 
-            if (string.IsNullOrWhiteSpace(userId) || !int.TryParse(userId, out int uid))
+            // 1️⃣ Try JWT claims FIRST
+            var userIdClaim = User?.FindFirst("userid");
+            var usernameClaim = User?.FindFirst("username");
+
+            if (userIdClaim != null &&
+                int.TryParse(userIdClaim.Value, out uid) &&
+                usernameClaim != null &&
+                !string.IsNullOrWhiteSpace(usernameClaim.Value))
             {
-                return Unauthorized(new { message = "Invalid or missing userId" });
+                username = usernameClaim.Value;
             }
 
-            if (string.IsNullOrWhiteSpace(username))
+            // 2️⃣ If JWT not available → fallback to Headers
+            if (uid == 0 || string.IsNullOrWhiteSpace(username))
             {
-                return Unauthorized(new { message = "Invalid or missing username" });
+                var headerUserId = Request.Headers["userid"].FirstOrDefault();
+                var headerUsername = Request.Headers["username"].FirstOrDefault();
+
+                if (!string.IsNullOrWhiteSpace(headerUserId) &&
+                    int.TryParse(headerUserId, out uid) &&
+                    !string.IsNullOrWhiteSpace(headerUsername))
+                {
+                    username = headerUsername;
+                }
             }
+
+            // 3️⃣ Unauthorized ONLY if both sources failed
+            if (uid == 0 || string.IsNullOrWhiteSpace(username))
+            {
+                return Unauthorized(new
+                {
+                    message = "Invalid or missing userid/username in token and headers"
+                });
+            }
+
             request.UserId = Convert.ToString(uid);
             var res = await _balanceEnquiryService.BalanceInquiryAsync(request);
             return Ok(res);
@@ -126,18 +257,44 @@ namespace InstantPay.API.Controller
         [HttpPost("JPBMiniStatement")]
         public async Task<IActionResult> JPBMiniStatement([FromBody] MiniStatementRequest request)
         {
-            var userId = Request.Headers["userid"].FirstOrDefault();
-            var username = Request.Headers["username"].FirstOrDefault();
+            int uid = 0;
+            string username = null;
 
-            if (string.IsNullOrWhiteSpace(userId) || !int.TryParse(userId, out int uid))
+            // 1️⃣ Try JWT claims FIRST
+            var userIdClaim = User?.FindFirst("userid");
+            var usernameClaim = User?.FindFirst("username");
+
+            if (userIdClaim != null &&
+                int.TryParse(userIdClaim.Value, out uid) &&
+                usernameClaim != null &&
+                !string.IsNullOrWhiteSpace(usernameClaim.Value))
             {
-                return Unauthorized(new { message = "Invalid or missing userId" });
+                username = usernameClaim.Value;
             }
 
-            if (string.IsNullOrWhiteSpace(username))
+            // 2️⃣ If JWT not available → fallback to Headers
+            if (uid == 0 || string.IsNullOrWhiteSpace(username))
             {
-                return Unauthorized(new { message = "Invalid or missing username" });
+                var headerUserId = Request.Headers["userid"].FirstOrDefault();
+                var headerUsername = Request.Headers["username"].FirstOrDefault();
+
+                if (!string.IsNullOrWhiteSpace(headerUserId) &&
+                    int.TryParse(headerUserId, out uid) &&
+                    !string.IsNullOrWhiteSpace(headerUsername))
+                {
+                    username = headerUsername;
+                }
             }
+
+            // 3️⃣ Unauthorized ONLY if both sources failed
+            if (uid == 0 || string.IsNullOrWhiteSpace(username))
+            {
+                return Unauthorized(new
+                {
+                    message = "Invalid or missing userid/username in token and headers"
+                });
+            }
+
             request.UserId = Convert.ToString(uid);
             var res = await _miniStatementService.MiniStatementAsync(request);
             return Ok(res);
@@ -146,18 +303,44 @@ namespace InstantPay.API.Controller
         [HttpPost("JPBCashWithdrawal")]
         public async Task<IActionResult> JPBCashWithdrawal([FromBody] CashWithdrawalRequest request)
         {
-            var userId = Request.Headers["userid"].FirstOrDefault();
-            var username = Request.Headers["username"].FirstOrDefault();
+            int uid = 0;
+            string username = null;
 
-            if (string.IsNullOrWhiteSpace(userId) || !int.TryParse(userId, out int uid))
+            // 1️⃣ Try JWT claims FIRST
+            var userIdClaim = User?.FindFirst("userid");
+            var usernameClaim = User?.FindFirst("username");
+
+            if (userIdClaim != null &&
+                int.TryParse(userIdClaim.Value, out uid) &&
+                usernameClaim != null &&
+                !string.IsNullOrWhiteSpace(usernameClaim.Value))
             {
-                return Unauthorized(new { message = "Invalid or missing userId" });
+                username = usernameClaim.Value;
             }
 
-            if (string.IsNullOrWhiteSpace(username))
+            // 2️⃣ If JWT not available → fallback to Headers
+            if (uid == 0 || string.IsNullOrWhiteSpace(username))
             {
-                return Unauthorized(new { message = "Invalid or missing username" });
+                var headerUserId = Request.Headers["userid"].FirstOrDefault();
+                var headerUsername = Request.Headers["username"].FirstOrDefault();
+
+                if (!string.IsNullOrWhiteSpace(headerUserId) &&
+                    int.TryParse(headerUserId, out uid) &&
+                    !string.IsNullOrWhiteSpace(headerUsername))
+                {
+                    username = headerUsername;
+                }
             }
+
+            // 3️⃣ Unauthorized ONLY if both sources failed
+            if (uid == 0 || string.IsNullOrWhiteSpace(username))
+            {
+                return Unauthorized(new
+                {
+                    message = "Invalid or missing userid/username in token and headers"
+                });
+            }
+
             request.UserId = Convert.ToString(uid);
             var res = await _cashwithdrawal.CashWithdrawalAsync(request);
             return Ok(res);
