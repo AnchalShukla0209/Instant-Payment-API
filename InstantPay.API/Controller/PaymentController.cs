@@ -92,7 +92,7 @@ namespace InstantPay.API.Controller
 
         [HttpGet]
         public async Task<IActionResult> GetAll([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10,
-            [FromQuery] string status = null, [FromQuery] DateTime? fromDate = null, [FromQuery] DateTime? toDate = null)
+            [FromQuery] string status = null, [FromQuery] string? fromDate = null, [FromQuery] string? toDate = null, [FromQuery] string commonsearch ="", [FromQuery] int isExport=0)
         {
             try
             {
@@ -108,7 +108,7 @@ namespace InstantPay.API.Controller
                 {
                     return Unauthorized(new { message = "Invalid or missing username" });
                 }
-                var result = await _paymentService.GetAllPaymentsAsync(pageNumber, pageSize, status, fromDate, toDate);
+                var result = await _paymentService.GetAllPaymentsAsync(pageNumber, pageSize, status, fromDate, toDate, commonsearch, isExport);
                 return Ok(new { result.Payments, result.TotalCount });
             }
             catch (ArgumentException ae)

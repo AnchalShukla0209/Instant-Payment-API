@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using InstantPay.Application.Interfaces;
 using System.Net.NetworkInformation;
+using Newtonsoft.Json;
 
 namespace InstantPay.Application.Services
 {
@@ -36,6 +37,42 @@ namespace InstantPay.Application.Services
             request.Content = body;
 
             var response = await _httpClient.SendAsync(request);
+            return await response.Content.ReadAsStringAsync();
+        }
+
+        public async Task<string> SendResetLinkWithOtpAsync(
+    string mobile,
+    string resetLink,
+    string otp)
+        {
+            var authKey = _configuration["OTP:AuthKey"];
+            var templateId = _configuration["OTP:TemplateId"];
+
+            var content = new MultipartFormDataContent
+    {
+        { new StringContent("INSTPY"), "sender" },
+        { new StringContent("4"), "route" },
+        { new StringContent("91"), "country" },
+        { new StringContent(templateId), "template_id" },
+        {
+            new StringContent(
+                $"Reset password link: {resetLink}. OTP: {otp}. Valid for 5 minutes."
+            ),
+            "message"
+        },
+        { new StringContent($"91{mobile}"), "mobiles" }
+    };
+
+            var request = new HttpRequestMessage(
+                HttpMethod.Post,
+                "https://control.msg91.com/api/v2/sendsms"
+            );
+
+            request.Headers.Add("authkey", authKey);
+            request.Content = content; // IMPORTANT
+
+            var response = await _httpClient.SendAsync(request);
+            var responseData = response.Content.ReadAsStringAsync();
             return await response.Content.ReadAsStringAsync();
         }
 

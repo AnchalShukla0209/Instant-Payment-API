@@ -1,7 +1,10 @@
 ﻿using InstantPay.Application.Interfaces;
+using InstantPay.Application.Interfaces.SMS;
+using InstantPay.Application.Services.SMS;
 using InstantPay.Infrastructure.Security;
 using InstantPay.Infrastructure.Sql.Entities;
 using InstantPay.SharedKernel.Entity;
+using InstantPay.SharedKernel.RequestPayload.DebitCredit;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using MongoDB.Bson.IO;
@@ -19,12 +22,14 @@ namespace InstantPay.Application.Services
     {
         private readonly AppDbContext _context;
         private IFileHandler _IFileHandler;
+        private ISmsService _smsService;
         private readonly AesEncryptionService _aes;
-        public ClientOperation(AppDbContext context, IFileHandler iFileHandler, AesEncryptionService aes)
+        public ClientOperation(AppDbContext context, IFileHandler iFileHandler, AesEncryptionService aes, ISmsService smsService)
         {
             _context = context;
             _IFileHandler = iFileHandler;
             _aes = aes;
+            _smsService = smsService;
         }
 
         public async Task<GetUsersWithMainBalanceResponse> GetClientList(GetUsersWithMainBalanceQuery request)
@@ -50,32 +55,48 @@ namespace InstantPay.Application.Services
 
             // Step 1: Get latest balances by UserId + UserName from DB
             var latestBalances = await balanceQuery
-                .GroupBy(b => new { b.UserId, b.UserName })
+                .GroupBy(b => new { b.UserId})
                 .Select(g => g.OrderByDescending(b => b.Id).FirstOrDefault())
                 .ToListAsync(); // Materialize here so EF is done
 
             // Step 2: Build dictionary in memory using tuple key, normalize username
             var balanceDict = latestBalances
             .ToDictionary(
-                b => (b.UserId, (b.UserName ?? string.Empty).Trim().ToLowerInvariant()),
+                b => (b.UserId),
                 b => b.NewBal ?? 0m // if null, store as 0
             );
 
             var totalBalance = balanceDict.Values.Sum();
 
-            // Step 3: Get users
-            var totalCount = await _context.TblWlUsers.CountAsync();
+            var userQuery = _context.TblWlUsers.AsQueryable();
 
-            var users = await _context.TblWlUsers
-                .OrderByDescending(u => u.Id)
-                .Skip((request.pageIndex - 1) * request.pageSize)
-                .Take(request.pageSize)
-                .ToListAsync(); // Fetch users first
+            if (!string.IsNullOrWhiteSpace(request.commonsearch))
+            {
+                var search = request.commonsearch.Trim().ToLower();
+
+                userQuery = userQuery.Where(u =>
+                    (u.UserName != null && u.UserName.ToLower().Contains(search)) ||
+                    (u.Phone != null && u.Phone.ToLower().Contains(search)) ||
+                    (u.CompanyName != null && u.CompanyName.ToLower().Contains(search)) ||
+                    (u.EmailId != null && u.EmailId.ToLower().Contains(search)) ||
+                    (u.Phone != null && u.Phone.Contains(search)) ||
+                    (u.City != null && u.City.ToLower().Contains(search))
+                );
+            }
+
+            var totalCount = await userQuery.CountAsync();
+
+            // Step 3: Get users
+            var users = await userQuery
+            .OrderByDescending(u => u.Id)
+            .Skip((request.pageIndex - 1) * request.pageSize)
+            .Take(request.pageSize)
+            .ToListAsync();
 
 
             var result = users.Select(u =>
             {
-                var lookupKey = (u.Id.ToString(), (u.UserName ?? string.Empty).Trim().ToLowerInvariant());
+                var lookupKey = (u.Id.ToString().Trim().ToLowerInvariant());
                 return new UserBalanceDto
                 {
                     Id = u.Id,
@@ -126,7 +147,8 @@ namespace InstantPay.Application.Services
                     UserName = request.UserName,
                     EmailId = request.EmailId,
                     Phone = request.Phone,
-                    Password = _aes.Encrypt(request.Password),
+                    //Password = _aes.Encrypt(request.Password),
+                    Password = (request.Password),
                     PanCard = request.PanCard,
                     AadharCard = request.AadharCard,
                     DomainName = request.DomainName,
@@ -164,8 +186,7 @@ namespace InstantPay.Application.Services
                     };
                 }
 
-                var existingUser = await _context.TblWlUsers
-        .FirstOrDefaultAsync(x => x.UserName.ToLower().Trim() == request.UserName.ToLower().Trim() && x.Id != request.ClientId);
+                var existingUser = await _context.TblWlUsers.FirstOrDefaultAsync(x => x.UserName.ToLower().Trim() == request.UserName.ToLower().Trim() && x.Id != request.ClientId);
 
                 if (existingUser != null)
                 {
@@ -180,7 +201,8 @@ namespace InstantPay.Application.Services
                 client.UserName = request.UserName;
                 client.EmailId = request.EmailId;
                 client.Phone = request.Phone;
-                client.Password = _aes.Encrypt(request.Password);
+                //client.Password = _aes.Encrypt(request.Password);
+                client.Password = (request.Password);
                 client.PanCard = request.PanCard;
                 client.AadharCard = request.AadharCard;
                 client.DomainName = request.DomainName;
@@ -260,7 +282,8 @@ namespace InstantPay.Application.Services
                     UserName = c.UserName,
                     EmailId = c.EmailId,
                     Phone = c.Phone,
-                    Password = _aes.Decrypt(c.Password),
+                    //Password = _aes.Decrypt(c.Password),
+                    Password = c.Password,
                     PanCard = c.PanCard,
                     AadharCard = c.AadharCard,
                     DomainName = c.DomainName,
@@ -380,7 +403,7 @@ namespace InstantPay.Application.Services
                     }
 
                     var oldBalance = await _context.TblWlbalances
-                        .Where(b => Convert.ToInt32(b.UserId) == dto.UserId && b.UserName.Trim().ToLower() == user.UserName.Trim().ToLower())
+                        .Where(b => Convert.ToInt32(b.UserId) == dto.UserId)
                         .OrderByDescending(b => b.Id)
                         .Select(b => b.NewBal)
                         .FirstOrDefaultAsync();
@@ -389,13 +412,13 @@ namespace InstantPay.Application.Services
                     var txnType = dto.Status == WalletOperationStatus.Credit ? "WALLET TOPUP BY ADMIN" : "WALLET DEBIT BY ADMIN";
                     var remarks = $"{txnType} For Account No {user.Phone} | {(dto.Status == WalletOperationStatus.Credit ? "Credit" : "Debit")} by Services | Wallet {(dto.Status == WalletOperationStatus.Credit ? "TopUp" : "Debit")} BY Admin Account";
 
-                    _context.TblWlbalances.Add(new TblWlbalance
+                    var walletIns = new TblWlbalance
                     {
                         TxnAmount = dto.Amount,
                         SurComm = 0,
                         Tds = 0,
                         UserId = Convert.ToString(dto.UserId),
-                        UserName = user.UserName,
+                        UserName = user.UserName+"-"+user.Phone,
                         OldBal = oldBalance,
                         Amount = dto.Amount,
                         NewBal = newBalance,
@@ -403,10 +426,46 @@ namespace InstantPay.Application.Services
                         CrdrType = dto.Status == WalletOperationStatus.Credit ? "Credit" : "Debit",
                         Remarks = remarks,
                         Txndate = DateTime.Now
-                    });
+                    };
+                    _context.TblWlbalances.Add(walletIns);
+                    await _context.SaveChangesAsync();
+
+                    var payment = new TblPaymentRequest
+                    {
+                        PaymentId = Guid.NewGuid(),
+                        BankId = Guid.Parse("61A14EEF-9765-45BA-AD22-ADE44D01F708"),
+                        UserId = request.UserId,
+                        Amount = request.Amount,
+                        TxnId = walletIns.Id.ToString(),
+                        DeposideMode = dto.Status == WalletOperationStatus.Credit ? "BORROW Credit by Admin" : "Debit By Admin",
+                        Status = "Approved",
+                        CreatedBy = request.ActionById,
+                        CreatedOn = DateTime.Now,
+                        ModifiedOn = DateTime.Now,
+                        IsDeleted = false,
+                        UserRemarks = "",
+                        AdminRemarks = dto.Status == WalletOperationStatus.Credit ? "Paid By Admin as Request by you as a borrow" : "Debit By Admin",
+                        openingBalance = oldBalance,
+                        closingBalance = newBalance
+                    };
+
+                    _context.TblPaymentRequest.Add(payment);
 
                     await _context.SaveChangesAsync();
                     await transaction.CommitAsync();
+
+                    var smsData = new DebitCreditSmsRequest
+                    {
+                        TransferType = dto.Status == WalletOperationStatus.Credit ? "Credit" : "Debit",
+                        ReceiverPhone = user.Phone,
+                        ReceiverPreAmount = oldBalance ?? 0,
+                        ReceiverCurrentAmount = newBalance,
+                        ReceiverName = user.UserName,
+                        TransactionAmount = dto.Amount
+                    };
+
+                    await _smsService.SendDebitCreditSmsAsync(smsData);
+
                     return new WalletTransactionResponse
                     {
                         Username = user.UserName,

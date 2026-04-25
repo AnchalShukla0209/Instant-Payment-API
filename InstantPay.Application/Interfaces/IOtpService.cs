@@ -10,6 +10,7 @@ namespace InstantPay.Application.Interfaces
     {
         Task<string> SendOtpAsync(string mobile, string otp);
         Task<string> GetMacAddress();
+        Task<string> SendResetLinkWithOtpAsync(string mobile, string resetLink, string otp);
     }
 
 }

@@ -1,7 +1,9 @@
 ﻿using InstantPay.Application.Interfaces;
+using InstantPay.Application.Interfaces.SMS;
 using InstantPay.Infrastructure.Security;
 using InstantPay.Infrastructure.Sql.Entities;
 using InstantPay.SharedKernel.Entity;
+using InstantPay.SharedKernel.RequestPayload.DebitCredit;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using MongoDB.Bson.IO;
@@ -13,6 +15,7 @@ using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 using static InstantPay.SharedKernel.Enums.WalletOperationStatusENUM;
+using static MongoDB.Driver.WriteConcern;
 
 namespace InstantPay.Application.Services
 {
@@ -21,122 +24,133 @@ namespace InstantPay.Application.Services
         private readonly AppDbContext _context;
         private IFileHandler _IFileHandler;
         private readonly AesEncryptionService _aes;
-        public ClientUserOperation(AppDbContext context, IFileHandler iFileHandler, AesEncryptionService aes)
+        private readonly ISmsService _smsService;
+        public ClientUserOperation(AppDbContext context, IFileHandler iFileHandler, AesEncryptionService aes, ISmsService smsservice)
         {
             _context = context;
             _IFileHandler = iFileHandler;
             _aes = aes;
+            _smsService = smsservice;
         }
 
         public async Task<GetClientUsersWithMainBalanceResponse> GetClientUserList(GetClientUserQuery request)
         {
-            DateOnly? fromDate = null;
-            DateOnly? toDate = null;
+            DateTime? fromDate = null;
+            DateTime? toDate = null;
 
-            if (DateOnly.TryParse(request.fromDate, out var parsedFromDate))
-                fromDate = parsedFromDate;
+            if (!string.IsNullOrEmpty(request.fromDate))
+                fromDate = DateTime.Parse(request.fromDate);
 
-            if (DateOnly.TryParse(request.toDate, out var parsedToDate))
-                toDate = parsedToDate;
+            if (!string.IsNullOrEmpty(request.toDate))
+                toDate = DateTime.Parse(request.toDate);
 
-            var balanceQuery = _context.Tbluserbalances.AsQueryable();
+            var balanceFiltered = _context.Tbluserbalances
+                .Where(b =>
+                    (!fromDate.HasValue || b.Txndate >= fromDate) &&
+                    (!toDate.HasValue || b.Txndate <= toDate)
+                );
 
+            // first: get latest balance record per user
+            var latestBalanceIds =
+                from b in balanceFiltered
+                group b by b.UserId into g
+                select new
+                {
+                    UserId = g.Key,
+                    LatestId = g.Max(x => x.Id)
+                };
 
-            if (fromDate.HasValue)
-            {
-                balanceQuery = balanceQuery.Where(b => b.Txndate.Value.Date >= fromDate.Value.ToDateTime(TimeOnly.MinValue).Date);
-            }
-            if (toDate.HasValue)
-                balanceQuery = balanceQuery.Where(b => b.Txndate.Value.Date <= toDate.Value.ToDateTime(TimeOnly.MinValue).Date);
+            // join to get NewBal only once
+            var latestBalances =
+                from x in latestBalanceIds
+                join b in _context.Tbluserbalances on x.LatestId equals b.Id
+                select new
+                {
+                    x.UserId,
+                    b.NewBal
+                };
 
-            // Step 1: Get latest balances by UserId + UserName from DB
-            var latestBalances = await balanceQuery
-                .GroupBy(b => new { b.UserId, b.UserName })
-                .Select(g => g.OrderByDescending(b => b.Id).FirstOrDefault())
-                .ToListAsync(); // Materialize here so EF is done
+            
 
-            // Step 2: Build dictionary in memory using tuple key, normalize username
-            var balanceDict = latestBalances
-            .ToDictionary(
-                b => (b.UserId, (b.UserName ?? string.Empty).Trim().ToLowerInvariant()),
-                b => b.NewBal ?? 0m // if null, store as 0
+            var baseUsers = _context.TblUsers
+            .Where(t =>
+                t.Wlid == request.ClientId.ToString() &&
+                (!fromDate.HasValue || t.RegDate >= fromDate) &&
+                (!toDate.HasValue || t.RegDate <= toDate)
             );
 
+            var filteredUserIds = baseUsers.Select(u => (int?)u.Id);
 
-            var totalBalance = balanceDict.Values.Sum();
+            var filteredLatestBalances =
+            from lb in latestBalances
+            join u in baseUsers on lb.UserId equals u.Id
+            select lb;
 
-            // Step 4: Total count
-            var totalCount = await _context.TblUsers
-                .Where(t1 => t1.Wlid != null && t1.Wlid == request.ClientId.ToString())
-                .CountAsync();
+            var totalBalance = await filteredLatestBalances.SumAsync(x => x.NewBal ?? 0m);
 
-            // Step 5: Main query
-            var users = await
-                (from t1 in _context.TblUsers
-                 join cp in _context.Tblcommplans on t1.PlanId equals Convert.ToString(cp.Id) into cpj
-                 from cp in cpj.DefaultIfEmpty()
-                 join t2 in _context.TblUsers on t1.Adid equals Convert.ToString(t2.Id) into adJ
-                 from t2 in adJ.DefaultIfEmpty()
-                 join t3 in _context.TblUsers on t1.Mdid equals Convert.ToString(t3.Id) into mdJ
-                 from t3 in mdJ.DefaultIfEmpty()
-                 where t1.Wlid != null && t1.Wlid == request.ClientId.ToString()
-                 orderby t1.Id descending
-                 select new
-                 {
-                     t1.Id,
-                     UserName = t1.Username ?? string.Empty,
-                     t1.CompanyName,
-                     t1.City,
-                     t1.Usertype,
-                     t1.Phone,
-                     t1.Status,
-                     t1.EmailId,
-                     PlanName = cp != null
-                         ? (cp.PlanName + "-" + cp.UserType)
-                         : string.Empty,
-                     ADName = t2 != null ? t2.Name : "NA",
-                     MDName = t3 != null ? t3.Name : "NA",
-                     CreatedDate = t1.RegDate,
-                     MPin = t1.MPin,
-                 })
+            if (!string.IsNullOrWhiteSpace(request.commonsearch))
+            {
+                var search = request.commonsearch.Trim();
+
+                baseUsers = baseUsers.Where(t =>
+                    EF.Functions.Like(t.Username ?? "", $"%{search}%") ||
+                    EF.Functions.Like(t.Phone ?? "", $"%{search}%") ||
+                    EF.Functions.Like(t.CompanyName ?? "", $"%{search}%") ||
+                    EF.Functions.Like(t.EmailId ?? "", $"%{search}%") ||
+                    EF.Functions.Like(t.Phone ?? "", $"%{search}%") ||
+                    EF.Functions.Like(t.City ?? "", $"%{search}%")
+                );
+            }
+
+
+            var totalCount = await baseUsers.CountAsync();
+
+            var usersPaged =
+                await (
+                    from t1 in baseUsers
+                    join cp in _context.Tblcommplans on t1.PlanId equals cp.Id.ToString() into cpj
+                    from cp in cpj.DefaultIfEmpty()
+                    join t2 in _context.TblUsers on t1.Adid equals t2.Id.ToString() into adJ
+                    from t2 in adJ.DefaultIfEmpty()
+                    join t3 in _context.TblUsers on t1.Mdid equals t3.Id.ToString() into mdJ
+                    from t3 in mdJ.DefaultIfEmpty()
+                    join lb in latestBalances on t1.Id equals lb.UserId into lbj
+                    from lb in lbj.DefaultIfEmpty()
+                    orderby t1.Id descending
+                    select new UserBalanceRec
+                    {
+                        Id = t1.Id,
+                        UserName = t1.Username ?? "",
+                        Name = t1.Name??"",
+                        UserType = t1.Usertype,
+                        Phone = t1.Phone,
+                        CompanyName = t1.CompanyName ?? "",
+                        City = t1.City ?? "",
+                        Status = t1.Status ?? "",
+                        EmailId = t1.EmailId ?? "",
+                        PlanName = cp != null ? cp.PlanName + "-" + cp.UserType : "",
+                        ADName = t2 != null ? t2.Name : "NA",
+                        MDName = t3 != null ? t3.Name : "NA",
+                        CreatedDate = (DateTime)t1.RegDate,
+                        MainBalance = lb != null ? lb.NewBal ?? 0m : 0m
+                    }
+                )
                 .Skip((request.pageIndex - 1) * request.pageSize)
                 .Take(request.pageSize)
                 .AsNoTracking()
                 .ToListAsync();
-
-            // Step 6: Map + inject balances from dictionary
-            var result = users.Select(u =>
-            {
-                var lookupKey = (u.Id, (u.UserName ?? string.Empty).Trim().ToLowerInvariant());
-                return new UserBalanceRec
-                {
-                    Id = u.Id,
-                    UserName = u.UserName,
-                    UserType = u.Usertype,
-                    Phone = u.Phone,
-                    CompanyName = u.CompanyName ?? string.Empty,
-                    City = u.City ?? string.Empty,
-                    Status = u.Status ?? string.Empty,
-                    EmailId = u.EmailId ?? string.Empty,
-                    PlanName = u.PlanName,
-                    ADName = u.ADName,
-                    MDName = u.MDName,
-                    CreatedDate = (DateTime)u.CreatedDate,
-                    MainBalance = balanceDict.TryGetValue(lookupKey, out var bal) ? bal : 0m
-                };
-            }).ToList();
-
-
 
             return new GetClientUsersWithMainBalanceResponse
             {
                 PageIndex = request.pageIndex,
                 PageSize = request.pageSize,
                 TotalRecords = totalCount,
-                TotalBalance = (decimal)totalBalance,
-                Users = result
+                TotalBalance = totalBalance,
+                Users = usersPaged
             };
         }
+
+
 
         public async Task<ResponseModelforClientUseraddandupdateapi> CreateOrUpdateClientUser(CreateOrUpdateClientUserCommand request, CancellationToken cancellationToken)
         {
@@ -164,7 +178,8 @@ namespace InstantPay.Application.Services
                     Username = request.UserName,
                     EmailId = request.EmailId,
                     Phone = request.Phone,
-                    Password = _aes.Encrypt(request.Password),
+                    //Password = _aes.Encrypt(request.Password),
+                    Password = (request.Password),
                     PanCard = request.PanCard,
                     AadharCard = request.AadharCard,
 
@@ -199,7 +214,8 @@ namespace InstantPay.Application.Services
                     DeviceId = "",
                     Lat = request.lat,
                     Longitute = request.longitute,
-                    MPin = _aes.Encrypt(request.MPin)
+                    //MPin = _aes.Encrypt(request.MPin)
+                    MPin = (request.MPin)
 
                 };
 
@@ -235,7 +251,8 @@ namespace InstantPay.Application.Services
                 client.Username = request.UserName;
                 client.EmailId = request.EmailId;
                 client.Phone = request.Phone;
-                client.Password = _aes.Encrypt(request.Password);
+                //client.Password = _aes.Encrypt(request.Password);
+                client.Password = (request.Password);
                 client.PanCard = request.PanCard;
                 client.AadharCard = request.AadharCard;
                 client.Usertype = request.UserType;
@@ -266,10 +283,8 @@ namespace InstantPay.Application.Services
                 client.DeviceId = "";
                 client.Lat = request.lat;
                 client.Longitute = request.longitute;
-                client.MPin = _aes.Encrypt(request.MPin);
-
-
-
+                //client.MPin = _aes.Encrypt(request.MPin);
+                client.MPin = (request.MPin);
             }
 
             string webRootPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
@@ -283,7 +298,7 @@ namespace InstantPay.Application.Services
                 string filePath = Path.Combine(folderPath, file.FileName);
                 using var stream = new FileStream(filePath, FileMode.Create);
                 file.CopyTo(stream);
-                return Path.Combine("UploadFiles","ClientUser", client.Id.ToString(), folder, file.FileName).Replace("\\", "/");
+                return Path.Combine("UploadFiles", "ClientUser", client.Id.ToString(), folder, file.FileName).Replace("\\", "/");
             }
             string? panPath = "";
             string? aadharPath = "";
@@ -322,71 +337,54 @@ namespace InstantPay.Application.Services
 
         public async Task<GetClientUserDetail?> GetClientUserDetailByIdAsync(int Id)
         {
-                        var client = await (
+            var client = await (
             from t1 in _context.TblUsers
-
-                // Join AD user
             join t2 in _context.TblUsers on t1.Adid equals Convert.ToString(t2.Id) into adJ
             from t2 in adJ.DefaultIfEmpty()
-
-                // Join MD user
             join t3 in _context.TblUsers on t1.Mdid equals Convert.ToString(t3.Id) into mdJ
             from t3 in mdJ.DefaultIfEmpty()
-
-                // Join SuperAdmin using WlId from TblUsers
             join sa in _context.TblWlUsers on t1.Wlid equals Convert.ToString(sa.Id) into saJ
             from sa in saJ.DefaultIfEmpty()
-
             where t1.Id == Id
             select new GetClientUserDetail
             {
-            Id = t1.Id,
-            CompanyName = t1.CompanyName,
-            UserName = t1.Username,
-            EmailId = t1.EmailId,
-            Phone = t1.Phone,
-            Password = _aes.Decrypt(t1.Password),
-            PanCard = t1.PanCard,
-            AadharCard = t1.AadharCard,
-            CustomerName = t1.Name,
-            UserType = t1.Usertype,
-            Logo = t1.Logo,
-            AddressLine1 = t1.AddressLine1,
-            AddressLine2 = t1.AddressLine2,
-            State = t1.State,
-            City = t1.City,
-
-                // Names from joined tables
-            MDName = t3 != null ? t3.Username : string.Empty,
-            ADName = t2 != null ? t2.Username : string.Empty,
-            ADMINName = sa != null ? sa.UserName : string.Empty,
-
-            ShopAddress = t1.ShopAddress,
-            ShopCity = t1.ShopCity,
-            ShopState = t1.ShopState,
-            ShopZipCode = t1.ShipZipcode,
-
-            Pincode = t1.Pincode,
-            Pancopy = t1.Pancopy,
-            AadharFront = t1.AadharFront,
-            AadharBack = t1.AadharBack,
-            MobileRecharge = t1.MobileRecharge,
-            MoneyTransfer = t1.MoneyTransfer,
-            AEPS = t1.Aeps,
-            BillPayment = t1.BillPayment,
-            MicroATM = t1.MicroAtm,
-
-            Status = t1.Status,
-            RegDate = t1.RegDate,
-            TxnPin = t1.TxnPin,
-            ClientId = t1.Id,
-            MPin = _aes.Decrypt(t1.MPin)
-
-            }
-            ).FirstOrDefaultAsync();
-
-
-
+                Id = t1.Id,
+                CompanyName = t1.CompanyName,
+                UserName = t1.Username,
+                EmailId = t1.EmailId,
+                Phone = t1.Phone,
+                Password = t1.Password,
+                PanCard = t1.PanCard,
+                AadharCard = t1.AadharCard,
+                CustomerName = t1.Name,
+                UserType = t1.Usertype,
+                Logo = t1.Logo,
+                AddressLine1 = t1.AddressLine1,
+                AddressLine2 = t1.AddressLine2,
+                State = t1.State,
+                City = t1.City,
+                MDName = t3 != null ? t3.Username : string.Empty,
+                ADName = t2 != null ? t2.Username : string.Empty,
+                ADMINName = sa != null ? sa.UserName : string.Empty,
+                ShopAddress = t1.ShopAddress,
+                ShopCity = t1.ShopCity,
+                ShopState = t1.ShopState,
+                ShopZipCode = t1.ShipZipcode,
+                Pincode = t1.Pincode,
+                Pancopy = t1.Pancopy,
+                AadharFront = t1.AadharFront,
+                AadharBack = t1.AadharBack,
+                MobileRecharge = t1.MobileRecharge,
+                MoneyTransfer = t1.MoneyTransfer,
+                AEPS = t1.Aeps,
+                BillPayment = t1.BillPayment,
+                MicroATM = t1.MicroAtm,
+                Status = t1.Status,
+                RegDate = t1.RegDate,
+                TxnPin = t1.TxnPin,
+                ClientId = t1.Id,
+                MPin = t1.MPin
+            }).FirstOrDefaultAsync();
             return client;
         }
 
@@ -449,13 +447,14 @@ namespace InstantPay.Application.Services
         public async Task<WalletTransactionResponse> AddWalletToClientUser(WalletTransactionRequest request)
         {
             await using var transaction = await _context.Database.BeginTransactionAsync();
+            DebitCreditSmsRequest smsData = null;
 
             try
             {
                 // ✅ Step 1: Validate user
                 var user = await _context.TblUsers
                     .Where(x => x.Id == request.UserId)
-                    .Select(x => new { x.Id, x.Username, x.Phone })
+                    .Select(x => new { x.Id, x.Username, x.Phone, x.Name })
                     .FirstOrDefaultAsync();
 
                 if (user is null)
@@ -481,7 +480,7 @@ namespace InstantPay.Application.Services
 
                 // ✅ Step 3: Get last balance
                 var oldBalance = await _context.Tbluserbalances
-                    .Where(b => b.UserId == request.UserId && b.UserName.ToLower() == user.Username.ToLower())
+                    .Where(b => b.UserId == request.UserId)
                     .OrderByDescending(b => b.Id)
                     .Select(b => b.NewBal)
                     .FirstOrDefaultAsync() ?? 0m;
@@ -492,7 +491,7 @@ namespace InstantPay.Application.Services
 
                 var txnType = isCredit ? "WALLET TOPUP BY ADMIN" : "WALLET DEBIT BY ADMIN";
                 var crdrType = isCredit ? "Credit" : "Debit";
-                var remarks = $"{txnType} For Account No {user.Phone} | {crdrType} by Services | Wallet {crdrType} BY Admin Account";
+                var remarks = $"{request.remarks} | {txnType} For Account No {user.Phone} | {crdrType} by Services | Wallet {crdrType} BY Admin Account";
 
                 // ✅ Step 5: Insert transaction
                 var walletEntry = new Tbluserbalance
@@ -501,7 +500,7 @@ namespace InstantPay.Application.Services
                     SurCom = 0,
                     Tds = 0,
                     UserId = request.UserId,
-                    UserName = user.Username,
+                    UserName = user.Name + "-" + user.Phone,
                     OldBal = oldBalance,
                     Amount = request.Amount,
                     NewBal = newBalance,
@@ -512,10 +511,48 @@ namespace InstantPay.Application.Services
                 };
 
                 _context.Tbluserbalances.Add(walletEntry);
+                await _context.SaveChangesAsync();
+
+                var payment = new TblPaymentRequest
+                {
+                    PaymentId = Guid.NewGuid(),
+                    BankId = Guid.Parse("61A14EEF-9765-45BA-AD22-ADE44D01F708"),
+                    UserId = request.UserId,
+                    Amount = request.Amount,
+                    TxnId = walletEntry.Id.ToString(),
+                    DeposideMode = isCredit? "BORROW Credit by Admin": "Debit By Admin",
+                    Status = "Approved",
+                    CreatedBy = request.ActionById,
+                    CreatedOn = DateTime.Now,
+                    ModifiedOn = DateTime.Now,
+                    IsDeleted = false,
+                    UserRemarks = "",
+                    AdminRemarks = isCredit? "Paid By Admin as Request by you as a borrow" : "Debit By Admin",
+                    openingBalance= oldBalance,
+                    closingBalance = newBalance
+
+                };
+
+                _context.TblPaymentRequest.Add(payment);
+
+                smsData = new DebitCreditSmsRequest
+                {
+                    TransferType = crdrType,
+                    ReceiverPhone = user.Phone,
+                    ReceiverPreAmount = oldBalance,
+                    ReceiverCurrentAmount = newBalance,
+                    ReceiverName = user.Name,
+                    TransactionAmount = request.Amount
+                };
 
                 // ✅ Save + Commit
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
+
+                if (smsData != null)
+                {
+                   await _smsService.SendDebitCreditSmsAsync(smsData);
+                }
 
                 return new WalletTransactionResponse
                 {

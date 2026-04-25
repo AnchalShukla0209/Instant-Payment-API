@@ -2,17 +2,16 @@
 using InstantPay.Infrastructure.Security;
 using InstantPay.Infrastructure.Sql.Entities;
 using InstantPay.SharedKernel.Entity;
+using InstantPay.SharedKernel.RequestPayload;
+using InstantPay.SharedKernel.Results;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
-using System;
-using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
-using System.Linq;
 using System.Security.Claims;
 using System.Text;
-using System.Threading.Tasks;
-
+using System.Text.RegularExpressions;
+using BCrypt.Net;
 namespace InstantPay.Application.Services
 {
    
@@ -21,12 +20,16 @@ namespace InstantPay.Application.Services
         private readonly AppDbContext _context;
         private readonly IConfiguration _config;
         private readonly AesEncryptionService _aes;
+        private readonly IOtpService _otpService;
+        private readonly IEmailService _email;
 
-        public AuthService(AppDbContext context, IConfiguration config, AesEncryptionService aes)
+        public AuthService(AppDbContext context, IConfiguration config, AesEncryptionService aes, IOtpService otpService, IEmailService email)
         {
             _context = context;
             _config = config;
             _aes = aes;
+            _otpService = otpService;
+            _email = email;
         }
 
         public async Task<UnlockResponseDto?> UnlockAsync(UnlockRequestDto request)
@@ -95,14 +98,14 @@ namespace InstantPay.Application.Services
                 if (request.Method.Equals("mpin", StringComparison.OrdinalIgnoreCase))
                 {
 
-                    if (string.IsNullOrEmpty(_aes.Encrypt(tblUser.Mpin))) return null;
+                    if (string.IsNullOrEmpty(tblUser.Mpin)) return null;
 
-                    if (tblUser.Mpin != _aes.Encrypt(request.Value))
+                    if (tblUser.Mpin != _aes.Decrypt(request.Value))
                         return null;
                 }
                 else if (request.Method.Equals("password", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (tblUser.Password != _aes.Encrypt(request.Value))
+                    if (tblUser.Password != _aes.Decrypt(request.Value))
                         return null;
                 }
                 else
@@ -159,6 +162,378 @@ namespace InstantPay.Application.Services
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
+
+        public async Task<ResponseSuccess> UpdateUserInfo(UserRequestForCP request)
+        {
+            if (string.IsNullOrWhiteSpace(request?.UserId))
+            {
+                return BuildResponse(false, "Invalid User");
+            }
+
+            int userId = Convert.ToInt32(request.UserId);
+
+            var userData = await _context.TblUsers
+                .Where(x => x.Id == userId && x.Status.ToUpper() == "ACTIVE")
+                .FirstOrDefaultAsync();
+
+            if (request.Mode == "CPASS")
+            {   
+                userData.TxnPin = request.TxnPin;
+                userData.MPin = request.MPin;
+                _context.TblUsers.Update(userData);
+                await _context.SaveChangesAsync();
+                return BuildResponse(true, "MPin & TxnPin Updated Successfully !");
+            }
+
+            if (!userData.Password.Trim().Equals(request.OldPassword?.Trim(), StringComparison.OrdinalIgnoreCase))
+            {
+                return BuildResponse(false, "Old Password is not correct, Kindly Enter correct old Password !");
+            }
+
+            if (!request.NewPassword.Equals(request.ConfirmPassword))
+            {
+                return BuildResponse(false, "New Password And Confirm Password Should match !");
+            }
+
+            if (!IsPasswordValid(request.NewPassword))
+            {
+                return BuildResponse(false,
+                    "Password must contain at least 1 uppercase, 1 lowercase, 1 numeric and 1 special character.");
+            }
+
+            userData.Password = request.ConfirmPassword;
+            _context.TblUsers.Update(userData);
+            await _context.SaveChangesAsync();
+
+            return BuildResponse(true, "Password Changed Successfully !");
+        }
+
+        public async Task<ResponseSuccess> ValidateUserInfoAndSentOTP(UserRequestForCP request)
+        {
+            if (request == null || string.IsNullOrWhiteSpace(request.UserId))
+            {
+                return BuildResponse(false, "Invalid User");
+            }
+
+            if (!int.TryParse(request.UserId, out int userId))
+            {
+                return BuildResponse(false, "Invalid User");
+            }
+
+            var userData = await _context.TblUsers
+                .FirstOrDefaultAsync(x => x.Id == userId &&
+                                         x.Status.Trim().ToUpper()=="ACTIVE");
+
+            if (userData == null)
+            {
+                return BuildResponse(false, "User not found");
+            }
+
+            if (!string.Equals(userData.PanCard?.Trim(),
+                               request.PANNo?.Trim(),
+                               StringComparison.OrdinalIgnoreCase))
+            {
+                return BuildResponse(false, "Invalid PAN Card, Please Enter Registered PAN Card");
+            }
+
+            if (!string.Equals(userData.AadharCard?.Trim(),
+                               request.AadharNo?.Trim(),
+                               StringComparison.OrdinalIgnoreCase))
+            {
+                return BuildResponse(false, "Invalid Aadhar Number, Please Enter Registered Aadhar Number");
+            }
+
+            var otp = Random.Shared.Next(1000, 9999).ToString();
+            var encryptedOtp = _aes.Encrypt(otp);
+
+            await _otpService.SendOtpAsync(userData.Phone?.Trim(), otp);
+
+            return BuildResponse(true, encryptedOtp);
+        }
+
+
+        private bool IsPasswordValid(string password)
+        {
+            if (string.IsNullOrWhiteSpace(password))
+                return false;
+
+            var regex = new Regex(
+                @"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#^()_+=\-\[\]{};':""\\|,.<>\/]).{8,}$"
+            );
+
+            return regex.IsMatch(password);
+        }
+
+        private ResponseSuccess BuildResponse(bool success, string message)
+        {
+            return new ResponseSuccess
+            {
+                success = success,
+                apitxnid = "",
+                message = message,
+                transactiondatetime = DateTime.Now.ToString(),
+                txnid = ""
+            };
+        }
+
+        public async Task<ResponseSuccess> ForgetPassword(ForgetPasswordRequest request)
+        {
+            if(request.Mobile=="")
+            {
+                return BuildResponse(false, "Please Enter Registered Mobile Number");
+            }
+
+            var user = await _context.TblUsers
+                .FirstOrDefaultAsync(x => x.Phone == request.Mobile && x.Status == "Active");
+
+            if (user == null)
+                return BuildResponse(false, "Mobile number not registered");
+
+            if (!string.Equals(user.PanCard?.Trim(),
+                               request.PANNumber?.Trim(),
+                               StringComparison.OrdinalIgnoreCase))
+            {
+                return BuildResponse(false, "Invalid PAN Card, Please Enter Registered PAN Card");
+            }
+
+            if (!string.Equals(user.AadharCard?.Trim(),
+                               request.AadharNumber?.Trim(),
+                               StringComparison.OrdinalIgnoreCase))
+            {
+                return BuildResponse(false, "Invalid Aadhar Number, Please Enter Registered Aadhar Number");
+            }
+
+            var token = Guid.NewGuid().ToString("N");
+            var otp = new Random().Next(1000, 9999).ToString();
+
+            user.ResetToken = token;
+            user.ResetTokenExpiry = DateTime.Now.AddMinutes(15);
+            user.ResetOtpHash = BCrypt.Net.BCrypt.HashPassword(otp);
+            user.ResetOtpExpiry = DateTime.Now.AddMinutes(5);
+            user.ResetOtpAttempts = 0;
+            user.LastOtpSentAt = DateTime.Now;
+
+            _context.TblUsers.Update(user);
+            await _context.SaveChangesAsync();
+
+            var resetUrl =
+                $"https://demo2.instantpayment.co.in/reset-password?token={token}";
+
+            await _otpService.SendOtpAsync(
+                user.Phone, otp
+            );
+
+            string data= await _email.SendOtpEmailAsync(user.EmailId.Trim(), BuildOtpEmailBody(user.Name.ToUpper(),otp, resetUrl));
+            if(data!="1")
+            {
+                return BuildResponse(false, data);
+            }
+
+            return BuildResponse(true, "Reset Password Link Has been Shared on your Registered Email Id, Please reset your password with in 15 minutes!");
+        }
+
+        public async Task<ResponseSuccess> ExpirtCheckForForgetPassword(ResetPasswordRequest request)
+        {
+
+            var user = await _context.TblUsers.FirstOrDefaultAsync(x =>
+                x.ResetToken == request.Token &&
+                x.ResetTokenExpiry > DateTime.Now);
+
+            if (user == null)
+            {
+                return BuildResponse(false, "Invalid or expired reset link");
+            }
+
+            return BuildResponse(true, "Valid");
+        }
+
+        private string BuildOtpEmailBody(string UserName, string otp, string resetUrl)
+        {
+            return $@"
+                <!DOCTYPE html>
+                <html lang='en'>
+                <head>
+                    <meta charset='UTF-8'>
+                    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+                    <title>Password Reset - InstantPayment</title>
+                </head>
+
+                <body style='margin:0; padding:0; background-color:#f4f4f4; font-family:Arial, Helvetica, sans-serif;'>
+
+                <table width='100%' cellpadding='0' cellspacing='0' style='background-color:#f4f4f4; padding:30px 0;'>
+                    <tr>
+                        <td align='center'>
+
+                            <table width='600' cellpadding='0' cellspacing='0' style='background:#ffffff; border-radius:8px; overflow:hidden;'>
+
+                                <!-- Header -->
+                                <tr>
+                                    <td style='background:#5e2f82; padding:20px; text-align:center;'>
+                                        <img src='https://demo2.instantpayment.co.in/assets/images/logo_2.png'
+                                             alt='InstantPayment'
+                                             style='max-height:45px;' />
+                                    </td>
+                                </tr>
+
+                                <!-- Body -->
+                                <tr>
+                                    <td style='padding:30px; color:#333333; font-size:15px; line-height:1.6;'>
+
+                                        <p style='margin-top:0;'>Dear {UserName},</p>
+
+                                        <p>
+                                            We received a request to reset your <strong>InstantPayment</strong> account password.
+                                            Please use the OTP below and click the reset link to proceed.
+                                        </p>
+
+                                        <!-- OTP Box -->
+                                        <div style='margin:30px 0; text-align:center;'>
+                                            <span style='display:inline-block;
+                                                padding:15px 30px;
+                                                font-size:26px;
+                                                font-weight:bold;
+                                                letter-spacing:6px;
+                                                color:#5e2f82;
+                                                border:2px dashed #5e2f82;
+                                                border-radius:6px;'>
+                                                {otp}
+                                            </span>
+                                        </div>
+
+                                        <p style='text-align:center; margin-bottom:10px;'>
+                                            <strong>OTP valid for 5 minutes</strong>
+                                        </p>
+
+                                        <!-- Reset Link -->
+                                        <p>
+                                            Please open the below link to reset your password and use the above otp:
+                                        </p>
+
+                                        <table align='center' cellpadding='0' cellspacing='0' role='presentation' style='margin:25px auto;'>
+                                            <tr>
+                                                <td align='center' bgcolor='#5e2f82' style='border-radius:6px;'>
+                                                    <a href='{resetUrl}'
+                                                       target='_blank'
+                                                       style='
+                                                           display:inline-block;
+                                                           padding:14px 28px;
+                                                           font-size:15px;
+                                                           font-weight:bold;
+                                                           font-family:Arial, Helvetica, sans-serif;
+                                                           color:#ffffff;
+                                                           text-decoration:none;
+                                                           border-radius:6px;
+                                                       '>
+                                                        Open Link
+                                                    </a>
+                                                </td>
+                                            </tr>
+                                        </table>
+                       
+                                        <p style='font-size:13px; color:#555555;'>
+                                            (This reset link is valid for <strong>15 minutes</strong>)
+                                        </p>
+
+                                        <p>
+                                            For your security, please do not share your OTP or reset link with anyone.
+                                            InstantPayment will never ask for this information.
+                                        </p>
+
+                                        <p>
+                                            If you did not request a password reset, please ignore this email.
+                                        </p>
+
+                                        <p style='margin-bottom:0;'>
+                                            Regards,<br/>
+                                            <strong>InstantPayment Team</strong>
+                                        </p>
+
+                                    </td>
+                                </tr>
+
+                                <!-- Footer -->
+                                <tr>
+                                    <td style='background:#f8f8f8; padding:15px; text-align:center; font-size:12px; color:#777777;'>
+                                        © {DateTime.Now.Year} InstantPayment. All rights reserved.
+                                    </td>
+                                </tr>
+
+                            </table>
+
+                        </td>
+                    </tr>
+                </table>
+
+                </body>
+                </html>";
+        }
+
+
+        public async Task<ResponseSuccess> ResetPassword(ResetPasswordRequest request)
+        {
+            var user = await _context.TblUsers.FirstOrDefaultAsync(x =>
+                x.ResetToken == request.Token &&
+                x.ResetTokenExpiry > DateTime.Now);
+
+            if (user == null)
+                return BuildResponse(false, "Invalid or expired reset link");
+
+            if (user.ResetOtpExpiry < DateTime.Now)
+                return BuildResponse(false, "OTP expired");
+
+            if (!BCrypt.Net.BCrypt.Verify(request.Otp, user.ResetOtpHash))
+                return BuildResponse(false, "Invalid OTP");
+
+            if (!IsPasswordValid(request.NewPassword))
+                return BuildResponse(false, "Password must contain uppercase, lowercase, number & special character");
+
+            user.Password = request.NewPassword;
+            user.ResetToken = null;
+            user.ResetTokenExpiry = null;
+            user.ResetOtpHash = null;
+            user.ResetOtpExpiry = null;
+            user.ResetOtpAttempts = 0;
+            user.LastOtpSentAt = null;
+            _context.TblUsers.Update(user);
+            await _context.SaveChangesAsync();
+            return BuildResponse(true, "Password reset successfully, Please Login with new Password!");
+        }
+
+       
+        public async Task<ResponseSuccess> ResendResetOtp(ResendOtpRequest request)
+        {
+            var user = await _context.TblUsers.FirstOrDefaultAsync(x =>
+                x.ResetToken == request.Token &&
+                x.ResetTokenExpiry > DateTime.Now);
+
+            if (user == null)
+                return BuildResponse(false, "Invalid or expired reset link");
+
+            if (user.ResetOtpAttempts >= 3)
+                return BuildResponse(false, "Maximum OTP resend attempts exceeded");
+
+            if (user.LastOtpSentAt.HasValue &&
+                (DateTime.Now - user.LastOtpSentAt.Value).TotalSeconds < 30)
+                return BuildResponse(false, "Please wait 30 seconds before resending OTP");
+
+            var otp = new Random().Next(1000, 9999).ToString();
+
+            user.ResetOtpHash = BCrypt.Net.BCrypt.HashPassword(otp);
+            user.ResetOtpExpiry = DateTime.Now.AddMinutes(5);
+            user.LastOtpSentAt = DateTime.Now;
+            user.ResetOtpAttempts += 1;
+
+            _context.TblUsers.Update(user);
+            await _context.SaveChangesAsync();
+
+            await _otpService.SendOtpAsync(
+                user.Phone, otp
+            );
+
+            return BuildResponse(true, "OTP resent successfully");
+        }
+
+
     }
 
 }

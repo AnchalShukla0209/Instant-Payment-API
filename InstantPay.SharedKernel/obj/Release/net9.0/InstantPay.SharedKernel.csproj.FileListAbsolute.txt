@@ -1,17 +1,7 @@
-D:\InstantPay\InstantPay.SharedKernel\bin\Release\net9.0\InstantPay.SharedKernel.deps.json
-D:\InstantPay\InstantPay.SharedKernel\bin\Release\net9.0\InstantPay.SharedKernel.dll
-D:\InstantPay\InstantPay.SharedKernel\bin\Release\net9.0\InstantPay.SharedKernel.pdb
-D:\InstantPay\InstantPay.SharedKernel\obj\Release\net9.0\InstantPay.SharedKernel.GeneratedMSBuildEditorConfig.editorconfig
-D:\InstantPay\InstantPay.SharedKernel\obj\Release\net9.0\InstantPay.SharedKernel.AssemblyInfoInputs.cache
-D:\InstantPay\InstantPay.SharedKernel\obj\Release\net9.0\InstantPay.SharedKernel.AssemblyInfo.cs
-D:\InstantPay\InstantPay.SharedKernel\obj\Release\net9.0\InstantPay.SharedKernel.csproj.CoreCompileInputs.cache
-D:\InstantPay\InstantPay.SharedKernel\obj\Release\net9.0\InstantPay.SharedKernel.dll
-D:\InstantPay\InstantPay.SharedKernel\obj\Release\net9.0\refint\InstantPay.SharedKernel.dll
-D:\InstantPay\InstantPay.SharedKernel\obj\Release\net9.0\InstantPay.SharedKernel.pdb
-D:\InstantPay\InstantPay.SharedKernel\obj\Release\net9.0\ref\InstantPay.SharedKernel.dll
 C:\Instant Projects\Instant-Payment-API\InstantPay.SharedKernel\bin\Release\net9.0\InstantPay.SharedKernel.deps.json
 C:\Instant Projects\Instant-Payment-API\InstantPay.SharedKernel\bin\Release\net9.0\InstantPay.SharedKernel.dll
 C:\Instant Projects\Instant-Payment-API\InstantPay.SharedKernel\bin\Release\net9.0\InstantPay.SharedKernel.pdb
+C:\Instant Projects\Instant-Payment-API\InstantPay.SharedKernel\obj\Release\net9.0\InstantPay.SharedKernel.csproj.AssemblyReference.cache
 C:\Instant Projects\Instant-Payment-API\InstantPay.SharedKernel\obj\Release\net9.0\InstantPay.SharedKernel.GeneratedMSBuildEditorConfig.editorconfig
 C:\Instant Projects\Instant-Payment-API\InstantPay.SharedKernel\obj\Release\net9.0\InstantPay.SharedKernel.AssemblyInfoInputs.cache
 C:\Instant Projects\Instant-Payment-API\InstantPay.SharedKernel\obj\Release\net9.0\InstantPay.SharedKernel.AssemblyInfo.cs
@@ -21,4 +11,3 @@ C:\Instant Projects\Instant-Payment-API\InstantPay.SharedKernel\obj\Release\net9
 C:\Instant Projects\Instant-Payment-API\InstantPay.SharedKernel\obj\Release\net9.0\refint\InstantPay.SharedKernel.dll
 C:\Instant Projects\Instant-Payment-API\InstantPay.SharedKernel\obj\Release\net9.0\InstantPay.SharedKernel.pdb
 C:\Instant Projects\Instant-Payment-API\InstantPay.SharedKernel\obj\Release\net9.0\ref\InstantPay.SharedKernel.dll
-C:\Instant Projects\Instant-Payment-API\InstantPay.SharedKernel\obj\Release\net9.0\InstantPay.SharedKernel.csproj.AssemblyReference.cache

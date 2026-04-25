@@ -3,9 +3,11 @@ using InstantPay.Application.Interfaces;
 using InstantPay.Application.Services;
 using InstantPay.Infrastructure.Security;
 using InstantPay.SharedKernel.Entity;
+using InstantPay.SharedKernel.RequestPayload;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 
 namespace InstantPay.API.Controller
@@ -30,6 +32,60 @@ namespace InstantPay.API.Controller
 
             return Ok(result);
         }
+
+        [AllowAnonymous]
+        [HttpPost("UpdateUserInfo")]
+        public async Task<IActionResult> UpdateUserInfo([FromBody] UserRequestForCP request)
+        {
+            if (request == null) return BadRequest("Invalid request");
+            var result = await _authService.UpdateUserInfo(request);
+            if (result == null) return BadRequest(new { message = "Invalid credentials" });
+            return Ok(result);
+        }
+
+        [HttpPost("forget-password")]
+        public async Task<IActionResult> ForgetPassword([FromBody] ForgetPasswordRequest request)
+        {
+            var result = await _authService.ForgetPassword(request);
+            if (result == null) return BadRequest(new { message = "Invalid credentials" });
+            return Ok(result);
+        }
+
+        [HttpPost("expiry-forget-password")]
+        public async Task<IActionResult> ExpiryForgetPassword([FromBody] ResetPasswordRequest request)
+        {
+            var result = await _authService.ExpirtCheckForForgetPassword(request);
+            if (result == null) return BadRequest(new { message = "Invalid credentials" });
+            return Ok(result);
+        }
+
+        [HttpPost("reset-password")]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
+        {
+            var result = await _authService.ResetPassword(request);
+            if (result == null) return BadRequest(new { message = "Invalid credentials" });
+            return Ok(result);
+        }
+
+        [HttpPost("resend-reset-otp")]
+        public async Task<IActionResult> ResendResetOtp([FromBody] ResendOtpRequest request)
+        {
+            var result = await _authService.ResendResetOtp(request);
+            if (result == null) return BadRequest(new { message = "Invalid credentials" });
+            return Ok(result);
+        }
+
+        [HttpPost("ValidateUserInfoAndSentOTP")]
+        public async Task<IActionResult> ValidateUserInfoAndSentOTP([FromBody] UserRequestForCP request)
+        {
+            var result = await _authService.ValidateUserInfoAndSentOTP(request);
+            if (result == null) return BadRequest(new { message = "Invalid credentials" });
+            return Ok(result);
+        }
+
+        
+
+
 
     }
 }

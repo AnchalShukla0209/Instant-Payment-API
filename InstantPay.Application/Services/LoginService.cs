@@ -54,7 +54,8 @@ public class LoginService : ILoginService
             IsOtpRequired = user.IsOtpRequired ?? false,
             Token = new JwtSecurityTokenHandler().WriteToken(token),
             messaege="",
-            Phoneno= user.Phoneno
+            Phoneno= user.Phoneno,
+            userid = Convert.ToString(user.Id)
         };
     }
 

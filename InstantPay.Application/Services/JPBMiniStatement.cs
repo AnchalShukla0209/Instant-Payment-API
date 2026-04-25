@@ -12,11 +12,11 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Xml.Linq;
-using static Org.BouncyCastle.Math.EC.ECCurve;
 
 namespace InstantPay.Application.Services
 {
@@ -96,8 +96,10 @@ namespace InstantPay.Application.Services
             };
             string deviceInfoJson = System.Text.Json.JsonSerializer.Serialize(deviceInfoObj);
             var req = new HttpRequestMessage(HttpMethod.Post, url);
+            req.Version = HttpVersion.Version11;
+            req.VersionPolicy = HttpVersionPolicy.RequestVersionExact;
             req.Content = new StringContent(JsonConvert.SerializeObject(payload), Encoding.UTF8, "application/json");
-
+            req.Headers.ExpectContinue = false;
             req.Headers.Add("x-channel-id", _config["JPBAEPS:channelId"]);
             req.Headers.Add("x-trace-id", Guid.NewGuid().ToString());
             req.Headers.Add("x-device-info", deviceInfoJson);
@@ -205,7 +207,7 @@ namespace InstantPay.Application.Services
 
             // PID base64
             string pidBase64 = "";
-            try { pidBase64 = ConvertPidXmlToBase64(model.FingerprintXml); }
+            try { pidBase64 = ConvertPidXmlToBase64(model.FingerprintXml, model.AuthType); }
             catch (Exception ex) { return new MiniStatementResponseDto { Success = false, Message = "finger print data is missing", StatusCode = "33", accessToken = accessToken, appIdentifierToken = appIdToken }; }
 
 
@@ -322,7 +324,7 @@ namespace InstantPay.Application.Services
                 ApiReq = Truncate(RedactSensitive(requestBody), 4000),
                 ReqDate = DateTime.Now,
                 UpdateDate = DateTime.Now,
-                CustomerName = null,
+                CustomerName = model.Mobile,
                 AccountNo = model.Aadhaar.Length >= 12 ? new string('X', 8) + model.Aadhaar.Substring(model.Aadhaar.Length - 4) : model.Aadhaar,
                 ComingFrom = model.ComingFrom,
                 IfscCode = null,
@@ -350,8 +352,10 @@ namespace InstantPay.Application.Services
             {
                 attempts++;
                 using var req = new HttpRequestMessage(HttpMethod.Post, apiUrl);
+                req.Version = HttpVersion.Version11;
+                req.VersionPolicy = HttpVersionPolicy.RequestVersionExact;
                 req.Content = new StringContent(requestBody, Encoding.UTF8, "application/json");
-                
+                req.Headers.ExpectContinue = false;
                 // headers
                 req.Headers.Add("x-channel-id", channelId);
                 if (!string.IsNullOrEmpty(appIdToken)) req.Headers.Add("x-appid-token", appIdToken);
@@ -530,7 +534,7 @@ namespace InstantPay.Application.Services
             };
         }
 
-        private static string ConvertPidXmlToBase64(string pidXml)
+        private static string ConvertPidXmlToBase64(string pidXml, string AuthType)
         {
             if (string.IsNullOrWhiteSpace(pidXml))
                 throw new ArgumentException("PID XML input is empty.");
@@ -573,7 +577,7 @@ namespace InstantPay.Application.Services
 
             var payload = new
             {
-                type = "1",
+                type = AuthType=="FINGER"?"1":"3",
                 captureResponse = new
                 {
                     PidDatatype = "X",

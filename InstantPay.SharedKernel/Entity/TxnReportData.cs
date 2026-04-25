@@ -18,6 +18,8 @@ namespace InstantPay.SharedKernel.Entity
         public string? UserName { get; set; }
         public string? OperatorName { get; set; }
         public string? AccountNo { get; set; }
+        public string? BeneName { get; set; }
+        public string? CustomerMobile { get; set; }
         public decimal? OpeningBal { get; set; }
         public decimal? Amount { get; set; }
         public decimal? Closing { get; set; }
@@ -34,6 +36,8 @@ namespace InstantPay.SharedKernel.Entity
         public int? TotalTransactions { get; set; }
         public decimal? TotalAmount { get; set; }
         public int? flagforTrans { get; set; }
+        public string? servicename { get; set; }
+        public string? Transactionid { get; set; }
     }
 
     public class PaginatedTxnResultDto
@@ -52,6 +56,8 @@ namespace InstantPay.SharedKernel.Entity
         public int? userId { get; set; } = 0;
         public int? pageIndex { get; set; } = 0;
         public int? pageSize { get; set; } = 0;
+        public string? commonsearch { get; set; } = "";
+        public int? ispaginationenabled { get; set; } = 1;
     }
 
     public class TxnReportUserPayload
@@ -62,8 +68,10 @@ namespace InstantPay.SharedKernel.Entity
         public string? dateTo { get; set; } = "";
         public int? userId { get; set; } = 0;
         public string? userName { get; set; } = "";
+        public string? commonsearch { get; set; } = "";
         public int? pageIndex { get; set; } = 0;
         public int? pageSize { get; set; } = 0;
+        public int? ispaginationenabled { get; set; } = 1;
     }
 
 
@@ -82,6 +90,7 @@ namespace InstantPay.SharedKernel.Entity
     public class TxnRequest
     {
         public int TxnId { get; set; }
+        public string ServiceName { get; set; }
     }
 
     public class TxnUpdateRequest

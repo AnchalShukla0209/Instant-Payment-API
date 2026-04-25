@@ -24,5 +24,27 @@ namespace InstantPay.SharedKernel.RequestPayload
         public string UserId { get; set; }
         public string ComingFrom { get; set; } = "Web";
         public decimal Amount { get; set; }
+        public string? AuthType { get; set; } = "FINGER";
+    }
+
+    public class CashDepositRequest
+    {
+        public string AgentLoginId { get; set; }
+        public string AgentPin { get; set; }
+        public string Aadhaar { get; set; }
+        public string BankId { get; set; }
+        public string BankName { get; set; }
+        public string Mobile { get; set; }
+        public string Latitude { get; set; }
+        public string Longitude { get; set; }
+        public string FingerprintXml { get; set; }
+        public string AccessToken { get; set; }
+
+        public string AppIdentifierToken { get; set; }
+
+        public string UserId { get; set; }
+        public string ComingFrom { get; set; } = "Web";
+        public decimal Amount { get; set; }
+        public string? AuthType { get; set; } = "FINGER";
     }
 }

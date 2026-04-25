@@ -89,6 +89,12 @@ public partial class TblUser
 
     public string? Latlongstatus { get; set; }
     public string? MPin { get; set; }
+    public string? ResetToken { get; set; }
+    public DateTime? ResetTokenExpiry { get; set; }
+    public string? ResetOtpHash { get; set; }
+    public DateTime? ResetOtpExpiry { get; set; }
+    public int? ResetOtpAttempts { get; set; }
+    public DateTime? LastOtpSentAt { get; set; }
 
     
 }

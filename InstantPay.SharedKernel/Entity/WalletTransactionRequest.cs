@@ -16,6 +16,7 @@ namespace InstantPay.SharedKernel.Entity
         public decimal Amount { get; set; }
         public int UserId { get; set; }
         public int ActionById { get; set; }
+        public string? remarks { get; set; }
     }
 
     public class WalletTransactionResponse

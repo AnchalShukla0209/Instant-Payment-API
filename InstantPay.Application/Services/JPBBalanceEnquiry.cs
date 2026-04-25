@@ -12,6 +12,8 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Net;
+using System.Reflection.PortableExecutable;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -53,7 +55,7 @@ namespace InstantPay.Application.Services
             }
         }
 
-        private static string ConvertPidXmlToBase64(string pidXml)
+        private static string ConvertPidXmlToBase64(string pidXml, string AuthType)
         {
             if (string.IsNullOrWhiteSpace(pidXml))
                 throw new ArgumentException("PID XML input is empty.");
@@ -102,7 +104,7 @@ namespace InstantPay.Application.Services
 
             var payload = new
             {
-                type = "1",
+                type = AuthType=="FINGER"?"1":"3",
                 captureResponse = new
                 {
                     PidDatatype = "X",
@@ -154,14 +156,14 @@ namespace InstantPay.Application.Services
         {
             try
             {
-              
+
                 string aesKey = _cache.GetOrCreate("JIO_AES_KEY", entry =>
                 {
                     entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromDays(7);
                     return JioAuthHelper.GenerateRandomString(16);
                 });
 
-    
+
                 string secretKey = _config["JPBAEPS:SecretKey"];
                 string encryptedValue = JioAuthHelper.EncryptAES(secretKey, aesKey);
 
@@ -247,7 +249,7 @@ namespace InstantPay.Application.Services
             }
             catch (Exception ex)
             {
-                
+
                 return null;
             }
         }
@@ -753,10 +755,11 @@ namespace InstantPay.Application.Services
             string deviceInfoJson = JsonConvert.SerializeObject(BuildDeviceInfo(cfg, model));
 
             string pidBase64;
-            try { pidBase64 = ConvertPidXmlToBase64(model.PidXml); }
-            catch (Exception ex) {
-                return new BalanceInquiryResponseDto { Success = false, Message = "finger print data is missing", StatusCode = "33", accessToken= accessToken, appIdentifierToken= appIdToken };
-               
+            try { pidBase64 = ConvertPidXmlToBase64(model.PidXml, model.AuthType); }
+            catch (Exception ex)
+            {
+                return new BalanceInquiryResponseDto { Success = false, Message = "finger print data is missing", StatusCode = "33", accessToken = accessToken, appIdentifierToken = appIdToken };
+
             }
 
             string timestamp = GetIndianTimestamp();
@@ -776,9 +779,21 @@ namespace InstantPay.Application.Services
                 string traceId = Guid.NewGuid().ToString();
                 requestBody = JsonConvert.SerializeObject(BuildRequestBody(model, pidBase64, channelId, timestamp, uid, deviceInfoJson));
                 var response = await SendJioRequest(apiUrl, requestBody, deviceInfoJson, accessToken, appIdToken, channelId, client, cancellationToken, traceId);
-                await LogApiAsync(apiUrl, "POST", response.StatusCode, response.ErrorMessage,
-                                    deviceInfoJson + $", attempt={attempt}, accessToken={accessToken}, appToken={appIdToken}, x-traceid={traceId}",
-                                    requestBody, response.Raw, "AEPS", "BalanceInquiry");
+                _ = Task.Run(() => LogApiAsync(
+                    apiUrl,
+                    "POST",
+                    response.StatusCode,
+                    response.ErrorMessage,
+                    deviceInfoJson + $", attempt={attempt}, accessToken={accessToken}, appToken={appIdToken}, x-traceid={traceId}",
+                    requestBody,
+                    response.Raw,
+                    "AEPS",
+                    "BalanceInquiry"
+                ));
+
+                //await LogApiAsync(apiUrl, "POST", response.StatusCode, response.ErrorMessage,
+                //                    deviceInfoJson + $", attempt={attempt}, accessToken={accessToken}, appToken={appIdToken}, x-traceid={traceId}",
+                //                    requestBody, response.Raw, "AEPS", "BalanceInquiry");
                 bool sessionExpired = IsSessionExpired(response.Raw);
 
                 if (sessionExpired)
@@ -968,7 +983,8 @@ namespace InstantPay.Application.Services
                 BankName = model.BankName,
                 AccountNo = Mask(model.AadhaarNumber),
                 ComingFrom = model.ComingFrom,
-                ServiceId = 5
+                ServiceId = 5,
+                CustomerName= model.MobileNumber
             };
 
 
@@ -1000,15 +1016,16 @@ HttpClient client, CancellationToken ct, string TraceId)
             try
             {
                 using var req = new HttpRequestMessage(HttpMethod.Post, url);
+                req.Version = HttpVersion.Version11;
+                req.VersionPolicy = HttpVersionPolicy.RequestVersionExact;
                 req.Content = new StringContent(body, Encoding.UTF8, "application/json");
+                req.Headers.ExpectContinue = false;
                 req.Headers.Add("x-channel-id", channel);
                 req.Headers.Add("x-device-info", deviceInfo);
                 req.Headers.Add("x-trace-id", TraceId);
                 if (!string.IsNullOrEmpty(appToken)) req.Headers.Add("x-appid-token", appToken);
                 if (!string.IsNullOrEmpty(access)) req.Headers.Add("x-app-access-token", access);
-
-
-                var resp = await client.SendAsync(req, ct);
+                var resp = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
                 var content = await resp.Content.ReadAsStringAsync();
                 return (content, resp.StatusCode.ToString(), resp.IsSuccessStatusCode ? null : resp.ReasonPhrase);
             }

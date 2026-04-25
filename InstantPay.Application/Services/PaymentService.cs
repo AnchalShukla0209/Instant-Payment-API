@@ -1,260 +1,406 @@
 ﻿using InstantPay.Application.Interfaces;
+using InstantPay.Application.Interfaces.SMS;
+using InstantPay.Application.Services.SMS;
 using InstantPay.Infrastructure.Sql.Entities; // Your EF entities
 using InstantPay.SharedKernel.Entity;
+using InstantPay.SharedKernel.RequestPayload.DebitCredit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using static MongoDB.Driver.WriteConcern;
 
-public class PaymentService : IPaymentService
+namespace InstantPay.Application.Services
 {
-    private readonly AppDbContext _context;
-    private readonly ILogger<PaymentService> _logger;
-    private readonly string _basePath = Path.Combine(Directory.GetCurrentDirectory(), "UploadFiles", "PaymentRequestTxn");
-
-    public PaymentService(AppDbContext context, ILogger<PaymentService> logger)
+    public class PaymentService : IPaymentService
     {
-        _context = context;
-        _logger = logger;
-    }
+        private readonly AppDbContext _context;
+        private readonly ILogger<PaymentService> _logger;
+        private readonly ISmsService _smsService;
+        private readonly string _basePath = Path.Combine(Directory.GetCurrentDirectory(), "UploadFiles", "PaymentRequestTxn");
 
-    public async Task<Guid> CreatePaymentRequestAsync(PaymentRequestDto request, int userId)
-    {
-        try
+        public PaymentService(AppDbContext context, ILogger<PaymentService> logger, ISmsService smsService)
         {
-            if (request.Amount <= 0) throw new ArgumentException("Invalid amount");
-            if (string.IsNullOrWhiteSpace(request.TxnId)) throw new ArgumentException("TxnId is mandatory");
-            if (request.TxnSlip == null) throw new ArgumentException("Txn slip file is mandatory");
-
-            var ext = Path.GetExtension(request.TxnSlip.FileName).ToLower();
-            if (ext != ".jpg" && ext != ".png") throw new ArgumentException("Only jpg and png allowed");
-
-            var payment = new TblPaymentRequest
-            {
-                PaymentId = Guid.NewGuid(),
-                BankId = request.BankId,
-                UserId = userId,
-                Amount = request.Amount,
-                TxnId = request.TxnId,
-                DeposideMode = request.DeposideMode,
-                Status = "Pending",
-                CreatedBy = userId,
-                CreatedOn = DateTime.UtcNow,
-                IsDeleted = false
-            };
-
-
-            string webRootPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
-            string basePath = Path.Combine(webRootPath, "UploadFiles", "PaymentRequestTxn", payment.PaymentId.ToString());
-            if (!Directory.Exists(basePath)) Directory.CreateDirectory(basePath);
-
-            string filePath = Path.Combine(basePath, request.TxnSlip.FileName);
-            if (File.Exists(filePath)) throw new IOException("Duplicate file exists");
-
-
-            using (var stream = new FileStream(filePath, FileMode.Create))
-            {
-                await request.TxnSlip.CopyToAsync(stream);
-            }
-
-            payment.TxnSlipFileName = request.TxnSlip.FileName;
-            string TxnSlip = Path.Combine("UploadFiles", "PaymentRequestTxn", payment.PaymentId.ToString(), request.TxnSlip.FileName).Replace("\\", "/");
-            payment.TxnSlipPath = TxnSlip;
-
-            await _context.TblPaymentRequest.AddAsync(payment);
-            await _context.SaveChangesAsync();
-
-            return payment.PaymentId;
+            _context = context;
+            _logger = logger;
+            _smsService = smsService;
         }
-        catch (Exception ex)
+
+        public async Task<Guid> CreatePaymentRequestAsync(PaymentRequestDto request, int userId)
         {
-            throw ex;
-        }
-    }
-
-    public async Task UpdatePaymentAsync(PaymentUpdateDto request)
-    {
-        using var trx = await _context.Database.BeginTransactionAsync();
-        try
-        {
-            var payment = await _context.TblPaymentRequest.FirstOrDefaultAsync(p => p.PaymentId == request.PaymentId);
-            if (payment == null) throw new KeyNotFoundException("Payment not found");
-
-            payment.Status = request.Status;
-            payment.AdminRemarks = request.AdminRemarks;
-            payment.ModifiedBy = request.ModifiedBy;
-            payment.ModifiedOn = DateTime.UtcNow;
-
-            if (request.Status == "Approved")
+            try
             {
-                var user = await _context.TblUsers.FirstOrDefaultAsync(u => u.Id == payment.UserId);
-                if (user != null)
+                if (request.Amount <= 0) throw new ArgumentException("Invalid amount");
+                if (string.IsNullOrWhiteSpace(request.PaymentTxnId)) throw new ArgumentException("TxnId is mandatory");
+                if (request.TxnSlip == null) throw new ArgumentException("Txn slip file is mandatory");
+
+                var ext = Path.GetExtension(request.TxnSlip.FileName).ToLower();
+                if (ext != ".jpg" && ext != ".png") throw new ArgumentException("Only jpg and png allowed");
+
+                var payment = new TblPaymentRequest
                 {
-                    var lastBalance = await _context.Tbluserbalances
-                        .Where(b => b.UserId == payment.UserId)
-                        .OrderByDescending(b => b.Id)
-                        .Select(b => b.NewBal)
-                        .FirstOrDefaultAsync();
+                    TxnId = "0",
+                    PaymentId = Guid.NewGuid(),
+                    BankId = request.BankId,
+                    UserId = userId,
+                    Amount = request.Amount,
+                    DeposideMode = request.DeposideMode,
+                    Status = "Pending",
+                    CreatedBy = userId,
+                    CreatedOn = DateTime.Now,
+                    IsDeleted = false,
+                    UserRemarks = request.UserRemarks,
+                    openingBalance = 0,
+                    closingBalance = 0,
+                    PaymentTxnId = request.PaymentTxnId
+                };
 
-                    decimal oldBal = (decimal)lastBalance;
-                    decimal newBal = oldBal + payment.Amount;
+                var isDuplicatePaymentTxnId = _context.TblPaymentRequest.Where(id => id.PaymentTxnId.Trim().ToLower() == request.PaymentTxnId.Trim().ToLower()).FirstOrDefault();
+                if (isDuplicatePaymentTxnId != null)
+                {
+                    throw new ArgumentException("Request already submitted for this Transaction Id, Please use anther Transaction Id.");
+                }
 
-                    var walletTxn = new Tbluserbalance
+                string webRootPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+                string basePath = Path.Combine(webRootPath, "UploadFiles", "PaymentRequestTxn", payment.PaymentId.ToString());
+                if (!Directory.Exists(basePath)) Directory.CreateDirectory(basePath);
+
+                string filePath = Path.Combine(basePath, request.TxnSlip.FileName);
+                if (File.Exists(filePath)) throw new IOException("Duplicate file exists");
+
+
+                using (var stream = new FileStream(filePath, FileMode.Create))
+                {
+                    await request.TxnSlip.CopyToAsync(stream);
+                }
+
+                payment.TxnSlipFileName = request.TxnSlip.FileName;
+                string TxnSlip = Path.Combine("UploadFiles", "PaymentRequestTxn", payment.PaymentId.ToString(), request.TxnSlip.FileName).Replace("\\", "/");
+                payment.TxnSlipPath = TxnSlip;
+
+                await _context.TblPaymentRequest.AddAsync(payment);
+                await _context.SaveChangesAsync();
+
+                return (Guid)payment.PaymentId;
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+        }
+
+        public async Task UpdatePaymentAsync(PaymentUpdateDto request)
+        {
+            using var trx = await _context.Database.BeginTransactionAsync();
+            DebitCreditSmsRequest smsData = null;
+            try
+            {
+                var payment = await _context.TblPaymentRequest.FirstOrDefaultAsync(p => p.PaymentId == request.PaymentId);
+                if (payment == null) throw new KeyNotFoundException("Payment not found");
+
+                payment.Status = request.Status;
+                payment.AdminRemarks = request.AdminRemarks;
+                payment.ModifiedBy = request.ModifiedBy;
+                payment.ModifiedOn = DateTime.Now;
+
+                if (request.Status == "Approved")
+                {
+                    var user = await _context.TblUsers.FirstOrDefaultAsync(u => u.Id == payment.UserId);
+                    if (user != null)
                     {
-                        TxnAmount = payment.Amount,
-                        SurCom = 0,
-                        Tds = 0,
-                        UserId = user.Id,
-                        UserName = user.Username,
-                        OldBal = oldBal,
-                        Amount = payment.Amount,
-                        NewBal = newBal,
-                        TxnType = "PaymentApproval",
-                        CrdrType = "Credit",
-                        Remarks = $"Payment approved for Txn {payment.TxnId}",
-                        WlId = user.Wlid,
-                        Txndate = DateTime.UtcNow
-                    };
+                        var lastBalance = await _context.Tbluserbalances
+                            .Where(b => b.UserId == payment.UserId)
+                            .OrderByDescending(b => b.Id)
+                            .Select(b => b.NewBal)
+                            .FirstOrDefaultAsync();
 
-                    await _context.Tbluserbalances.AddAsync(walletTxn);
+                        decimal oldBal = (decimal)lastBalance;
+                        decimal newBal = oldBal + payment.Amount ?? 0;
+
+                        var walletTxn = new Tbluserbalance
+                        {
+                            TxnAmount = payment.Amount,
+                            SurCom = 0,
+                            Tds = 0,
+                            UserId = user.Id,
+                            UserName = user.Username,
+                            OldBal = oldBal,
+                            Amount = payment.Amount,
+                            NewBal = newBal,
+                            TxnType = "PaymentApproval",
+                            CrdrType = "Credit",
+                            Remarks = $"Payment approved for Txn {payment.PaymentTxnId}",
+                            WlId = user.Wlid,
+                            Txndate = DateTime.Now
+                        };
+
+                        await _context.Tbluserbalances.AddAsync(walletTxn);
+                        payment.openingBalance = oldBal;
+                        payment.closingBalance = newBal;
+                        payment.TxnId = walletTxn.Id.ToString();
+
+                        smsData = new DebitCreditSmsRequest
+                        {
+                            TransferType = "Credit",
+                            ReceiverPhone = user.Phone,
+                            ReceiverPreAmount = oldBal,
+                            ReceiverCurrentAmount = newBal,
+                            ReceiverName = user.Name,
+                            TransactionAmount = payment.Amount
+                        };
+
+                    }
+                }
+                else if (request.Status == "Rejected")
+                {
+                    if (string.IsNullOrWhiteSpace(request.AdminRemarks))
+                        throw new ArgumentException("Admin remarks mandatory when rejecting");
+
+                }
+
+                await _context.SaveChangesAsync();
+                await trx.CommitAsync();
+                if (smsData != null)
+                {
+                    await _smsService.SendDebitCreditSmsAsync(smsData);
                 }
             }
-            else if (request.Status == "Rejected")
+            catch
             {
-                if (string.IsNullOrWhiteSpace(request.AdminRemarks))
-                    throw new ArgumentException("Admin remarks mandatory when rejecting");
+                await trx.RollbackAsync();
+                throw;
             }
-
-            await _context.SaveChangesAsync();
-            await trx.CommitAsync();
         }
-        catch
+
+        //public async Task<(IEnumerable<PaymentResponseDto> Payments, int TotalCount)>
+        //GetAllPaymentsAsync(int pageNumber, int pageSize, string status, string? fromDate, string? toDate, string commonsearch, int isExport)
+        //{
+        //    try
+        //    {
+        //        // Start with the base query
+        //        var query = _context.TblPaymentRequest
+        //            .Where(p => p.IsDeleted== false);
+
+        //        // Apply status filter
+        //        if (!string.IsNullOrWhiteSpace(status))
+        //            query = query.Where(p => p.Status == status);
+
+        //        // Apply date filters (only date part)
+        //        if (!string.IsNullOrEmpty(fromDate) && DateTime.TryParse(fromDate, out var from))
+        //        {
+        //            var fromDateOnly = from.Date;
+        //            query = query.Where(p => p.CreatedOn >= fromDateOnly);
+        //        }
+
+        //        // ✅ Convert toDate (IMPORTANT FIX)
+        //        if (!string.IsNullOrEmpty(toDate) && DateTime.TryParse(toDate, out var to))
+        //        {
+        //            var toDateOnly = to.Date.AddDays(1); // include full day
+        //            query = query.Where(p => p.CreatedOn < toDateOnly);
+        //        }
+
+
+        //        // Get total count before pagination
+        //        int totalCount = await query.CountAsync();
+
+        //        // Join related tables and select DTO after filtering
+        //        var data = await query
+        //            .OrderByDescending(p => p.CreatedOn) // optional: latest first
+        //            .Skip((pageNumber - 1) * pageSize)
+        //            .Take(pageSize)
+        //            .Join(_context.BankMaster,
+        //                  p => p.BankId,
+        //                  b => b.BankId,
+        //                  (p, b) => new { p, b })
+        //            .Join(_context.TblUsers,
+        //                  pb => pb.p.UserId,
+        //                  u => u.Id,
+        //                  (pb, u) => new PaymentResponseDto
+        //                  {
+        //                      PaymentId = (Guid)pb.p.PaymentId,
+        //                      TxnId = pb.p.TxnId ?? "",
+        //                      PaymentTxnId = pb.p.PaymentTxnId ?? "",
+        //                      UserName = u.Username+"-"+u.Phone,
+        //                      UserType = u.Usertype,
+        //                      BankName = pb.b.BankName,
+        //                      AccountNo = pb.b.AccountNumber,
+        //                      Amount = pb.p.Amount ?? 0,
+        //                      DepositeMode = pb.p.DeposideMode,
+        //                      TxnSlipFileName = pb.p.TxnSlipFileName,
+        //                      TxnSlipPath = pb.p.TxnSlipPath,
+        //                      Status = pb.p.Status,
+        //                      AdminRemarks = pb.p.AdminRemarks,
+        //                      UserRemarks = pb.p.UserRemarks,
+        //                      OpeningBalance = pb.p.openingBalance.ToString()??"0",
+        //                      ClosingBalance = pb.p.closingBalance.ToString()??"0",
+        //                      TxnDate = pb.p.CreatedOn,
+        //                      TxnApprovedDate = pb.p.ModifiedOn
+        //                  })
+        //            .ToListAsync();
+
+        //        return (data, totalCount);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        throw;
+        //    }
+        //}
+
+        public async Task<(IEnumerable<PaymentResponseDto> Payments, int TotalCount)>
+    GetAllPaymentsAsync(int pageNumber, int pageSize, string status, string? fromDate, string? toDate, string commonsearch, int isExport)
         {
-            await trx.RollbackAsync();
-            throw;
-        }
-    }
-
-    public async Task<(IEnumerable<PaymentResponseDto> Payments, int TotalCount)>
-    GetAllPaymentsAsync(int pageNumber, int pageSize, string status, DateTime? fromDate, DateTime? toDate)
-    {
-        try
-        {
-            // Start with the base query
-            var query = _context.TblPaymentRequest
-                .Where(p => !p.IsDeleted);
-
-            // Apply status filter
-            if (!string.IsNullOrWhiteSpace(status))
-                query = query.Where(p => p.Status == status);
-
-            // Apply date filters (only date part)
-            if (fromDate.HasValue)
+            try
             {
-                var from = fromDate.Value.Date;
-                query = query.Where(p => p.CreatedOn >= from);
-            }
+                var query = _context.TblPaymentRequest
+                    .Where(p => p.IsDeleted == false);
 
-            if (toDate.HasValue)
+                // Status filter
+                if (!string.IsNullOrWhiteSpace(status))
+                    query = query.Where(p => p.Status == status);
+
+                // Date filter
+                if (!string.IsNullOrEmpty(fromDate) && DateTime.TryParse(fromDate, out var from))
+                {
+                    var fromDateOnly = from.Date;
+                    query = query.Where(p => p.CreatedOn >= fromDateOnly);
+                }
+
+                if (!string.IsNullOrEmpty(toDate) && DateTime.TryParse(toDate, out var to))
+                {
+                    var toDateOnly = to.Date.AddDays(1);
+                    query = query.Where(p => p.CreatedOn < toDateOnly);
+                }
+
+                // ✅ JOIN FIRST (needed for commonsearch)
+                var joinedQuery = query
+                    .Join(_context.BankMaster,
+                          p => p.BankId,
+                          b => b.BankId,
+                          (p, b) => new { p, b })
+                    .Join(_context.TblUsers,
+                          pb => pb.p.UserId,
+                          u => u.Id,
+                          (pb, u) => new { pb.p, pb.b, u });
+
+                // ✅ COMMON SEARCH
+                if (!string.IsNullOrWhiteSpace(commonsearch) && isExport <= 0)
+                {
+                    var search = commonsearch.ToLower();
+
+                    joinedQuery = joinedQuery.Where(x =>
+                        x.u.Username.ToLower().Contains(search) ||
+                        x.u.Name.ToLower().Contains(search) ||
+                        x.u.Phone.ToLower().Contains(search) ||
+                        x.p.TxnId.ToLower().Contains(search) ||
+                        x.p.Amount.ToString().Contains(search)
+                    );
+                }
+
+                // ✅ Total count AFTER filters
+                int totalCount = await joinedQuery.CountAsync();
+
+                // ✅ Apply pagination ONLY if not export
+                if (isExport <= 0)
+                {
+                    joinedQuery = joinedQuery
+                        .OrderByDescending(x => x.p.CreatedOn)
+                        .Skip((pageNumber - 1) * pageSize)
+                        .Take(pageSize);
+                }
+                else
+                {
+                    joinedQuery = joinedQuery
+                        .OrderByDescending(x => x.p.CreatedOn);
+                }
+
+                // ✅ Final projection
+                var data = await joinedQuery
+                    .Select(x => new PaymentResponseDto
+                    {
+                        PaymentId = (Guid)x.p.PaymentId,
+                        TxnId = x.p.TxnId ?? "",
+                        PaymentTxnId = x.p.PaymentTxnId ?? "",
+                        UserName = x.u.Name + "-" + x.u.Phone,
+                        UserType = x.u.Usertype,
+                        BankName = x.b.BankName,
+                        AccountNo = x.b.AccountNumber,
+                        Amount = x.p.Amount ?? 0,
+                        DepositeMode = x.p.DeposideMode,
+                        TxnSlipFileName = x.p.TxnSlipFileName,
+                        TxnSlipPath = x.p.TxnSlipPath,
+                        Status = x.p.Status,
+                        AdminRemarks = x.p.AdminRemarks,
+                        UserRemarks = x.p.UserRemarks,
+                        OpeningBalance = x.p.openingBalance.ToString() ?? "0",
+                        ClosingBalance = x.p.closingBalance.ToString() ?? "0",
+                        TxnDate = x.p.CreatedOn,
+                        TxnApprovedDate = x.p.ModifiedOn
+                    })
+                    .ToListAsync();
+
+                return (data, totalCount);
+            }
+            catch (Exception)
             {
-                var to = toDate.Value.Date;
-                query = query.Where(p => p.CreatedOn <= to);
+                throw;
             }
-
-            // Get total count before pagination
-            int totalCount = await query.CountAsync();
-
-            // Join related tables and select DTO after filtering
-            var data = await query
-                .OrderByDescending(p => p.CreatedOn) // optional: latest first
-                .Skip((pageNumber - 1) * pageSize)
-                .Take(pageSize)
-                .Join(_context.BankMaster,
-                      p => p.BankId,
-                      b => b.BankId,
-                      (p, b) => new { p, b })
-                .Join(_context.TblUsers,
-                      pb => pb.p.UserId,
-                      u => u.Id,
-                      (pb, u) => new PaymentResponseDto
-                      {
-                          PaymentId = pb.p.PaymentId,
-                          TxnId = pb.p.TxnId,
-                          UserName = u.Username,
-                          UserType = u.Usertype,
-                          BankName = pb.b.BankName,
-                          AccountNo = pb.b.AccountNumber,
-                          Amount = pb.p.Amount,
-                          DepositeMode = pb.p.DeposideMode,
-                          TxnSlipFileName = pb.p.TxnSlipFileName,
-                          TxnSlipPath = pb.p.TxnSlipPath,
-                          Status = pb.p.Status,
-                          AdminRemarks = pb.p.AdminRemarks
-                      })
-                .ToListAsync();
-
-            return (data, totalCount);
         }
-        catch (Exception ex)
+
+
+        public async Task<(byte[] FileContent, string FileName, string ContentType)> DownloadTxnSlipAsync(Guid paymentId)
         {
-            throw;
+            try
+            {
+                var payment = await _context.TblPaymentRequest.FirstOrDefaultAsync(p => p.PaymentId == paymentId);
+                if (payment == null || string.IsNullOrEmpty(payment.TxnSlipPath)) throw new FileNotFoundException();
+
+                string webRootPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+                string basePath = Path.Combine(webRootPath, payment.TxnSlipPath);
+                var bytes = await File.ReadAllBytesAsync(basePath);
+                var contentType = "application/octet-stream";
+                return (bytes, payment.TxnSlipFileName, contentType);
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
         }
+
+        public async Task<PaymentResponseDto> GetPaymentByIdAsync(Guid paymentId)
+        {
+            try
+            {
+                var data = await _context.TblPaymentRequest
+                    .Where(p => p.IsDeleted == false && p.PaymentId == paymentId)
+                    .Join(_context.BankMaster,
+                          p => p.BankId,
+                          b => b.BankId,
+                          (p, b) => new { p, b })
+                    .Join(_context.TblUsers,
+                          pb => pb.p.UserId,
+                          u => u.Id,
+                          (pb, u) => new PaymentResponseDto
+                          {
+                              PaymentId = (Guid)pb.p.PaymentId,
+                              TxnId = pb.p.TxnId,
+                              UserName = u.Username,
+                              UserType = u.Usertype,
+                              BankName = pb.b.BankName,
+                              AccountNo = pb.b.AccountNumber,
+                              Amount = pb.p.Amount ?? 0,
+                              DepositeMode = pb.p.DeposideMode,
+                              TxnSlipFileName = pb.p.TxnSlipFileName,
+                              TxnSlipPath = pb.p.TxnSlipPath,
+                              Status = pb.p.Status,
+                              AdminRemarks = pb.p.AdminRemarks
+                          })
+                    .FirstOrDefaultAsync();
+
+                return data;
+            }
+            catch (Exception ex)
+            {
+                throw;
+            }
+        }
+
     }
-
-
-    public async Task<(byte[] FileContent, string FileName, string ContentType)> DownloadTxnSlipAsync(Guid paymentId)
-    {
-        try
-        {
-            var payment = await _context.TblPaymentRequest.FirstOrDefaultAsync(p => p.PaymentId == paymentId);
-            if (payment == null || string.IsNullOrEmpty(payment.TxnSlipPath)) throw new FileNotFoundException();
-
-            string webRootPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
-            string basePath = Path.Combine(webRootPath, payment.TxnSlipPath);
-            var bytes = await File.ReadAllBytesAsync(basePath);
-            var contentType = "application/octet-stream";
-            return (bytes, payment.TxnSlipFileName, contentType);
-        }
-        catch(Exception ex)
-        {
-            throw ex;
-        }
-    }
-
-    public async Task<PaymentResponseDto> GetPaymentByIdAsync(Guid paymentId)
-    {
-        try
-        {
-            var data = await _context.TblPaymentRequest
-                .Where(p => !p.IsDeleted && p.PaymentId == paymentId)
-                .Join(_context.BankMaster,
-                      p => p.BankId,
-                      b => b.BankId,
-                      (p, b) => new { p, b })
-                .Join(_context.TblUsers,
-                      pb => pb.p.UserId,
-                      u => u.Id,
-                      (pb, u) => new PaymentResponseDto
-                      {
-                          PaymentId = pb.p.PaymentId,
-                          TxnId = pb.p.TxnId,
-                          UserName = u.Username,
-                          UserType = u.Usertype,
-                          BankName = pb.b.BankName,
-                          AccountNo = pb.b.AccountNumber,
-                          Amount = pb.p.Amount,
-                          DepositeMode = pb.p.DeposideMode,
-                          TxnSlipFileName = pb.p.TxnSlipFileName,
-                          TxnSlipPath = pb.p.TxnSlipPath,
-                          Status = pb.p.Status,
-                          AdminRemarks = pb.p.AdminRemarks
-                      })
-                .FirstOrDefaultAsync();
-
-            return data;
-        }
-        catch (Exception ex)
-        {
-            throw; 
-        }
-    }
-
 }

@@ -3,7 +3,10 @@ using InstantPay.Application.Services;
 using InstantPay.SharedKernel.RequestPayload;
 using InstantPay.SharedKernel.Results;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 
 namespace InstantPay.API.Controller
 {
@@ -15,12 +18,16 @@ namespace InstantPay.API.Controller
         private readonly IJPBBalanceEnquiry _balanceEnquiryService;
         private readonly IJPBMiniStatement _miniStatementService;
         private readonly IJPPCashWithdrawal _cashwithdrawal;
-        public AEPSController(IAEPSService service, IJPBBalanceEnquiry balanceEnquiryService, IJPBMiniStatement miniStatementService, IJPPCashWithdrawal cashwithdrawal)
+        private readonly IJPBCashDeposit _cashdeposit;
+        private readonly IInstantPayLogService _logService;
+        public AEPSController(IAEPSService service, IJPBBalanceEnquiry balanceEnquiryService, IJPBMiniStatement miniStatementService, IJPPCashWithdrawal cashwithdrawal, IInstantPayLogService logservice, IJPBCashDeposit cashdeposit)
         {
             _service = service;
             _balanceEnquiryService = balanceEnquiryService;
             _miniStatementService = miniStatementService;
             _cashwithdrawal = cashwithdrawal;
+            _logService = logservice;
+            _cashdeposit = cashdeposit;
         }
 
         [HttpGet("agentstatus")]
@@ -66,6 +73,16 @@ namespace InstantPay.API.Controller
 
 
             var result = await _service.GetJioAgentAEPSLogin(agentId, mob, aadharnumber);
+            await _logService.AddLogAsync(
+                JsonConvert.SerializeObject(new
+                {
+                    agentId = agentId,
+                    mobile = mob,
+                    aadhar = aadharnumber
+                }),
+                JsonConvert.SerializeObject(result),
+                "agentstatus"
+            );
             return Ok(result);
         }
 
@@ -115,6 +132,12 @@ namespace InstantPay.API.Controller
             {
                 return Unauthorized(new { message = "Invalid or missing username" });
             }
+
+            await _logService.AddLogAsync(
+                "",
+                JsonConvert.SerializeObject(result),
+                "CheckAgentDailyLogin"
+            );
             return Ok(result);
         }
 
@@ -160,6 +183,11 @@ namespace InstantPay.API.Controller
             }
 
             var res = await _service.CreateAgentAsync(request);
+            await _logService.AddLogAsync(
+                JsonConvert.SerializeObject(request),
+                JsonConvert.SerializeObject(res),
+                "createAgent"
+            );
             return Ok(res);
         }
 
@@ -205,6 +233,11 @@ namespace InstantPay.API.Controller
             }
 
             var res = await _service.AgentEKYCAsync(request);
+            await _logService.AddLogAsync(
+                JsonConvert.SerializeObject(request),
+                JsonConvert.SerializeObject(res),
+                "AgentEKYC"
+            );
             return Ok(res);
         }
 
@@ -251,6 +284,11 @@ namespace InstantPay.API.Controller
 
             request.UserId = Convert.ToString(uid);
             var res = await _balanceEnquiryService.BalanceInquiryAsync(request);
+            await _logService.AddLogAsync(
+                JsonConvert.SerializeObject(request),
+                JsonConvert.SerializeObject(res),
+                "JPBBalanceEnquiry"
+            );
             return Ok(res);
         }
 
@@ -297,6 +335,11 @@ namespace InstantPay.API.Controller
 
             request.UserId = Convert.ToString(uid);
             var res = await _miniStatementService.MiniStatementAsync(request);
+            await _logService.AddLogAsync(
+                JsonConvert.SerializeObject(request),
+                JsonConvert.SerializeObject(res),
+                "JPBMiniStatement"
+            );
             return Ok(res);
         }
 
@@ -343,6 +386,62 @@ namespace InstantPay.API.Controller
 
             request.UserId = Convert.ToString(uid);
             var res = await _cashwithdrawal.CashWithdrawalAsync(request);
+            await _logService.AddLogAsync(
+                JsonConvert.SerializeObject(request),
+                JsonConvert.SerializeObject(res),
+                "JPBCashWithdrawal"
+            );
+            return Ok(res);
+        }
+
+        [HttpPost("JPBCashDeposit")]
+        public async Task<IActionResult> JPBCashDeposit([FromBody] CashDepositRequest request)
+        {
+            int uid = 0;
+            string username = null;
+
+            // 1️⃣ Try JWT claims FIRST
+            var userIdClaim = User?.FindFirst("userid");
+            var usernameClaim = User?.FindFirst("username");
+
+            if (userIdClaim != null &&
+                int.TryParse(userIdClaim.Value, out uid) &&
+                usernameClaim != null &&
+                !string.IsNullOrWhiteSpace(usernameClaim.Value))
+            {
+                username = usernameClaim.Value;
+            }
+
+            // 2️⃣ If JWT not available → fallback to Headers
+            if (uid == 0 || string.IsNullOrWhiteSpace(username))
+            {
+                var headerUserId = Request.Headers["userid"].FirstOrDefault();
+                var headerUsername = Request.Headers["username"].FirstOrDefault();
+
+                if (!string.IsNullOrWhiteSpace(headerUserId) &&
+                    int.TryParse(headerUserId, out uid) &&
+                    !string.IsNullOrWhiteSpace(headerUsername))
+                {
+                    username = headerUsername;
+                }
+            }
+
+            // 3️⃣ Unauthorized ONLY if both sources failed
+            if (uid == 0 || string.IsNullOrWhiteSpace(username))
+            {
+                return Unauthorized(new
+                {
+                    message = "Invalid or missing userid/username in token and headers"
+                });
+            }
+
+            request.UserId = Convert.ToString(uid);
+            var res = await _cashdeposit.CashDeposit(request);
+            await _logService.AddLogAsync(
+                JsonConvert.SerializeObject(request),
+                JsonConvert.SerializeObject(res),
+                "JPBCashDeposit"
+            );
             return Ok(res);
         }
     }

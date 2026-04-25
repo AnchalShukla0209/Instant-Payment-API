@@ -14,6 +14,7 @@ namespace InstantPay.SharedKernel.Entity
         public string? fromDate { get; set; }
         public string? toDate { get; set; }
         public int? ClientId { get; set; }
+        public string? commonsearch { get; set; }
     }
 
     public class GetClientUsersWithMainBalanceResponse
@@ -35,6 +36,8 @@ namespace InstantPay.SharedKernel.Entity
         public DateTime CreatedDate { get; set; }
         public string UserType { get; set; }
         public string City { get; set; }
+
+        public string? Name { get; set; }
         public string Status { get; set; }
         public string EmailId { get; set; }
         public string PlanName { get; set; }

@@ -21,5 +21,6 @@ namespace InstantPay.SharedKernel.RequestPayload
         public string ConsentText { get; set; } = "I hereby provide my consent for Aadhaar eKYC authentication.";
         public string ConsentCode { get; set; } = "CONSENT";
         public string ConsentVersion { get; set; } = "1.0";
+        public string AuthType { get; set; } = "FINGER";
     }
 }

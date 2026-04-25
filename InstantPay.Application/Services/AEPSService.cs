@@ -6,7 +6,9 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
+using Org.BouncyCastle.Ocsp;
 using System.Globalization;
+using System.Net;
 using System.Text;
 using System.Text.Json;
 using System.Xml.Linq;
@@ -109,7 +111,10 @@ namespace InstantPay.Application.Services
             var client = _httpFactory.CreateClient("JIO");
 
             var request = new HttpRequestMessage(HttpMethod.Get, url);
+            request.Version = HttpVersion.Version11;
+            request.VersionPolicy = HttpVersionPolicy.RequestVersionExact;
             request.Headers.Add("Accept", "application/json");
+            request.Headers.ExpectContinue = false;
             request.Headers.Add("x-channel-id", _config["JPBAEPS:channelId"]);
             request.Headers.Add("x-appid-token", appIdToken);
             request.Headers.Add("x-app-access-token", accessToken);
@@ -217,7 +222,7 @@ namespace InstantPay.Application.Services
             };
             var cfg = _config.GetSection("JPBAEPS");
             var deviceConfig = cfg.GetSection("DeviceInfo");
-            string ipAddress = GetRemoteIpAddress() ?? deviceConfig.GetValue<string>("ipAddressFallback") ?? "0.0.0.0";
+            string ipAddress = GetRemoteIpAddress() ?? deviceConfig.GetValue<string>("ipAddressFallback") ?? "103.49.124.63";
             var deviceInfoObj = new
             {
                 ipAddress = ipAddress,
@@ -231,8 +236,10 @@ namespace InstantPay.Application.Services
             };
             string deviceInfoJson = System.Text.Json.JsonSerializer.Serialize(deviceInfoObj);
             var req = new HttpRequestMessage(HttpMethod.Post, url);
+            req.Version = HttpVersion.Version11;
+            req.VersionPolicy = HttpVersionPolicy.RequestVersionExact;
             req.Content = new StringContent(JsonConvert.SerializeObject(payload), Encoding.UTF8, "application/json");
-
+            req.Headers.ExpectContinue = false;
             req.Headers.Add("x-channel-id", _config["JPBAEPS:channelId"]);
             req.Headers.Add("x-trace-id", Guid.NewGuid().ToString());
             req.Headers.Add("x-device-info", deviceInfoJson);
@@ -433,7 +440,7 @@ namespace InstantPay.Application.Services
                             stateCode = (model.State ?? "").Length >= 2 ? (model.State ?? "").Substring(0,2).ToUpper() : model.State,
                             country = "India",
                             pincode = model.Pincode,
-                            geoLocation = new { latitude = "27.5626", longitude = "80.6826" }
+                            geoLocation = new { latitude = "28.73997", longitude = "76.99428" }
                         }
                     },
                     contactDetails = new object[] {
@@ -468,8 +475,10 @@ namespace InstantPay.Application.Services
                 attempts++;
                 string traceId = Guid.NewGuid().ToString();
                 using var req = new HttpRequestMessage(HttpMethod.Post, apiUrl);
+                req.Version = HttpVersion.Version11;
+                req.VersionPolicy = HttpVersionPolicy.RequestVersionExact;
                 req.Content = new StringContent(requestBody, Encoding.UTF8, "application/json");
-
+                req.Headers.ExpectContinue = false;
                 // headers
                 req.Headers.Add("x-channel-id", channelId);
                 if (!string.IsNullOrEmpty(appIdToken)) req.Headers.Add("x-appid-token", appIdToken);
@@ -699,7 +708,7 @@ namespace InstantPay.Application.Services
                 return new AgentEKYCResponseDto { Success = false, Message = "PID XML required", StatusCode = "33", appIdentifierToken = appIdToken, accessToken = accessToken };
             try
             {
-                pidBase64 = ConvertPidXmlToBase64(model.PidXml);
+                pidBase64 = ConvertPidXmlToBase64(model.PidXml, model.AuthType);
             }
             catch (Exception ex)
             {
@@ -745,8 +754,10 @@ namespace InstantPay.Application.Services
                 string traceid = Guid.NewGuid().ToString();
                 attempts++;
                 using var req = new HttpRequestMessage(HttpMethod.Post, apiUrl);
+                req.Version = HttpVersion.Version11;
+                req.VersionPolicy = HttpVersionPolicy.RequestVersionExact;
                 req.Content = new StringContent(requestBody, Encoding.UTF8, "application/json");
-
+                req.Headers.ExpectContinue = false;
                 // headers
                 req.Headers.Add("x-channel-id", channelId);
                 if (!string.IsNullOrEmpty(appIdToken)) req.Headers.Add("x-appid-token", appIdToken);
@@ -884,7 +895,7 @@ namespace InstantPay.Application.Services
         }
 
 
-        public static string ConvertPidXmlToBase64(string pidXml)
+        public static string ConvertPidXmlToBase64(string pidXml, string AuthType)
         {
             try
             {
@@ -940,7 +951,7 @@ namespace InstantPay.Application.Services
                 // Step 3️⃣: Construct final payload
                 var payload = new
                 {
-                    type = "1",
+                    type = AuthType=="FINGER"?"1":"3",
                     captureResponse = new
                     {
                         PidDatatype = "X",

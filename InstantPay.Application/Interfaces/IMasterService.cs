@@ -1,5 +1,7 @@
 ﻿using InstantPay.Application.DTOs;
 using InstantPay.SharedKernel.Entity;
+using InstantPay.SharedKernel.RequestPayload;
+using InstantPay.SharedKernel.Results;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,5 +16,21 @@ namespace InstantPay.Application.Interfaces
         Task<IReadOnlyList<UserMasterDataForDD>> GetUserMasterDD(string Mode);
 
         Task<ServiceStatusResponse> GetServiceStatus(string Mode = "", int UserId = 0);
+
+        Task<object> GetRechargePlans(PlanRequestPayload payload);
+
+        Task<List<ServiceDTO>> GetServices();
+
+        Task<List<ProviderDTO>> GetProviders(string serviceCode);
+
+        Task<List<FeatureDto>> GetFeatures(string serviceCode);
+
+        Task<List<FeatureDto>> GetProviderFeatures(string serviceCode, string providerCode);
+
+        Task<ResponseSuccess> ToggleProvider(ToggleRequestDto req);
+        Task<ResponseSuccess> ToggleFeature(ToggleRequestDto req);
+        Task<ResponseSuccess> ToggleProviderFeature(ToggleRequestDto req);
+
+        Task<ResponseSuccess> ToggleServiceProvider(ToggleRequestDto req);
     }
 }

@@ -91,6 +91,13 @@ public partial class AppDbContext : DbContext
     public DbSet<JPAgentDailyLogin> JPAgentDailyLogins { get; set; }
     public DbSet<JPBBankMaster> JPBBankMasters { get; set; }
     public DbSet<AgentInfoJPB> AgentInfoJPBs { get; set; }
+    public DbSet<MasterProvider> MASTER_PROVIDER { get; set; }
+    public DbSet<MasterFeature> MASTER_FEATURE { get; set; }
+    public DbSet<ServiceProviderFeatureMap> SERVICE_PROVIDER_FEATURE_MAP { get; set; }
+    public DbSet<ServiceProvider> SERVICE_PROVIDER { get; set; }
+    public DbSet<InstantPayLog> Tbl_InstantPayLogs { get; set; }
+    public DbSet<CastlerToken> CastlerToken { get; set; }
+    public DbSet<SettlementWithdrawal> SettlementWithdrawals { get; set; }
 
 
     public async Task BeginTransactionAsync()
@@ -1475,6 +1482,80 @@ public partial class AppDbContext : DbContext
             entity.HasIndex(e => e.BankName)
                   .IsUnique()
                   .HasFilter("[IsDeleted] = 0"); // Prevent duplicate active names
+        });
+
+        modelBuilder.Entity<MasterFeature>()
+            .HasIndex(x => new { x.ServiceCode, x.FeatureCode });
+
+        modelBuilder.Entity<ServiceProviderFeatureMap>()
+            .HasIndex(x => new { x.ServiceCode, x.ProviderCode, x.FeatureCode });
+
+        modelBuilder.Entity<SettlementWithdrawal>(entity =>
+        {
+            entity.ToTable("SettlementWithdrawals", "InstantPayment_Db");
+
+            entity.Property(e => e.Amount).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.Charge).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.UserId)
+                .HasMaxLength(255)
+                .IsUnicode(false)
+                .IsRequired();
+            entity.Property(e => e.UserName)
+                .HasMaxLength(255)
+                .IsUnicode(false);
+            entity.Property(e => e.WithdrawalType)
+                .HasMaxLength(50)
+                .IsUnicode(false);
+            entity.Property(e => e.Remarks)
+                .HasMaxLength(500)
+                .IsUnicode(false);
+            entity.Property(e => e.WithdrawalDate).HasColumnType("datetime");
+            entity.Property(e => e.SettlementFromDate).HasColumnType("datetime");
+            entity.Property(e => e.SettlementToDate).HasColumnType("datetime");
+            entity.Property(e => e.CreatedAt).HasColumnType("datetime")
+                .HasDefaultValueSql("GETDATE()");
+            
+            // Beneficiary details
+            entity.Property(e => e.BankAccount)
+                .HasMaxLength(50)
+                .IsUnicode(false);
+            entity.Property(e => e.Ifsc)
+                .HasMaxLength(20)
+                .IsUnicode(false);
+            entity.Property(e => e.BeneName)
+                .HasMaxLength(255)
+                .IsUnicode(false);
+            entity.Property(e => e.BeneEmail)
+                .HasMaxLength(255)
+                .IsUnicode(false);
+            entity.Property(e => e.BenePhone)
+                .HasMaxLength(20)
+                .IsUnicode(false);
+            entity.Property(e => e.BeneAddress)
+                .HasMaxLength(500)
+                .IsUnicode(false);
+            entity.Property(e => e.Latitude)
+                .HasMaxLength(50)
+                .IsUnicode(false);
+            entity.Property(e => e.Longitude)
+                .HasMaxLength(50)
+                .IsUnicode(false);
+            
+            entity.Property(e => e.PayoutTransactionId)
+                .HasMaxLength(255)
+                .IsUnicode(false);
+            entity.Property(e => e.PayoutReferenceId)
+                .HasMaxLength(255)
+                .IsUnicode(false);
+            entity.Property(e => e.PayoutStatus)
+                .HasMaxLength(50)
+                .IsUnicode(false);
+            entity.Property(e => e.PayoutResponse)
+                .IsUnicode(false);
+
+            entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => e.WithdrawalDate);
+            entity.HasIndex(e => new { e.UserId, e.SettlementFromDate, e.SettlementToDate });
         });
 
         OnModelCreatingPartial(modelBuilder);

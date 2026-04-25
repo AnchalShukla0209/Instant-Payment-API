@@ -13,8 +13,9 @@ namespace InstantPay.SharedKernel.Entity
         public Guid BankId { get; set; }
         public int UserId { get; set; }
         public decimal Amount { get; set; }
-        public string? TxnId { get; set; }
         public string? DeposideMode { get; set; }
+        public string? UserRemarks { get; set; }
+        public string? PaymentTxnId { get; set; }
         public IFormFile? TxnSlip { get; set; }
     }
 
@@ -32,6 +33,7 @@ namespace InstantPay.SharedKernel.Entity
     {
         public Guid PaymentId { get; set; }
         public string? TxnId { get; set; }
+        public string? PaymentTxnId { get; set; }
         public string? UserName { get; set; }
         public string? UserType { get; set; }
         public string? BankName { get; set; }
@@ -42,6 +44,11 @@ namespace InstantPay.SharedKernel.Entity
         public string? TxnSlipPath { get; set; }
         public string? Status { get; set; }
         public string? AdminRemarks { get; set; }
+        public string? UserRemarks { get; set; }
+        public string? OpeningBalance { get; set; }
+        public string? ClosingBalance { get; set; }
+        public DateTime? TxnDate { get; set; }
+        public DateTime? TxnApprovedDate { get; set; }
     }
 
 }

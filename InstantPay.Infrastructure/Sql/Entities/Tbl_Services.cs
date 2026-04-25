@@ -14,4 +14,8 @@ public partial class Tbl_Services
     public bool? IsActive { get; set; }
 
     public bool? IsDeleted { get; set; }
+
+    public string? CategoryCode { get; set; }
+
+    public string? Icon { get; set; }
 }

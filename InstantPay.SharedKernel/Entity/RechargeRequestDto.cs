@@ -22,7 +22,9 @@ namespace InstantPay.SharedKernel.Entity
         public decimal Amount { get; set; }
         public string TxnPin { get; set; } = string.Empty;
         public string Type { get; set; } = "REC";
-        public string CustomerRefNo { get; set; } = string.Empty;
+        public string optional { get; set; } = "na";
+        public string optional1 { get; set; } = "";
+        public string comingFrom { get; set; } = "Web";
     }
 
 }

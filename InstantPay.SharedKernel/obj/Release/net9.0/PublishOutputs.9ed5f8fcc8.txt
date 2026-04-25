@@ -1,6 +1,7 @@
 C:\Instant Projects\Instant-Payment-API\publish\InstantPay.SharedKernel.dll
 C:\Instant Projects\Instant-Payment-API\publish\InstantPay.SharedKernel.deps.json
 C:\Instant Projects\Instant-Payment-API\publish\InstantPay.SharedKernel.pdb
+C:\Instant Projects\Instant-Payment-API\publish\BCrypt.Net-Next.dll
 C:\Instant Projects\Instant-Payment-API\publish\MediatR.dll
 C:\Instant Projects\Instant-Payment-API\publish\MediatR.Contracts.dll
 C:\Instant Projects\Instant-Payment-API\publish\MediatR.Extensions.Microsoft.DependencyInjection.dll
@@ -16,3 +17,5 @@ C:\Instant Projects\Instant-Payment-API\publish\Microsoft.IdentityModel.JsonWebT
 C:\Instant Projects\Instant-Payment-API\publish\Microsoft.IdentityModel.Logging.dll
 C:\Instant Projects\Instant-Payment-API\publish\Microsoft.IdentityModel.Tokens.dll
 C:\Instant Projects\Instant-Payment-API\publish\Newtonsoft.Json.dll
+C:\Instant Projects\Instant-Payment-API\publish\BouncyCastle.Crypto.dll
+C:\Instant Projects\Instant-Payment-API\publish\Razorpay.dll

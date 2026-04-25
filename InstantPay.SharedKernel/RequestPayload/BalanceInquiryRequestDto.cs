@@ -22,5 +22,6 @@ namespace InstantPay.SharedKernel.RequestPayload
         public string UserId { get; set; }               // for TransactionDetail.UserId
         public string ComingFrom { get; set; } = "WEB";  // e.g. WEB, APP
         public int? ServiceId { get; set; }              // optional
+        public string? AuthType { get; set; } = "FINGER";
     }
 }

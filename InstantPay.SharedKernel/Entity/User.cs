@@ -40,6 +40,20 @@ namespace InstantPay.SharedKernel.Entity
         public string? UserType { get; init; } = ""; 
     }
 
+    public record UserRequestForCP
+    {
+        public string? UserId { get; init; } = "";
+        public string? TxnPin { get; init; } = "";
+        public string? PANNo { get; init; } = "";
+        public string? AadharNo { get; init; } = "";
+        public string? OTP { get; init; } = "";
+        public string? MPin { get; init; } = "";
+        public string? OldPassword { get; init; } = "";
+        public string? NewPassword { get; init; } = "";
+        public string? ConfirmPassword { get; init; } = "";
+        public string? Mode { get; init; } = "";
+    }
+
     public record UnlockResponseDto
     {
         public string Token { get; init; } = "";

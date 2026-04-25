@@ -23,6 +23,13 @@ namespace InstantPay.API.Controller
             _aes = aes;
         }
 
+        //[HttpPost("submit")]
+        //public async Task<IActionResult> SubmitRecharge(RechargeRequestDto request)
+        //{
+        //    var result = await _rechargeService.SubmitRechargeAsync(request);
+        //    return Ok(result);
+        //}
+
         [HttpPost("submit")]
         public async Task<IActionResult> SubmitRecharge(EncryptedRequest request)
         {

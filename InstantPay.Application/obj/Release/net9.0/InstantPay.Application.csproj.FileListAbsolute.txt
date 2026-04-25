@@ -1,20 +1,3 @@
-D:\InstantPay\InstantPay.Application\bin\Release\net9.0\InstantPay.Application.deps.json
-D:\InstantPay\InstantPay.Application\bin\Release\net9.0\InstantPay.Application.dll
-D:\InstantPay\InstantPay.Application\bin\Release\net9.0\InstantPay.Application.pdb
-D:\InstantPay\InstantPay.Application\bin\Release\net9.0\InstantPay.Infrastructure.dll
-D:\InstantPay\InstantPay.Application\bin\Release\net9.0\InstantPay.SharedKernel.dll
-D:\InstantPay\InstantPay.Application\bin\Release\net9.0\InstantPay.Infrastructure.pdb
-D:\InstantPay\InstantPay.Application\bin\Release\net9.0\InstantPay.SharedKernel.pdb
-D:\InstantPay\InstantPay.Application\obj\Release\net9.0\InstantPay.Application.csproj.AssemblyReference.cache
-D:\InstantPay\InstantPay.Application\obj\Release\net9.0\InstantPay.Application.GeneratedMSBuildEditorConfig.editorconfig
-D:\InstantPay\InstantPay.Application\obj\Release\net9.0\InstantPay.Application.AssemblyInfoInputs.cache
-D:\InstantPay\InstantPay.Application\obj\Release\net9.0\InstantPay.Application.AssemblyInfo.cs
-D:\InstantPay\InstantPay.Application\obj\Release\net9.0\InstantPay.Application.csproj.CoreCompileInputs.cache
-D:\InstantPay\InstantPay.Application\obj\Release\net9.0\InstantP.C34050E2.Up2Date
-D:\InstantPay\InstantPay.Application\obj\Release\net9.0\InstantPay.Application.dll
-D:\InstantPay\InstantPay.Application\obj\Release\net9.0\refint\InstantPay.Application.dll
-D:\InstantPay\InstantPay.Application\obj\Release\net9.0\InstantPay.Application.pdb
-D:\InstantPay\InstantPay.Application\obj\Release\net9.0\ref\InstantPay.Application.dll
 C:\Instant Projects\Instant-Payment-API\InstantPay.Application\bin\Release\net9.0\InstantPay.Application.deps.json
 C:\Instant Projects\Instant-Payment-API\InstantPay.Application\bin\Release\net9.0\InstantPay.Application.dll
 C:\Instant Projects\Instant-Payment-API\InstantPay.Application\bin\Release\net9.0\InstantPay.Application.pdb
@@ -33,3 +16,6 @@ C:\Instant Projects\Instant-Payment-API\InstantPay.Application\obj\Release\net9.
 C:\Instant Projects\Instant-Payment-API\InstantPay.Application\obj\Release\net9.0\refint\InstantPay.Application.dll
 C:\Instant Projects\Instant-Payment-API\InstantPay.Application\obj\Release\net9.0\InstantPay.Application.pdb
 C:\Instant Projects\Instant-Payment-API\InstantPay.Application\obj\Release\net9.0\ref\InstantPay.Application.dll
+C:\Instant Projects\Instant-Payment-API\InstantPay.Application\bin\Release\net9.0\selenium-manager\linux\selenium-manager
+C:\Instant Projects\Instant-Payment-API\InstantPay.Application\bin\Release\net9.0\selenium-manager\macos\selenium-manager
+C:\Instant Projects\Instant-Payment-API\InstantPay.Application\bin\Release\net9.0\selenium-manager\windows\selenium-manager.exe

@@ -17,5 +17,10 @@ wwwroot\UploadFiles\ClientUser\3\PanCard\morpho.jpg
 wwwroot\UploadFiles\PaymentRequestTxn\02bf4019-6039-454a-b7f0-e7636f2ef8eb\Startek.jpg
 wwwroot\UploadFiles\PaymentRequestTxn\29d8e806-e591-411b-87c1-2bba8347318d\morpho.jpg
 wwwroot\UploadFiles\PaymentRequestTxn\3ebed41d-bd5b-4cf5-9488-3690826690f9\myntra.png
+wwwroot\UploadFiles\PaymentRequestTxn\479ee8ce-7cfe-4787-85fc-4c3a41fbcce2\logo.png
+wwwroot\UploadFiles\PaymentRequestTxn\84e53fbc-e977-45c6-9a4d-36d7c3d11f42\Right.jpg
+wwwroot\UploadFiles\PaymentRequestTxn\9223e3bb-3383-41c5-9cac-82ab7e35186f\gpay.png
 wwwroot\UploadFiles\PaymentRequestTxn\94288354-9de7-4c30-982d-da0d048b1d5a\morpho.jpg
+wwwroot\UploadFiles\PaymentRequestTxn\b27e59f9-f133-40a1-b24a-7d8f893eb617\Right.jpg
+wwwroot\UploadFiles\PaymentRequestTxn\d4a1bd86-38b1-44f6-9815-ac59696be433\Right.jpg
 wwwroot\UploadFiles\PaymentRequestTxn\f3f2024d-949a-4dd6-b157-5b2b66a56929\morpho.jpg

@@ -56,4 +56,5 @@ public partial class Tblonlinepayment
     public string? Cardtype { get; set; }
 
     public string? ReqBy { get; set; }
+    public string? Rrn { get; set; }
 }

@@ -1,3 +1,0 @@
-﻿<Project>
-  <Import Project="..\build\InstantPay.API.props" />
-</Project>

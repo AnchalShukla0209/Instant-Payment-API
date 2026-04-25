@@ -129,19 +129,37 @@ namespace InstantPay.Application.Services
         {
             try
             {
-                var log = new Tblloginlog
+                var existingLog = await _context.Tblloginlogs
+                    .Where(x =>
+                        x.UserId == Convert.ToString(dto.userid) &&
+                        x.Usertype == "USER" &&
+                        x.Ipaddress == GetIpAddress() &&
+                        x.OTPVerified == false &&
+                        x.LoginTime >= DateTime.Now.AddMinutes(-10))
+                    .OrderByDescending(x => x.LoginTime)
+                    .FirstOrDefaultAsync();
+
+                if (existingLog != null)
                 {
-                    Usertype = dto.usertype,
-                    UserId = Convert.ToString(dto.userid),
-                    Macaddress = Convert.ToString(_otpService.GetMacAddress()),
-                    Ipaddress = GetIpAddress(),
-                    LoginTime = DateTime.UtcNow
-                };
+                    existingLog.OTPVerified = true;
+                    await _context.SaveChangesAsync();
+                }
+                else
+                {
+                    var log = new Tblloginlog
+                    {
+                        Usertype = "USER",
+                        UserId = Convert.ToString(dto.userid),
+                        Macaddress = Convert.ToString(_otpService.GetMacAddress()),
+                        Ipaddress = GetIpAddress(),
+                        LoginTime = DateTime.UtcNow,
+                        OTPVerified = true
+                    };
 
-                _context.Tblloginlogs.Add(log);
-                await _context.SaveChangesAsync();
+                    _context.Tblloginlogs.Add(log);
+                    await _context.SaveChangesAsync();
+                }
 
-                InsertData(dto.userid);
                 return true;
             }
             catch (Exception ex)

@@ -13,14 +13,13 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Transactions;
 using System.Xml.Linq;
-using static MongoDB.Driver.WriteConcern;
-using static Org.BouncyCastle.Math.EC.ECCurve;
 
 namespace InstantPay.Application.Services
 {
@@ -100,8 +99,10 @@ namespace InstantPay.Application.Services
             };
             string deviceInfoJson = System.Text.Json.JsonSerializer.Serialize(deviceInfoObj);
             var req = new HttpRequestMessage(HttpMethod.Post, url);
+            req.Version = HttpVersion.Version11;
+            req.VersionPolicy = HttpVersionPolicy.RequestVersionExact;
             req.Content = new StringContent(JsonConvert.SerializeObject(payload), Encoding.UTF8, "application/json");
-
+            req.Headers.ExpectContinue = false;
             req.Headers.Add("x-channel-id", _config["JPBAEPS:channelId"]);
             req.Headers.Add("x-trace-id", Guid.NewGuid().ToString());
             req.Headers.Add("x-device-info", deviceInfoJson);
@@ -126,27 +127,6 @@ namespace InstantPay.Application.Services
             {
                 return null;
             }
-        }
-
-        private async Task LogAPI(string url, string method, string code, string error, string headers, string payload, string response, string service, string mode)
-        {
-            var log = new JioPaymentAPILog
-            {
-                APIURL = url,
-                Method = method,
-                SuccessCode = code,
-                APIError = error,
-                APIHeaders = headers,
-                APIPayload = payload,
-                APIResponse = response,
-                CreatedOn = DateTime.Now,
-                IsDeleted = false,
-                Service = service,
-                Mode = mode
-            };
-
-            _context.JioPaymentAPILogs.Add(log);
-            await _context.SaveChangesAsync();
         }
 
         private static string Truncate(string input, int maxLen)
@@ -230,7 +210,7 @@ namespace InstantPay.Application.Services
             string pidBase64 = "";
             try
             {
-                pidBase64 = ConvertPidXmlToBase64(model.FingerprintXml);
+                pidBase64 = ConvertPidXmlToBase64(model.FingerprintXml, model.AuthType);
             }
             catch (Exception ex)
             {
@@ -325,6 +305,54 @@ namespace InstantPay.Application.Services
 
             var currentBalance = latestWallet?.NewBal ?? 0m;
 
+            int slabId = model.Amount switch
+            {
+                0 => 0,
+                <= 500 => 47,
+                <= 2999 => 48,
+                3000 => 49,
+                <= 10000 => 50,
+                _ => 0
+            };
+
+            int mainPlanId = Convert.ToInt32(userData.PlanId);
+            decimal rtComm = await GetCommissionAsync(mainPlanId, slabId, model.Amount, "RT");
+            decimal adComm = await GetCommissionAsync(mainPlanId, slabId, model.Amount, "AD");
+            decimal mdComm = await GetCommissionAsync(mainPlanId, slabId, model.Amount, "MD");
+            decimal wlComm = await GetCommissionAsync(mainPlanId, slabId, model.Amount, "WL");
+
+            if (userData.Usertype == "RT")
+            {
+                if (userData.Adid == "0" && userData.Mdid == "0")
+                {
+                    wlComm -= rtComm;
+                    adComm = 0;
+                    mdComm = 0;
+                }
+                else if (userData.Adid == "0" && userData.Mdid != "0")
+                {
+                    mdComm -= rtComm;
+                    wlComm -= mdComm;
+                    adComm = 0;
+                }
+                else if (userData.Adid != "0" && userData.Mdid != "0")
+                {
+                    adComm -= rtComm;
+                    mdComm -= adComm;
+                    wlComm -= mdComm;
+                }
+                else if (userData.Adid != "0" && userData.Mdid == "0")
+                {
+                    adComm -= rtComm;
+                    mdComm = 0;
+                    wlComm -= adComm;
+                }
+            }
+
+            decimal tds = rtComm * 5 / 100;
+            decimal cost = (model.Amount + rtComm) - tds;
+            decimal Newbal = currentBalance + cost;
+
             var tx = new TransactionDetail
             {
                 UserId = Convert.ToString(userData.Id),
@@ -339,9 +367,9 @@ namespace InstantPay.Application.Services
                 Mobileno = model.Aadhaar.Length >= 12 ? new string('X', 8) + model.Aadhaar.Substring(model.Aadhaar.Length - 4) : model.Aadhaar,
                 OldBal = currentBalance,
                 Amount = model.Amount,
-                Comm = 0m,
+                Comm = rtComm,
                 Charge = 0m,
-                Cost = 0m,
+                Cost = cost,
                 NewBal = Convert.ToString(currentBalance),
                 Status = "INIT",
                 Brid = null,
@@ -354,16 +382,16 @@ namespace InstantPay.Application.Services
                 ApiReq = Truncate(RedactSensitive(requestBody), 4000),
                 ReqDate = DateTime.Now,
                 UpdateDate = DateTime.Now,
-                CustomerName = null,
+                CustomerName = model.Mobile,
                 AccountNo = model.Aadhaar.Length >= 12 ? new string('X', 8) + model.Aadhaar.Substring(model.Aadhaar.Length - 4) : model.Aadhaar,
                 ComingFrom = model.ComingFrom,
                 IfscCode = null,
                 BankName = model.BankName,
-                Tds = 0m,
+                Tds = rtComm * 5 / 100,
                 TxnMode = null,
-                MdComm = 0m,
-                AdComm = 0m,
-                WlComm = 0m,
+                MdComm = mdComm,
+                AdComm = adComm,
+                WlComm = wlComm,
                 ServiceId = 5
             };
 
@@ -382,8 +410,10 @@ namespace InstantPay.Application.Services
                 string traceId = Guid.NewGuid().ToString();
                 attempts++;
                 using var req = new HttpRequestMessage(HttpMethod.Post, apiUrl);
+                req.Version = HttpVersion.Version11;
+                req.VersionPolicy = HttpVersionPolicy.RequestVersionExact;
                 req.Content = new StringContent(requestBody, Encoding.UTF8, "application/json");
-
+                req.Headers.ExpectContinue = false;
                 // headers
                 req.Headers.Add("x-channel-id", channelId);
 
@@ -400,9 +430,9 @@ namespace InstantPay.Application.Services
 
                 try
                 {
+                    await LogApiAsync(apiUrl, "POST", "INIT", "", deviceInfoJson, requestBody, null, "AEPS", "CashWithdrawal");
                     resp = await client.SendAsync(req, cancellationToken);
                     responseContent = await resp.Content.ReadAsStringAsync(cancellationToken);
-
                     await LogApiAsync(apiUrl, "POST", resp.IsSuccessStatusCode ? "00" : resp.StatusCode.ToString(),
                                       null, deviceInfoJson + "x-appid-token:" + appIdToken + ",x-app-access-token:" + accessToken+", traceid: "+ traceId + "", requestBody, responseContent, "AEPS", "CashWithdrawal");
 
@@ -457,59 +487,7 @@ namespace InstantPay.Application.Services
                                 {
                                     if (parsed?.ResponseData?.Transaction != null)
                                     {
-                                        int slabId = model.Amount switch
-                                        {
-                                            0 => 0,
-                                            <= 500 => 47,
-                                            <= 2999 => 48,
-                                            3000 => 49,
-                                            <= 10000 => 50,
-                                            _ => 0
-                                        };
-
-                                        int mainPlanId = Convert.ToInt32(userData.PlanId);
-                                        decimal rtComm = await GetCommissionAsync(mainPlanId, slabId, model.Amount, "RT");
-                                        decimal adComm = await GetCommissionAsync(mainPlanId, slabId, model.Amount, "AD");
-                                        decimal mdComm = await GetCommissionAsync(mainPlanId, slabId, model.Amount, "MD");
-                                        decimal wlComm = await GetCommissionAsync(mainPlanId, slabId, model.Amount, "WL");
-
-                                        if (userData.Usertype == "RT")
-                                        {
-                                            if (userData.Adid == "0" && userData.Mdid == "0")
-                                            {
-                                                wlComm -= rtComm;
-                                                adComm = 0;
-                                                mdComm = 0;
-                                            }
-                                            else if (userData.Adid == "0" && userData.Mdid != "0")
-                                            {
-                                                mdComm -= rtComm;
-                                                wlComm -= mdComm;
-                                                adComm = 0;
-                                            }
-                                            else if (userData.Adid != "0" && userData.Mdid != "0")
-                                            {
-                                                adComm -= rtComm;
-                                                mdComm -= adComm;
-                                                wlComm -= mdComm;
-                                            }
-                                            else if (userData.Adid != "0" && userData.Mdid == "0")
-                                            {
-                                                adComm -= rtComm;
-                                                mdComm = 0;
-                                                wlComm -= adComm;
-                                            }
-                                        }
-
-                                        tx.Comm = rtComm;
-                                        tx.AdComm = adComm;
-                                        tx.MdComm = mdComm;
-                                        tx.WlComm = wlComm;
-                                        tx.Tds = rtComm * 5 / 100;
-
-                                        decimal tds = rtComm * 5 / 100;
-                                        decimal cost = (model.Amount + rtComm) - tds;
-                                        decimal Newbal = currentBalance + cost;
+                                        
 
                                         tx.ApiTxnId = parsed.ResponseData.Transaction.TransactionId ?? tx.ApiTxnId;
                                         tx.ApiMsg = Truncate(parsed.ResponseMessage, 500);
@@ -693,8 +671,7 @@ namespace InstantPay.Application.Services
                 appIdentifierToken = appIdToken
             };
         }
-
-        private static string ConvertPidXmlToBase64(string pidXml)
+        private static string ConvertPidXmlToBase64(string pidXml, string AuthType)
         {
             if (string.IsNullOrWhiteSpace(pidXml))
                 throw new ArgumentException("PID XML input is empty.");
@@ -737,7 +714,7 @@ namespace InstantPay.Application.Services
 
             var payload = new
             {
-                type = "1",
+                type = AuthType=="FINGER"?"1":"3",
                 captureResponse = new
                 {
                     PidDatatype = "X",
@@ -774,19 +751,6 @@ namespace InstantPay.Application.Services
             string base64Json = Convert.ToBase64String(Encoding.UTF8.GetBytes(json));
             return base64Json;
         }
-
-        private Task<decimal> GetRTCommission(int planId, int slabId, decimal amount)
-    => GetCommissionAsync(planId, slabId, amount, "RT");
-
-        private Task<decimal> GetADCommission(int planId, int slabId, decimal amount)
-            => GetCommissionAsync(planId, slabId, amount, "AD");
-
-        private Task<decimal> GetMDCommission(int planId, int slabId, decimal amount)
-            => GetCommissionAsync(planId, slabId, amount, "MD");
-
-        private Task<decimal> GetWLCommission(int planId, int slabId, decimal amount)
-            => GetCommissionAsync(planId, slabId, amount, "WL");
-
         private async Task<decimal> GetCommissionAsync(
         int planId, int slabId, decimal amount,
         string shareColumn)
@@ -814,7 +778,6 @@ namespace InstantPay.Application.Services
 
             return commission;
         }
-
 
     }
 }

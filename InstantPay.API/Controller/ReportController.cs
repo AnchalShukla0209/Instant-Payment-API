@@ -41,7 +41,7 @@ namespace InstantPay.API.Controller
             }
             var decryptedJson = _aes.Decrypt(request.Data);
             var data = JsonSerializer.Deserialize<TxnReportPayload>(decryptedJson);
-            var result = await _reportservice.GetTransactionReportAsync(data.serviceType,data.status,data.dateFrom,data.dateTo,(int)data.userId, (int)data.pageIndex, (int)data.pageSize);
+            var result = await _reportservice.GetTransactionReportAsync(data.serviceType,data.status,data.dateFrom,data.dateTo,(int)data.userId, (int)data.pageIndex, (int)data.pageSize, data.commonsearch, data.ispaginationenabled??1);
             var json = JsonSerializer.Serialize(result);
             var encrypted = _aes.Encrypt(json);
             return Ok(new { data = encrypted });
@@ -62,7 +62,7 @@ namespace InstantPay.API.Controller
             {
                 return Unauthorized(new { message = "Invalid or missing username" });
             }
-            var result = await _reportservice.GetTxnDetails(request.TxnId);
+            var result = await _reportservice.GetTxnDetails(request.TxnId, request.ServiceName);
             return Ok(result);
         }
 
@@ -102,7 +102,7 @@ namespace InstantPay.API.Controller
             }
             var decryptedJson = _aes.Decrypt(request.Data);
             var data = JsonSerializer.Deserialize<TxnReportUserPayload>(decryptedJson);
-            var result = await _reportservice.GetUserTransactionReportAsync(data.serviceType, data.status, data.dateFrom, data.dateTo,  (int)data.userId, data.userName, (int)data.pageIndex, (int)data.pageSize);
+            var result = await _reportservice.GetUserTransactionReportAsync(data.serviceType, data.status, data.dateFrom, data.dateTo,  (int)data.userId, data.userName, (int)data.pageIndex, (int)data.pageSize, data.commonsearch, (int)data.ispaginationenabled);
             var json = JsonSerializer.Serialize(result);
             var encrypted = _aes.Encrypt(json);
             return Ok(new { data = encrypted });

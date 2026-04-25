@@ -11,14 +11,14 @@ namespace InstantPay.Application.Interfaces
     {
         Task<PaginatedTxnResultDto> GetTransactionReportAsync(
     string serviceType, string status, string dateFrom, string dateTo,
-    int userId, int pageIndex = 1, int pageSize = 50);
+    int userId, int pageIndex = 1, int pageSize = 50, string commonsearch = "", int ispaginationenabled = 1);
 
-        Task<TxnDetailsData> GetTxnDetails(int txnId);
+        Task<TxnDetailsData> GetTxnDetails(int txnId, string ServiceName);
 
         Task<TxnUpdateResponse> UpdateTxnStatus(TxnUpdateRequest request, int actionById);
 
         Task<PaginatedTxnResultDto> GetUserTransactionReportAsync(
    string serviceType, string status, string dateFrom, string dateTo,
-   int userId, string username, int pageIndex = 1, int pageSize = 50);
+   int userId, string username, int pageIndex = 1, int pageSize = 50, string commonsearch = "", int ispaginationenabled = 1);
     }
 }
