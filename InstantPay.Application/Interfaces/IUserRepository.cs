@@ -13,8 +13,10 @@ namespace InstantPay.Application.Interfaces
     {
         Task<User?> GetByUsernameAndPasswordAsync(string username, string password);
         Task<TblUser?> GetUserByIdAsync(int userId);
+        Task<TblSuperadmin?> GetSuperAdminByIdAsync(int userId);
         Task<bool> LogOtpLoginAsync(OtpLoginLogDto dto);
         Task<string> ResendOTPAsyncn(OtpLoginLogDto dto);
         Task<ServiceRightsData> GetUserRightsInfo(int Id);
+        Task UpdateLoginStatusAsync(int userId, string platform, bool isLoggedIn);
     }
 }

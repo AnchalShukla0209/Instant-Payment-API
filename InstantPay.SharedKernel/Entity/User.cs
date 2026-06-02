@@ -22,6 +22,7 @@ namespace InstantPay.SharedKernel.Entity
     {
         public string? usertype { get; set; }
         public string? userid { get; set; }
+        public string? otp { get; set; }
     }
 
     public class Superadmindashboardpayload

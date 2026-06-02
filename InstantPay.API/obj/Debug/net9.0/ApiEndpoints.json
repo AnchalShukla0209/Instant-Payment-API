@@ -951,6 +951,16 @@
   },
   {
     "ContainingType": "InstantPay.API.Controller.LoginController",
+    "Method": "Logout",
+    "RelativePath": "api/Login/logout",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InstantPay.API.Controller.LoginController",
     "Method": "ResendOTP",
     "RelativePath": "api/Login/resendotp",
     "HttpMethod": "POST",
@@ -1435,6 +1445,11 @@
         "Name": "isExport",
         "Type": "System.Int32",
         "IsRequired": false
+      },
+      {
+        "Name": "userid",
+        "Type": "System.Int32",
+        "IsRequired": false
       }
     ],
     "ReturnTypes": []
@@ -1785,6 +1800,26 @@
         "IsRequired": true
       }
     ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InstantPay.API.Controller.TransactionRecoveryController",
+    "Method": "RecoverMissingTransactions",
+    "RelativePath": "api/TransactionRecovery/recover",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InstantPay.API.Controller.WebsiteInfoController",
+    "Method": "GetWebsiteInfo",
+    "RelativePath": "api/WebsiteInfo/get-info",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
     "ReturnTypes": []
   },
   {

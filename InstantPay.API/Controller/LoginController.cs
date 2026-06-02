@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace InstantPay.API.Controller
 {
@@ -24,7 +25,10 @@ namespace InstantPay.API.Controller
         [HttpPost]
         public async Task<IActionResult> Login(LoginRequestDto request)
         {
-            var response = await _loginService.LoginAsync(request);
+            var (platform, platformError) = GetAndValidatePlatform();
+            if (platformError != null) return platformError;
+
+            var response = await _loginService.LoginAsync(request, platform);
             return Ok(new { data = response });
         }
 
@@ -32,9 +36,12 @@ namespace InstantPay.API.Controller
         [HttpPost("verifyotp")]
         public async Task<IActionResult> VerifyOTP(EncryptedRequest request)
         {
+            var (platform, platformError) = GetAndValidatePlatform();
+            if (platformError != null) return platformError;
+
             var decryptedJson = _aes.Decrypt(request.Data);
             var login = JsonSerializer.Deserialize<OtpLoginLogDto>(decryptedJson);
-            var response = await _loginService.VerifyOTP(login);
+            var response = await _loginService.VerifyOTP(login, platform);
             var responseJson = JsonSerializer.Serialize(response);
             var encryptedResponse = _aes.Encrypt(responseJson);
             return Ok(new { data = encryptedResponse });
@@ -71,5 +78,33 @@ namespace InstantPay.API.Controller
             return Ok(new { data = response });
         }
 
+        [AllowAnonymous]
+        [HttpPost("logout")]
+        public async Task<IActionResult> Logout()
+        {
+            var userId = Request.Headers["userid"].FirstOrDefault();
+            if (string.IsNullOrWhiteSpace(userId) || !int.TryParse(userId, out int uid))
+                return Unauthorized(new { message = "Invalid or missing userId" });
+
+            var (platform, platformError) = GetAndValidatePlatform();
+            if (platformError != null) return platformError;
+
+            await _loginService.LogoutAsync(uid, platform);
+            return Ok(new { message = "Logged out successfully" });
+        }
+
+        private (string platform, IActionResult error) GetAndValidatePlatform()
+        {
+            var platform = Request.Headers["platform"].FirstOrDefault()?.Trim();
+
+            if (string.IsNullOrWhiteSpace(platform))
+                return (null, Unauthorized(new { message = "platform header is required." }));
+
+            if (!platform.Equals("web", StringComparison.OrdinalIgnoreCase) &&
+                !platform.Equals("apk", StringComparison.OrdinalIgnoreCase))
+                return (null, Unauthorized(new { message = "Invalid platform. Allowed values: web, apk." }));
+
+            return (platform, null);
+        }
     }
 }

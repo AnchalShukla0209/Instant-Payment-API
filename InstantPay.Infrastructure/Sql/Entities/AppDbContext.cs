@@ -98,6 +98,7 @@ public partial class AppDbContext : DbContext
     public DbSet<InstantPayLog> Tbl_InstantPayLogs { get; set; }
     public DbSet<CastlerToken> CastlerToken { get; set; }
     public DbSet<SettlementWithdrawal> SettlementWithdrawals { get; set; }
+    public DbSet<TblAppRelease> TblAppReleases { get; set; }
 
 
     public async Task BeginTransactionAsync()
@@ -1043,15 +1044,11 @@ public partial class AppDbContext : DbContext
         modelBuilder.Entity<TblloginOtp>(entity =>
         {
             entity.ToTable("tblloginOTP", "InstantPayment_Db");
-
-            entity.Property(e => e.Ipaddress)
-                .HasMaxLength(255)
+            entity.Property(e => e.OTP)
+                .HasMaxLength(10)
                 .IsUnicode(false);
-            entity.Property(e => e.Otptype)
-                .HasMaxLength(255)
-                .IsUnicode(false)
-                .HasColumnName("OTPType");
-            entity.Property(e => e.Reqdate).HasColumnType("datetime");
+            entity.Property(e => e.CreatedAt).HasColumnType("datetime");
+            entity.Property(e => e.ExpiresAt).HasColumnType("datetime");
             entity.Property(e => e.UserId)
                 .HasMaxLength(255)
                 .IsUnicode(false);
@@ -1556,6 +1553,16 @@ public partial class AppDbContext : DbContext
             entity.HasIndex(e => e.UserId);
             entity.HasIndex(e => e.WithdrawalDate);
             entity.HasIndex(e => new { e.UserId, e.SettlementFromDate, e.SettlementToDate });
+        });
+
+        modelBuilder.Entity<TblAppRelease>(entity =>
+        {
+            entity.ToTable("TblAppRelease", "InstantPayment_Db");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.VersionName).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.FileName).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.OriginalFileName).HasMaxLength(255);
+            entity.Property(e => e.UploadedAt).HasColumnType("datetime");
         });
 
         OnModelCreatingPartial(modelBuilder);

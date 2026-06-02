@@ -59,14 +59,14 @@ namespace InstantPay.Application.Services
                         t.ReqDate.Value.Date >= fromDate &&
                         t.ReqDate.Value.Date <= toDate);
 
-                // Query Razorpay transactions for last 2 days (excluding today)
+                // Query Razorpay transactions for last 2 days including today
                 var razorpayQuery = _context.Tblonlinepayments
                     .Where(p =>
                         p.Gatwaytype == "Razorpay" &&
                         p.Status == "SUCCESS" &&
                         p.ReqDate.HasValue &&
                         p.ReqDate.Value.Date >= fromDate &&
-                        p.ReqDate.Value.Date <= toDate);
+                        p.ReqDate.Value.Date <= today);
 
                 // Filter by userId if provided
                 if (!string.IsNullOrEmpty(userId))
@@ -109,7 +109,7 @@ namespace InstantPay.Application.Services
                 var allUsers = aepsByUser.Keys.Union(razorpayByUser.Keys).ToList();
 
                 // Get withdrawal amounts from SettlementWithdrawals table
-                var withdrawals = await GetWithdrawalsAsync(fromDate, toDate, userId);
+                var withdrawals = await GetWithdrawalsAsync(fromDate, toDate, today, userId);
 
                 var userSettlements = new List<UserSettlementDetail>();
 
@@ -172,6 +172,7 @@ namespace InstantPay.Application.Services
                 var today = DateTime.Today;
                 var fromDate = today.AddDays(-2);
                 var toDate = today.AddDays(-1);
+                var razorpayToDate = today;
 
                 // Get current settlement data for the user
                 var settlement = await GetSettlementAsync(request.UserId);
@@ -388,7 +389,8 @@ namespace InstantPay.Application.Services
 
                     var payoutResponse = await _payoutService.ProcessPayoutAsync(payoutRequest);
                     var newWalletBalance = currentWalletBalance.Value - totalDebit;
-                    if (payoutResponse?.Status?.ToUpper() != "FALSE" || payoutResponse?.Status?.ToUpper() != "FAILED")
+                    payoutResponse.Status = payoutResponse?.Status?.ToUpper() == "BAD_REQUEST_ERROR" ? "FAILED" : payoutResponse?.Status;
+                    if (payoutResponse?.Status?.ToUpper() != "FALSE" && payoutResponse?.Status?.ToUpper() != "FAILED")
                     {
                         // Debit withdrawal amount from user wallet
                        
@@ -413,7 +415,8 @@ namespace InstantPay.Application.Services
                     }
                     // Record settlement withdrawal with payout details
                     string Username = userData.Name + "-" + userData.Phone;
-                    await RecordWithdrawalAsync(request, fromDate, toDate, charge, payoutResponse, clientReferenceId, Username);
+                    var recordToDate = request.WithdrawalType.ToUpper() == "RAZORPAY" ? razorpayToDate : toDate;
+                    await RecordWithdrawalAsync(request, fromDate, recordToDate, charge, payoutResponse, clientReferenceId, Username);
 
                     await _context.SaveChangesAsync();
                     await transaction.CommitAsync();
@@ -453,27 +456,60 @@ namespace InstantPay.Application.Services
         }
 
         private async Task<Dictionary<string, (decimal AEPSWithdrawn, decimal RazorpayWithdrawn)>> GetWithdrawalsAsync(
-            DateTime fromDate, DateTime toDate, string? userId = null)
+            DateTime fromDate, DateTime toDate, DateTime razorpayToDate, string? userId = null)
         {
             try
             {
-                var query = _context.SettlementWithdrawals
-                    .Where(w => w.SettlementFromDate == fromDate && w.SettlementToDate == toDate && (w.PayoutStatus.Trim().ToUpper()=="SUCCESS" || w.PayoutStatus.Trim().ToUpper() == "PENDING"));
+                // Get AEPS withdrawals for last 2 days (excluding today)
+                var aepsQuery = _context.SettlementWithdrawals
+                    .Where(w => w.WithdrawalType.ToUpper() == "AEPS" &&
+                                w.SettlementFromDate == fromDate &&
+                                w.SettlementToDate == toDate &&
+                                (w.PayoutStatus.Trim().ToUpper() == "SUCCESS" || w.PayoutStatus.Trim().ToUpper() == "PENDING"));
+
+                // Get Razorpay withdrawals for last 2 days including today
+                var razorpayQuery = _context.SettlementWithdrawals
+                    .Where(w => w.WithdrawalType.ToUpper() == "RAZORPAY" &&
+                                w.SettlementFromDate == fromDate &&
+                                w.SettlementToDate == razorpayToDate &&
+                                (w.PayoutStatus.Trim().ToUpper() == "SUCCESS" || w.PayoutStatus.Trim().ToUpper() == "PENDING"));
 
                 if (!string.IsNullOrEmpty(userId))
                 {
-                    query = query.Where(w => w.UserId == userId);
+                    aepsQuery = aepsQuery.Where(w => w.UserId == userId);
+                    razorpayQuery = razorpayQuery.Where(w => w.UserId == userId);
                 }
 
-                return await query
+                var aepsWithdrawals = await aepsQuery
                     .GroupBy(w => w.UserId)
                     .Select(g => new
                     {
                         UserId = g.Key,
-                        AEPSWithdrawn = g.Where(w => w.WithdrawalType.ToUpper() == "AEPS").Sum(w => w.Amount),
-                        RazorpayWithdrawn = g.Where(w => w.WithdrawalType.ToUpper() == "RAZORPAY").Sum(w => w.Amount)
+                        AEPSWithdrawn = g.Sum(w => w.Amount)
                     })
-                    .ToDictionaryAsync(x => x.UserId, x => (x.AEPSWithdrawn, x.RazorpayWithdrawn));
+                    .ToDictionaryAsync(x => x.UserId, x => x.AEPSWithdrawn);
+
+                var razorpayWithdrawals = await razorpayQuery
+                    .GroupBy(w => w.UserId)
+                    .Select(g => new
+                    {
+                        UserId = g.Key,
+                        RazorpayWithdrawn = g.Sum(w => w.Amount)
+                    })
+                    .ToDictionaryAsync(x => x.UserId, x => x.RazorpayWithdrawn);
+
+                // Merge results
+                var allUsers = aepsWithdrawals.Keys.Union(razorpayWithdrawals.Keys).ToList();
+                var result = new Dictionary<string, (decimal, decimal)>();
+
+                foreach (var user in allUsers)
+                {
+                    var aepsWithdrawn = aepsWithdrawals.ContainsKey(user) ? aepsWithdrawals[user] : 0;
+                    var razorpayWithdrawn = razorpayWithdrawals.ContainsKey(user) ? razorpayWithdrawals[user] : 0;
+                    result[user] = (aepsWithdrawn, razorpayWithdrawn);
+                }
+
+                return result;
             }
             catch (Exception ex)
             {

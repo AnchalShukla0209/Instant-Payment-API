@@ -11,7 +11,6 @@ namespace InstantPay.Application.DTOs
         public string Token { get; set; } = string.Empty;
         public string Username { get; set; } = string.Empty;
         public string Usertype { get; set; } = string.Empty;
-        public string? OTP { get; set; }
         public bool? IsOtpRequired { get; set; }
         public string? messaege { get; set; }
         public string? Phoneno { get; set; }

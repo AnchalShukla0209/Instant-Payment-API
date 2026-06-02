@@ -63,7 +63,8 @@ namespace InstantPay.Application.Services.RazorPay
 
             var order = client.Order.Create(options);
 
-            var configuredCharge = _context.Tblpaymentcharges.Where(x => x.Id == Convert.ToInt32("1")).FirstOrDefault();
+            int chargeId = string.Equals(request.PaymentMethod, "card", StringComparison.OrdinalIgnoreCase) ? 1 : 24;
+            var configuredCharge = _context.Tblpaymentcharges.Where(x => x.Id == chargeId).FirstOrDefault();
 
             decimal charge = request.Amount * (decimal)configuredCharge.Charge / 100;
 

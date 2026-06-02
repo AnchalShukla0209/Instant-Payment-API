@@ -27,10 +27,20 @@ namespace InstantPay.API.Controller
         {
             if (request == null) return BadRequest("Invalid request");
 
-            var result = await _authService.UnlockAsync(request);
-            if (result == null) return BadRequest(new { message = "Invalid credentials" });
-
-            return Ok(result);
+            try
+            {
+                var result = await _authService.UnlockAsync(request);
+                if (result == null) return StatusCode(222, new { message = "Invalid credentials" });
+                return Ok(result);
+            }
+            catch (InvalidOperationException ex) when (ex.Message.StartsWith("Account is temporarily locked"))
+            {
+                return StatusCode(423, new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex) when (ex.Message.StartsWith("Too many unlock attempts"))
+            {
+                return StatusCode(429, new { message = ex.Message });
+            }
         }
 
         [AllowAnonymous]

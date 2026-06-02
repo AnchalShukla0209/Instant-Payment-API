@@ -8,8 +8,10 @@ namespace InstantPay.SharedKernel.RequestPayload.WhatsApp
 {
     public class WhatsAppBroadcastRequest
     {
-        public string Message { get; set; }
+        public string Link { get; set; }
         public bool? SendToActiveUsersOnly { get; set; } = true;
+        public string TemplateName { get; set; }
+        public string LanguageCode { get; set; }
     }
 
     public class WhatsAppBroadcastResult

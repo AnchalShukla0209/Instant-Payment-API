@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Text;
 
@@ -13,6 +14,7 @@ namespace InstantPay.API.Controller
             Timeout = TimeSpan.FromSeconds(40)
         };
 
+        [AllowAnonymous]
         [HttpPost("track")]
         public async Task<IActionResult> Track([FromBody] string code)
         {

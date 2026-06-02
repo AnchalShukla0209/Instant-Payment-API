@@ -96,5 +96,9 @@ public partial class TblUser
     public int? ResetOtpAttempts { get; set; }
     public DateTime? LastOtpSentAt { get; set; }
 
-    
+    public bool? IsUserLoggedInFromWeb { get; set; }
+    public bool? IsUserLoggedInFromApk { get; set; }
+
+    public int? FailedUnlockAttempts { get; set; }
+    public DateTime? LockoutEnd { get; set; }
 }

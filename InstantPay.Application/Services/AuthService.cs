@@ -12,6 +12,8 @@ using System.Security.Claims;
 using System.Text;
 using System.Text.RegularExpressions;
 using BCrypt.Net;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Caching.Memory;
 namespace InstantPay.Application.Services
 {
    
@@ -22,21 +24,33 @@ namespace InstantPay.Application.Services
         private readonly AesEncryptionService _aes;
         private readonly IOtpService _otpService;
         private readonly IEmailService _email;
+        private readonly IMemoryCache _cache;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
-        public AuthService(AppDbContext context, IConfiguration config, AesEncryptionService aes, IOtpService otpService, IEmailService email)
+        private const int MaxUnlockAttempts = 5;
+        private static readonly TimeSpan AccountLockoutDuration = TimeSpan.FromMinutes(15);
+        private static readonly int[] ProgressiveDelaysMs = { 0, 1_000, 2_000, 5_000, 10_000, 30_000 };
+        private const int IpRateLimitMaxRequests = 20;
+        private static readonly TimeSpan IpRateLimitWindow = TimeSpan.FromMinutes(15);
+
+        public AuthService(AppDbContext context, IConfiguration config, AesEncryptionService aes, IOtpService otpService, IEmailService email, IMemoryCache cache, IHttpContextAccessor httpContextAccessor)
         {
             _context = context;
             _config = config;
             _aes = aes;
             _otpService = otpService;
             _email = email;
+            _cache = cache;
+            _httpContextAccessor = httpContextAccessor;
         }
 
         public async Task<UnlockResponseDto?> UnlockAsync(UnlockRequestDto request)
         {
             if (string.IsNullOrWhiteSpace(request.UserId)) return null;
 
-          
+            var clientIp = _httpContextAccessor.HttpContext?.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+            EnforceIpRateLimit(clientIp);
+
             var uid = request.UserId;
 
             if (request.UserType.Trim().ToLower() == "retailer")
@@ -46,23 +60,38 @@ namespace InstantPay.Application.Services
 
                 if (tblUser == null) return null;
 
+                CheckAccountLockout(tblUser.LockoutEnd);
+
+                bool authSuccess = false;
                 if (request.Method.Equals("mpin", StringComparison.OrdinalIgnoreCase))
                 {
-
-                    if (string.IsNullOrEmpty(_aes.Encrypt(tblUser.MPin))) return null;
-
-                    if (tblUser.MPin != _aes.Decrypt(request.Value))
+                    if (string.IsNullOrEmpty(tblUser.MPin))
+                    {
+                        await HandleRetailerFailedAttempt(tblUser, clientIp, request.Method);
                         return null;
+                    }
+                    authSuccess = tblUser.MPin == _aes.Decrypt(request.Value);
                 }
                 else if (request.Method.Equals("password", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (tblUser.Password != _aes.Decrypt(request.Value))
-                        return null;
+                    authSuccess = tblUser.Password == _aes.Decrypt(request.Value);
                 }
                 else
                 {
                     return null;
                 }
+
+                if (!authSuccess)
+                {
+                    await HandleRetailerFailedAttempt(tblUser, clientIp, request.Method);
+                    return null;
+                }
+
+                tblUser.FailedUnlockAttempts = 0;
+                tblUser.LockoutEnd = null;
+                tblUser.IsUserLoggedInFromWeb = true;
+                _context.TblUsers.Update(tblUser);
+                await _context.SaveChangesAsync();
 
                 var user = new User
                 {
@@ -74,18 +103,15 @@ namespace InstantPay.Application.Services
                     Phoneno = tblUser.Phone
                 };
 
-                var token = GenerateJwtToken(user);
-
                 return new UnlockResponseDto
                 {
-                    Token = token,
+                    Token = GenerateJwtToken(user),
                     Username = tblUser.Username ?? "",
                     Usertype = "Retailer",
                     message = "Unlocked",
                     Phoneno = tblUser.Phone ?? "",
-                    OTP="",
+                    OTP = "",
                     IsOtpRequired = false
-                    
                 };
             }
             else
@@ -95,23 +121,37 @@ namespace InstantPay.Application.Services
 
                 if (tblUser == null) return null;
 
+                CheckAccountLockout(tblUser.LockoutEnd);
+
+                bool authSuccess = false;
                 if (request.Method.Equals("mpin", StringComparison.OrdinalIgnoreCase))
                 {
-
-                    if (string.IsNullOrEmpty(tblUser.Mpin)) return null;
-
-                    if (tblUser.Mpin != _aes.Decrypt(request.Value))
+                    if (string.IsNullOrEmpty(tblUser.Mpin))
+                    {
+                        await HandleAdminFailedAttempt(tblUser, clientIp, request.Method);
                         return null;
+                    }
+                    authSuccess = tblUser.Mpin == _aes.Decrypt(request.Value);
                 }
                 else if (request.Method.Equals("password", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (tblUser.Password != _aes.Decrypt(request.Value))
-                        return null;
+                    authSuccess = tblUser.Password == _aes.Decrypt(request.Value);
                 }
                 else
                 {
                     return null;
                 }
+
+                if (!authSuccess)
+                {
+                    await HandleAdminFailedAttempt(tblUser, clientIp, request.Method);
+                    return null;
+                }
+
+                tblUser.FailedUnlockAttempts = 0;
+                tblUser.LockoutEnd = null;
+                _context.TblSuperadmins.Update(tblUser);
+                await _context.SaveChangesAsync();
 
                 var user = new User
                 {
@@ -123,11 +163,9 @@ namespace InstantPay.Application.Services
                     Phoneno = tblUser.Mobileno
                 };
 
-                var token = GenerateJwtToken(user);
-
                 return new UnlockResponseDto
                 {
-                    Token = token,
+                    Token = GenerateJwtToken(user),
                     Username = tblUser.Username ?? "",
                     Usertype = "SuperAdmin",
                     message = "Unlocked",
@@ -136,8 +174,71 @@ namespace InstantPay.Application.Services
                     IsOtpRequired = false
                 };
             }
+        }
 
-                
+        private void EnforceIpRateLimit(string clientIp)
+        {
+            var key = $"ip_unlock_rate:{clientIp}";
+            _cache.TryGetValue<int>(key, out var count);
+            count++;
+            _cache.Set(key, count, new MemoryCacheEntryOptions { SlidingExpiration = IpRateLimitWindow });
+
+            if (count > IpRateLimitMaxRequests)
+                throw new InvalidOperationException(
+                    $"Too many unlock attempts from your network. Please wait {(int)IpRateLimitWindow.TotalMinutes} minutes before trying again.");
+        }
+
+        private static void CheckAccountLockout(DateTime? lockoutEnd)
+        {
+            if (lockoutEnd.HasValue && lockoutEnd.Value > DateTime.UtcNow)
+            {
+                var remaining = (int)Math.Ceiling((lockoutEnd.Value - DateTime.UtcNow).TotalMinutes);
+                throw new InvalidOperationException(
+                    $"Account is temporarily locked due to multiple failed attempts. Try again in {remaining} minute(s).");
+            }
+        }
+
+        private async Task HandleRetailerFailedAttempt(TblUser user, string clientIp, string method)
+        {
+            user.FailedUnlockAttempts = (user.FailedUnlockAttempts ?? 0) + 1;
+            if (user.FailedUnlockAttempts >= MaxUnlockAttempts)
+                user.LockoutEnd = DateTime.UtcNow.Add(AccountLockoutDuration);
+
+            _context.TblUsers.Update(user);
+            _context.TblPasswordattmts.Add(new TblPasswordattmt
+            {
+                UserId = user.Id.ToString(),
+                Ipaddress = clientIp,
+                Password = $"FAILED_UNLOCK:{method.ToUpper()}|ATTEMPT:{user.FailedUnlockAttempts}",
+                Reqdate = DateTime.UtcNow
+            });
+            await _context.SaveChangesAsync();
+            await ApplyProgressiveDelay(user.FailedUnlockAttempts.Value);
+        }
+
+        private async Task HandleAdminFailedAttempt(TblSuperadmin admin, string clientIp, string method)
+        {
+            admin.FailedUnlockAttempts = (admin.FailedUnlockAttempts ?? 0) + 1;
+            if (admin.FailedUnlockAttempts >= MaxUnlockAttempts)
+                admin.LockoutEnd = DateTime.UtcNow.Add(AccountLockoutDuration);
+
+            _context.TblSuperadmins.Update(admin);
+            _context.TblPasswordattmts.Add(new TblPasswordattmt
+            {
+                UserId = admin.Id.ToString(),
+                Ipaddress = clientIp,
+                Password = $"FAILED_UNLOCK:{method.ToUpper()}|ATTEMPT:{admin.FailedUnlockAttempts}",
+                Reqdate = DateTime.UtcNow
+            });
+            await _context.SaveChangesAsync();
+            await ApplyProgressiveDelay(admin.FailedUnlockAttempts.Value);
+        }
+
+        private static async Task ApplyProgressiveDelay(int failedAttempts)
+        {
+            int idx = Math.Min(failedAttempts, ProgressiveDelaysMs.Length - 1);
+            if (idx > 0)
+                await Task.Delay(ProgressiveDelaysMs[idx]);
         }
 
         public string GenerateJwtToken(User user)

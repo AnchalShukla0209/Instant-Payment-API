@@ -7,6 +7,7 @@ using InstantPay.SharedKernel.RandomNumberGenerator;
 using InstantPay.SharedKernel.Results;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
@@ -23,11 +24,15 @@ namespace InstantPay.Application.Services
         private readonly AppDbContext _context;
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IRechargeApiProviderService _provider;
+        private readonly ApiTransactionRecoveryService _recoveryService;
+        private readonly ILogger<RechargeService> _logger;
 
-        public RechargeService(AppDbContext context, IRechargeApiProviderService provider)
+        public RechargeService(AppDbContext context, IRechargeApiProviderService provider, ApiTransactionRecoveryService recoveryService, ILogger<RechargeService> logger)
         {
             _context = context;
             _provider = provider;
+            _recoveryService = recoveryService;
+            _logger = logger;
         }
 
         public async Task<ResponseSuccess> SubmitRechargeAsync(RechargeRequestDto request)
@@ -116,17 +121,22 @@ namespace InstantPay.Application.Services
                 };
             }
 
+            // CRITICAL: Commit transaction BEFORE calling API to ensure record exists
+            // This guarantees that even if API succeeds and update fails, the record is in DB
+            await transaction.CommitAsync();
+
             // Verify transaction was actually saved to DB before calling API
             var verifyTxn = await _context.TransactionDetails
                 .FirstOrDefaultAsync(t => t.TxnId == CustomerRefNo && t.UserId == Convert.ToString(request.UserId));
             
             if (verifyTxn == null)
             {
-                await transaction.RollbackAsync();
+                // Transaction not saved despite commit - critical system error
+                _logger.LogCritical("Transaction commit succeeded but record not found for {OrderId}", CustomerRefNo);
                 return new ResponseSuccess
                 {
                     success = false,
-                    message = "API Server Down"
+                    message = "System Error: Transaction not saved"
                 };
             }
 
@@ -150,6 +160,23 @@ namespace InstantPay.Application.Services
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
+                
+                // Compensation: Check if the transaction succeeded in provider API despite local failure
+                _logger.LogWarning(ex, "Recharge API call failed locally for {OrderId} via {Provider}. Checking provider status for compensation.", CustomerRefNo, APIName);
+                var (status, apiTxnIdComp) = await _recoveryService.CheckTransactionStatus(APIName, CustomerRefNo);
+                
+                if (status == "SUCCESS")
+                {
+                    _logger.LogError("CRITICAL: Transaction {OrderId} succeeded in {Provider} but failed locally. Manual reconciliation required. ApiTxnId: {ApiTxnId}", 
+                        CustomerRefNo, APIName, apiTxnIdComp);
+                    
+                    return new ResponseSuccess
+                    {
+                        success = false,
+                        message = $"Transaction succeeded in {APIName} but failed locally. Please contact support with Order ID: {CustomerRefNo}. ApiTxnId: {apiTxnIdComp}"
+                    };
+                }
+                
                 return new ResponseSuccess
                 {
                     success = false,
@@ -215,7 +242,47 @@ namespace InstantPay.Application.Services
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                // Transaction already committed, so cannot rollback
+                // Record exists as PENDING - background reconciliation will fix this
+                _logger.LogError(ex, "API response parsing failed for {OrderId} via {Provider}. Record saved as PENDING for reconciliation.", CustomerRefNo, APIName);
+                
+                // Check if transaction succeeded in provider despite parsing failure
+                var (status, apiTxnIdComp) = await _recoveryService.CheckTransactionStatus(APIName, CustomerRefNo);
+                
+                if (status == "SUCCESS")
+                {
+                    _logger.LogWarning("Transaction {OrderId} succeeded in {Provider} despite parsing failure. Background reconciliation will update it. ApiTxnId: {ApiTxnId}", 
+                        CustomerRefNo, APIName, apiTxnIdComp);
+                    
+                    // Try to update immediately in a new transaction
+                    try
+                    {
+                        using var updateTransaction = await _context.Database.BeginTransactionAsync();
+                        var immediateUpdate = await ProcessRechargeTransactionAsync(
+                            userKey: request.UserId,
+                            transactionId: CustomerRefNo,
+                            customerNumber: request.MobileNumber,
+                            amount: request.Amount,
+                            comingFrom: request.comingFrom,
+                            newStatus: "SUCCESS",
+                            apiName: APIName,
+                            serviceName: serviceNameReq,
+                            operatorName: request.Operator,
+                            opId: operatorDetails.Id.ToString(),
+                            customerName: "NA",
+                            accountNo: request.MobileNumber,
+                            apiMsg: apiTxnIdComp,
+                            apiResponse: "Recovered from parsing failure",
+                            flagforUpdate: true
+                        );
+                        await updateTransaction.CommitAsync();
+                    }
+                    catch (Exception updateEx)
+                    {
+                        _logger.LogError(updateEx, "Immediate update failed for {OrderId}. Background reconciliation will handle it.", CustomerRefNo);
+                    }
+                }
+                
                 return new ResponseSuccess
                 {
                     success = false,
@@ -223,37 +290,58 @@ namespace InstantPay.Application.Services
                 };
             }
 
-            var updateResult = await ProcessRechargeTransactionAsync(
-                userKey: request.UserId,
-                transactionId: CustomerRefNo,
-                customerNumber: request.MobileNumber,
-                amount: request.Amount,
-                comingFrom: request.comingFrom,
-                newStatus: finalStatus,
-                apiName: APIName,
-                serviceName: serviceNameReq,
-                operatorName: request.Operator,
-                opId: operatorDetails.Id.ToString(),
-                customerName: "NA",
-                accountNo: request.MobileNumber,
-                apiMsg: apiTxnId,
-                apiResponse: apiResponse,
-                flagforUpdate: true
-            );
-
-            if (updateResult != "1")
+            // Update transaction in a new transaction scope
+            string updateResult;
+            using (var updateTransaction = await _context.Database.BeginTransactionAsync())
             {
-                await transaction.RollbackAsync();
-                return new ResponseSuccess
-                {
-                    success = false,
-                    message = updateResult.Contains("SQL") || updateResult.Contains("database") || updateResult.Contains("disk") 
-                        ? "API Server Down" 
-                        : "Failed to update transaction after API response." + updateResult
-                };
-            }
+                updateResult = await ProcessRechargeTransactionAsync(
+                    userKey: request.UserId,
+                    transactionId: CustomerRefNo,
+                    customerNumber: request.MobileNumber,
+                    amount: request.Amount,
+                    comingFrom: request.comingFrom,
+                    newStatus: finalStatus,
+                    apiName: APIName,
+                    serviceName: serviceNameReq,
+                    operatorName: request.Operator,
+                    opId: operatorDetails.Id.ToString(),
+                    customerName: "NA",
+                    accountNo: request.MobileNumber,
+                    apiMsg: apiTxnId,
+                    apiResponse: apiResponse,
+                    flagforUpdate: true
+                );
 
-            await transaction.CommitAsync();
+                if (updateResult != "1")
+                {
+                    await updateTransaction.RollbackAsync();
+                    
+                    // Record still exists as PENDING - background reconciliation will fix this
+                    if (finalStatus == "SUCCESS")
+                    {
+                        _logger.LogWarning("Transaction update failed for {OrderId} via {Provider}. Record saved as PENDING for reconciliation.", CustomerRefNo, APIName);
+                        
+                        // Verify with provider and log for background reconciliation
+                        var (status, apiTxnIdComp) = await _recoveryService.CheckTransactionStatus(APIName, CustomerRefNo);
+                        
+                        if (status == "SUCCESS")
+                        {
+                            _logger.LogError("CRITICAL: Transaction {OrderId} succeeded in {Provider} but update failed. Background reconciliation will fix it. ApiTxnId: {ApiTxnId}", 
+                                CustomerRefNo, APIName, apiTxnIdComp);
+                        }
+                    }
+                    
+                    return new ResponseSuccess
+                    {
+                        success = false,
+                        message = updateResult.Contains("SQL") || updateResult.Contains("database") || updateResult.Contains("disk") 
+                            ? "API Server Down" 
+                            : "Failed to update transaction after API response." + updateResult
+                    };
+                }
+                
+                await updateTransaction.CommitAsync();
+            }
 
             return new ResponseSuccess
             {
@@ -571,5 +659,4 @@ namespace InstantPay.Application.Services
         }
 
     }
-
 }

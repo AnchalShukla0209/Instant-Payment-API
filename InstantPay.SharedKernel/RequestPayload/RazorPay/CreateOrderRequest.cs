@@ -15,5 +15,6 @@ namespace InstantPay.SharedKernel.RequestPayload.RazorPay
         public string Name { get; set; }
         public int UserId { get; set; }
         public string? comingfrom { get; set; }
+        public string? PaymentMethod { get; set; }
     }
 }

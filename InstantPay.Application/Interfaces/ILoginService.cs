@@ -10,12 +10,13 @@ namespace InstantPay.Application.Interfaces
 {
     public interface ILoginService
     {
-        Task<LoginResponseDto?> LoginAsync(LoginRequestDto request);
+        Task<LoginResponseDto?> LoginAsync(LoginRequestDto request, string platform);
 
-        Task<OTPSuccessResponse?> VerifyOTP(OtpLoginLogDto request);
+        Task<LoginResponseDto?> VerifyOTP(OtpLoginLogDto request, string platform);
 
         Task<LoginResponseDto?> ResendOTP(OtpLoginLogDto request);
 
         Task<ServiceRightsData> GetUserRightsInfoDet(int Id);
+        Task<bool> LogoutAsync(int userId, string platform);
     }
 }

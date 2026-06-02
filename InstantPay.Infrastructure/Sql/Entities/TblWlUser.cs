@@ -66,5 +66,6 @@ public partial class TblWlUser
     public string? TxnPin { get; set; }
 
     public string? PlanId { get; set; }
+    public string? logo_img { get; set; }
    
 }

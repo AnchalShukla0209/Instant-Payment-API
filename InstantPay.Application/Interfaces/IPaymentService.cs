@@ -12,7 +12,7 @@ namespace InstantPay.Application.Interfaces
         Task<Guid> CreatePaymentRequestAsync(PaymentRequestDto request, int userId);
         Task UpdatePaymentAsync(PaymentUpdateDto request);
         Task<(IEnumerable<PaymentResponseDto> Payments, int TotalCount)>
-        GetAllPaymentsAsync(int pageNumber, int pageSize, string status, string? fromDate, string? toDate, string commonsearch, int isExport);
+        GetAllPaymentsAsync(int pageNumber, int pageSize, string status, string? fromDate, string? toDate, string commonsearch, int isExport, int userid = 0);
         Task<(byte[] FileContent, string FileName, string ContentType)> DownloadTxnSlipAsync(Guid paymentId);
         Task<PaymentResponseDto> GetPaymentByIdAsync(Guid paymentId);
     }

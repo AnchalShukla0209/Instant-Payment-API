@@ -23,4 +23,7 @@ public partial class TblSuperadmin
 
     public string? Dmtapi { get; set; }
     public string? Mpin { get; set; }
+
+    public int? FailedUnlockAttempts { get; set; }
+    public DateTime? LockoutEnd { get; set; }
 }

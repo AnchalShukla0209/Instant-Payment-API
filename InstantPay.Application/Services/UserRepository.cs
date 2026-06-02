@@ -38,19 +38,25 @@ namespace InstantPay.Application.Services
                 if (tblSUser == null) return null;
 
                 var todays = DateTime.Today;
-                var IsOtpRequiredAsyncs = !await _context.Tblloginlogs
-                    .Where(x =>
-                        x.UserId == Convert.ToString(tblSUser.Id) &&
-                        x.Usertype == "SuperAdmin" &&
-                        x.Ipaddress == GetIpAddress() &&
-                        x.Macaddress == Convert.ToString(_otpService.GetMacAddress()) &&
-                        x.LoginTime >= todays && x.LoginTime <= todays.AddDays(1))
-                    .AnyAsync();
+                var IsOtpRequiredAsyncs = true;
 
                 if (IsOtpRequiredAsyncs)
                 {
                     string otp = new Random().Next(1000, 9999).ToString();
                     await _otpService.SendOtpAsync(tblSUser.Mobileno, otp);
+
+                    // Store OTP in database
+                    var loginOtp = new TblloginOtp
+                    {
+                        UserId = Convert.ToString(tblSUser.Id),
+                        IsUsed= false,
+                        OTP = otp,
+                        CreatedAt = DateTime.UtcNow,
+                        ExpiresAt = DateTime.UtcNow.AddMinutes(10)
+                    };
+                    _context.TblloginOtps.Add(loginOtp);
+                    await _context.SaveChangesAsync();
+
                     return new User
                     {
                         Id = tblSUser.Id,
@@ -59,7 +65,7 @@ namespace InstantPay.Application.Services
                         Status = tblSUser.Status,
                         Usertype = "SuperAdmin",
                         IsOtpRequired = IsOtpRequiredAsyncs,
-                        OTP = otp,
+                        OTP = "",
                         Phoneno= tblSUser.Mobileno
                     };
                 }
@@ -90,6 +96,19 @@ namespace InstantPay.Application.Services
             {
                 string otp = new Random().Next(1000, 9999).ToString();
                 await _otpService.SendOtpAsync(tblUser.Phone, otp);
+
+                // Store OTP in database
+                var loginOtp = new TblloginOtp
+                {
+                    UserId = Convert.ToString(tblUser.Id),
+                    IsUsed = false,
+                    OTP = otp,
+                    CreatedAt = DateTime.UtcNow,
+                    ExpiresAt = DateTime.UtcNow.AddMinutes(10)
+                };
+                _context.TblloginOtps.Add(loginOtp);
+                await _context.SaveChangesAsync();
+
                 return new User
                 {
                     Id = tblUser.Id,
@@ -98,7 +117,7 @@ namespace InstantPay.Application.Services
                     Status = tblUser.Status,
                     Usertype = "Retailer",
                     IsOtpRequired = IsOtpRequiredAsync,
-                    OTP = otp,
+                    OTP = "",
                     Phoneno = tblUser.Phone
                 };
             }
@@ -119,6 +138,9 @@ namespace InstantPay.Application.Services
         public async Task<TblUser?> GetUserByIdAsync(int userId) =>
         await _context.TblUsers.FirstOrDefaultAsync(x => x.Id == userId);
 
+        public async Task<TblSuperadmin?> GetSuperAdminByIdAsync(int userId) =>
+        await _context.TblSuperadmins.FirstOrDefaultAsync(x => x.Id == userId);
+
         private string GetIpAddress()
         {
             return _httpContextAccessor.HttpContext?.Connection?.RemoteIpAddress?.ToString() ?? "0.0.0.0";
@@ -129,37 +151,36 @@ namespace InstantPay.Application.Services
         {
             try
             {
-                var existingLog = await _context.Tblloginlogs
+                // Verify the OTP against stored value
+                var storedOtp = await _context.TblloginOtps
                     .Where(x =>
                         x.UserId == Convert.ToString(dto.userid) &&
-                        x.Usertype == "USER" &&
-                        x.Ipaddress == GetIpAddress() &&
-                        x.OTPVerified == false &&
-                        x.LoginTime >= DateTime.Now.AddMinutes(-10))
-                    .OrderByDescending(x => x.LoginTime)
+                        x.ExpiresAt >= DateTime.UtcNow && x.IsUsed== false)
+                    .OrderByDescending(x => x.CreatedAt)
                     .FirstOrDefaultAsync();
 
-                if (existingLog != null)
+                if (storedOtp == null || storedOtp.OTP != dto.otp)
                 {
-                    existingLog.OTPVerified = true;
-                    await _context.SaveChangesAsync();
-                }
-                else
-                {
-                    var log = new Tblloginlog
-                    {
-                        Usertype = "USER",
-                        UserId = Convert.ToString(dto.userid),
-                        Macaddress = Convert.ToString(_otpService.GetMacAddress()),
-                        Ipaddress = GetIpAddress(),
-                        LoginTime = DateTime.UtcNow,
-                        OTPVerified = true
-                    };
-
-                    _context.Tblloginlogs.Add(log);
-                    await _context.SaveChangesAsync();
+                    return false;
                 }
 
+                // OTP is valid, create login log
+                var log = new Tblloginlog
+                {
+                    Usertype = dto.usertype,
+                    UserId = Convert.ToString(dto.userid),
+                    Macaddress = Convert.ToString(_otpService.GetMacAddress()),
+                    Ipaddress = GetIpAddress(),
+                    LoginTime = DateTime.UtcNow,
+                    OTPVerified = true
+                };
+
+                _context.Tblloginlogs.Add(log);
+
+                // Remove used OTP
+                _context.TblloginOtps.Remove(storedOtp);
+
+                await _context.SaveChangesAsync();
                 return true;
             }
             catch (Exception ex)
@@ -212,7 +233,20 @@ namespace InstantPay.Application.Services
                 }
                 string otp = new Random().Next(1000, 9999).ToString();
                 await _otpService.SendOtpAsync(MobNo, otp);
-                return otp;
+
+                // Store new OTP in database
+                var loginOtp = new TblloginOtp
+                {
+                    UserId = Convert.ToString(dto.userid),
+                    IsUsed = false,
+                    OTP = otp,
+                    CreatedAt = DateTime.UtcNow,
+                    ExpiresAt = DateTime.UtcNow.AddMinutes(10)
+                };
+                _context.TblloginOtps.Add(loginOtp);
+                await _context.SaveChangesAsync();
+
+                return ""; // Return empty string as OTP should not be exposed
             }
             catch (Exception ex)
             {
@@ -221,6 +255,20 @@ namespace InstantPay.Application.Services
 
         }
 
+
+        public async Task UpdateLoginStatusAsync(int userId, string platform, bool isLoggedIn)
+        {
+            var user = await _context.TblUsers.FirstOrDefaultAsync(x => x.Id == userId);
+            if (user == null) return;
+
+            if (string.Equals(platform, "web", StringComparison.OrdinalIgnoreCase))
+                user.IsUserLoggedInFromWeb = isLoggedIn;
+            else
+                user.IsUserLoggedInFromApk = isLoggedIn;
+
+            _context.TblUsers.Update(user);
+            await _context.SaveChangesAsync();
+        }
 
         public async Task<ServiceRightsData> GetUserRightsInfo(int Id)
         {

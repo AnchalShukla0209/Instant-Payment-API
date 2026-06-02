@@ -245,31 +245,40 @@ namespace InstantPay.Application.Services
         //}
 
         public async Task<(IEnumerable<PaymentResponseDto> Payments, int TotalCount)>
-    GetAllPaymentsAsync(int pageNumber, int pageSize, string status, string? fromDate, string? toDate, string commonsearch, int isExport)
+GetAllPaymentsAsync(int pageNumber, int pageSize, string status, string? fromDate, string? toDate, string commonsearch, int isExport, int userid=0)
         {
             try
             {
                 var query = _context.TblPaymentRequest
                     .Where(p => p.IsDeleted == false);
 
-                // Status filter
+                // ✅ Status filter
                 if (!string.IsNullOrWhiteSpace(status))
                     query = query.Where(p => p.Status == status);
 
-                // Date filter
+                if(userid>0)
+                {
+                    query = query.Where(p => p.UserId == userid);
+                }
+
+                // ✅ Date filter (FIXED)
                 if (!string.IsNullOrEmpty(fromDate) && DateTime.TryParse(fromDate, out var from))
                 {
                     var fromDateOnly = from.Date;
                     query = query.Where(p => p.CreatedOn >= fromDateOnly);
-                }
+
+                    _logger.LogInformation($"Applied FromDate: {fromDateOnly}");
+                }              
 
                 if (!string.IsNullOrEmpty(toDate) && DateTime.TryParse(toDate, out var to))
                 {
-                    var toDateOnly = to.Date.AddDays(1);
+                    var toDateOnly = to.Date.AddDays(1); // include full day
                     query = query.Where(p => p.CreatedOn < toDateOnly);
+
+                    _logger.LogInformation($"Applied ToDate: {toDateOnly}");
                 }
 
-                // ✅ JOIN FIRST (needed for commonsearch)
+                // ✅ JOIN FIRST
                 var joinedQuery = query
                     .Join(_context.BankMaster,
                           p => p.BankId,
@@ -280,24 +289,24 @@ namespace InstantPay.Application.Services
                           u => u.Id,
                           (pb, u) => new { pb.p, pb.b, u });
 
-                // ✅ COMMON SEARCH
+                // ✅ Common search
                 if (!string.IsNullOrWhiteSpace(commonsearch) && isExport <= 0)
                 {
-                    var search = commonsearch.ToLower();
+                    var search = commonsearch.Trim();
 
                     joinedQuery = joinedQuery.Where(x =>
-                        x.u.Username.ToLower().Contains(search) ||
-                        x.u.Name.ToLower().Contains(search) ||
-                        x.u.Phone.ToLower().Contains(search) ||
-                        x.p.TxnId.ToLower().Contains(search) ||
+                        x.u.Username.Contains(search) ||
+                        x.u.Name.Contains(search) ||
+                        x.u.Phone.Contains(search) ||
+                        x.p.TxnId.Contains(search) ||
                         x.p.Amount.ToString().Contains(search)
                     );
                 }
 
-                // ✅ Total count AFTER filters
+                // ✅ Total count
                 int totalCount = await joinedQuery.CountAsync();
 
-                // ✅ Apply pagination ONLY if not export
+                // ✅ Pagination
                 if (isExport <= 0)
                 {
                     joinedQuery = joinedQuery
@@ -338,8 +347,9 @@ namespace InstantPay.Application.Services
 
                 return (data, totalCount);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                _logger.LogError(ex, "Error in GetAllPaymentsAsync");
                 throw;
             }
         }

@@ -12,6 +12,10 @@ namespace InstantPay.Application.DTOs
         public string password { get; set; } = string.Empty;
     }
 
+    public class LogoutRequestDto
+    {
+    }
+
     public class EncryptedRequest
     {
         public string Data { get; set; }

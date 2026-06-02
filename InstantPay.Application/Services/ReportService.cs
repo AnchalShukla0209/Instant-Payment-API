@@ -536,6 +536,7 @@ namespace InstantPay.Application.Services
 
                 if (string.Equals(request.Status?.Trim(), "REFUND", StringComparison.OrdinalIgnoreCase))
                 {
+                    string AccountNo = "";
                     bool isPinValid = string.Equals(request.TxnPin?.Trim(), admin.Refundpin?.Trim(), StringComparison.OrdinalIgnoreCase)
                              || string.Equals(request.Status?.Trim(), "SUCCESS", StringComparison.OrdinalIgnoreCase);
 
@@ -547,6 +548,48 @@ namespace InstantPay.Application.Services
                     var user = await _context.TblUsers.FirstOrDefaultAsync(u => u.Id == request.UserId);
                     if (user != null)
                     {
+
+                        if (string.Equals(request.ServiceName?.Trim(), "QR CODE", StringComparison.OrdinalIgnoreCase) || string.Equals(request.ServiceName?.Trim(), "Online Payment", StringComparison.OrdinalIgnoreCase))
+                        {
+                            var txn = await _context.Tblonlinepayments.FirstOrDefaultAsync(t => t.Id == request.TransId);
+                            if (txn == null)
+                            {
+                                return (new TxnUpdateResponse { ErrorMsg = "Transaction not found", Flag = false });
+                            }
+                            AccountNo = txn.Cardno + "||" + txn.Paymentid + "||" + txn.Rrn;
+                            txn.Status = "REFUNDED";
+                            txn.ResDate = DateTime.Now;
+                            _context.Tblonlinepayments.Update(txn);
+                            await _context.SaveChangesAsync();
+                        }
+                        else if (string.Equals(request.ServiceName?.Trim(), "SETTLEMENT", StringComparison.OrdinalIgnoreCase) || string.Equals(request.ServiceName?.Trim(), "SettlementAEPS", StringComparison.OrdinalIgnoreCase) || string.Equals(request.ServiceName?.Trim(), "SettlementRazorpay", StringComparison.OrdinalIgnoreCase))
+                        {
+                            var settlement = await _context.SettlementWithdrawals.FirstOrDefaultAsync(s => s.Id == request.TransId);
+                            if (settlement == null)
+                            {
+                                return (new TxnUpdateResponse { ErrorMsg = "Settlement transaction not found", Flag = false });
+                            }
+                            AccountNo = settlement.BankAccount + "||" + settlement.PayoutTransactionId+ "||" + settlement.RRN;
+                            settlement.PayoutStatus = "REFUNDED";
+                            settlement.WithdrawalDate = DateTime.Now;
+                            _context.SettlementWithdrawals.Update(settlement);
+                            await _context.SaveChangesAsync();
+                        }
+                        else
+                        {
+                            var txn = await _context.TransactionDetails.FirstOrDefaultAsync(t => t.TransId == request.TransId);
+                            if (txn == null)
+                            {
+                                return (new TxnUpdateResponse { ErrorMsg = "Transaction not found", Flag = false });
+                            }
+                            AccountNo = txn.AccountNo + "||" + txn.TxnId + "||" + txn.Brid;
+                            txn.Status = "REFUNDED";
+                            txn.AdminRemarks = request.Remarks;
+                            txn.UpdateDate = DateTime.Now;
+                            _context.TransactionDetails.Update(txn);
+                            await _context.SaveChangesAsync();
+                        }
+
                         var lastBalance = await _context.Tbluserbalances
                             .Where(b => b.UserId == request.UserId)
                             .OrderByDescending(b => b.Id)
@@ -568,7 +611,7 @@ namespace InstantPay.Application.Services
                             NewBal = newBal,
                             TxnType = request.ServiceName,
                             CrdrType = "Credit",
-                            Remarks = $"Reverse Amount Credit For {request.ServiceName}",
+                            Remarks = $"Reverse Amount Credit For {request.ServiceName +"||"+ AccountNo}",
                             WlId = user.Wlid,
                             Txndate = DateTime.Now
                         };

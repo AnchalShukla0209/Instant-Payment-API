@@ -1551,6 +1551,18 @@
         }
       }
     },
+    "/api/Login/logout": {
+      "post": {
+        "tags": [
+          "Login"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/Master/GetSuperAdminDashboardData": {
       "post": {
         "tags": [
@@ -2297,6 +2309,15 @@
               "format": "int32",
               "default": 0
             }
+          },
+          {
+            "name": "userid",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 0
+            }
           }
         ],
         "responses": {
@@ -2901,6 +2922,30 @@
         }
       }
     },
+    "/api/TransactionRecovery/recover": {
+      "post": {
+        "tags": [
+          "TransactionRecovery"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/WebsiteInfo/get-info": {
+      "get": {
+        "tags": [
+          "WebsiteInfo"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/WhatsApp/broadcast": {
       "post": {
         "tags": [
@@ -3335,6 +3380,10 @@
             "format": "int32"
           },
           "comingfrom": {
+            "type": "string",
+            "nullable": true
+          },
+          "paymentMethod": {
             "type": "string",
             "nullable": true
           }

@@ -1,6 +1,8 @@
 ﻿using InstantPay.Application.IRepositry;
 using InstantPay.Infrastructure.Sql.Entities;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,12 +16,14 @@ namespace InstantPay.Application.Repositry
         private readonly IConfiguration _config;
         private readonly HttpClient _client;
         private readonly AppDbContext _Context;
+        private readonly IServiceProvider _serviceProvider;
 
-        public CyrusRechargeRepository(IHttpClientFactory factory, IConfiguration config, AppDbContext context)
+        public CyrusRechargeRepository(IHttpClientFactory factory, IConfiguration config, AppDbContext context, IServiceProvider serviceProvider)
         {
             _client = factory.CreateClient();
             _config = config;
             _Context = context;
+            _serviceProvider = serviceProvider;
         }
 
         public async Task<string> Recharge(string mobile, string amount, string orderId, string companyId, string Type, string Optional = "", string Optional1 = "")
@@ -42,18 +46,36 @@ namespace InstantPay.Application.Repositry
                 apiResponse = $"Error: {ex.Message}";
             }
 
-            var log = new Apilog
-            {
-                Request = url,
-                Response = apiResponse,
-                Apiname = "Ambika",
-                Reqdatae = DateTime.Now
-            };
-
-            _Context.Apilogs.Add(log);
-            await _Context.SaveChangesAsync();
+            // Save Log using separate context to persist even if main transaction rolls back
+            await SaveApiLogSeparately(url, apiResponse, "Cyrus");
 
             return apiResponse;
+        }
+
+        private async Task SaveApiLogSeparately(string request, string response, string apiName)
+        {
+            try
+            {
+                // Create a new DbContext scope to bypass the current transaction
+                using var scope = _serviceProvider.CreateScope();
+                var logContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                
+                var log = new Apilog
+                {
+                    Request = request,
+                    Response = response,
+                    Apiname = apiName,
+                    Reqdatae = DateTime.Now
+                };
+
+                logContext.Apilogs.Add(log);
+                await logContext.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                // Log the error but don't fail the main transaction
+                Console.WriteLine($"Failed to save API log: {ex.Message}");
+            }
         }
     }
 }

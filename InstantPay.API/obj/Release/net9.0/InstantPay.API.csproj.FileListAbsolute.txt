@@ -102,3 +102,4 @@ C:\Instant Projects\Instant-Payment-API\InstantPay.API\bin\Release\net9.0\seleni
 C:\Instant Projects\Instant-Payment-API\InstantPay.API\bin\Release\net9.0\selenium-manager\macos\selenium-manager
 C:\Instant Projects\Instant-Payment-API\InstantPay.API\bin\Release\net9.0\selenium-manager\windows\selenium-manager.exe
 C:\Instant Projects\Instant-Payment-API\InstantPay.API\bin\Release\net9.0\WebDriver.dll
+C:\Instant Projects\Instant-Payment-API\InstantPay.API\bin\Release\net9.0\web.config
