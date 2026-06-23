@@ -125,6 +125,12 @@ namespace InstantPay.API.Controller
                 });
             }
             var result = await _masterService.GetRechargePlans(objPayload);
+
+            if (result is string jsonString)
+            {
+                return Content(jsonString, "application/json");
+            }
+
             return Ok(result);
         }
 
@@ -166,7 +172,13 @@ namespace InstantPay.API.Controller
                     message = "Invalid or missing userid/username in token and headers"
                 });
             }
-            var result = await _masterService.GetRechargePlans(objPayload);
+            var result = await _masterService.GetRechargePlansNew(objPayload);
+
+            if (result is string jsonString)
+            {
+                return Content(jsonString, "application/json");
+            }
+
             return Ok(result);
         }
 

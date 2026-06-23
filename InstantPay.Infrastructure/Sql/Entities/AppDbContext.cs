@@ -99,6 +99,10 @@ public partial class AppDbContext : DbContext
     public DbSet<CastlerToken> CastlerToken { get; set; }
     public DbSet<SettlementWithdrawal> SettlementWithdrawals { get; set; }
     public DbSet<TblAppRelease> TblAppReleases { get; set; }
+    public DbSet<PlanDetail> PlanDetails { get; set; }
+    public DbSet<CommissionPlan> CommissionPlans { get; set; }
+    public DbSet<APICode> APICodes { get; set; }
+    public DbSet<TblSuperAdminUserBalance> TblSuperAdminUserBalances { get; set; }
 
 
     public async Task BeginTransactionAsync()
@@ -605,6 +609,8 @@ public partial class AppDbContext : DbContext
                 .HasMaxLength(255)
                 .IsUnicode(false)
                 .HasColumnName("WLId");
+            entity.Property(e => e.CommissionPlanId);
+            entity.Property(e => e.SuperAdminId);
         });
 
         modelBuilder.Entity<TblWlUser>(entity =>
@@ -1460,10 +1466,8 @@ public partial class AppDbContext : DbContext
                 .HasMaxLength(255)
                 .IsUnicode(false)
                 .HasColumnName("WL_Id");
-            entity.Property(e => e.ServiceId).HasColumnType("int")
-               .HasMaxLength(255)
-               .IsUnicode(false)
-               .HasColumnName("ServiceId");
+            entity.Property(e => e.ServiceId).HasColumnType("int");
+            entity.Property(e => e.SuperAdminShare).HasColumnType("decimal(18, 2)");
         });
 
         modelBuilder.Entity<Notification>()
@@ -1563,6 +1567,72 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.FileName).HasMaxLength(255).IsRequired();
             entity.Property(e => e.OriginalFileName).HasMaxLength(255);
             entity.Property(e => e.UploadedAt).HasColumnType("datetime");
+        });
+
+        modelBuilder.Entity<PlanDetail>(entity =>
+        {
+            entity.ToTable("PlanDetail", "InstantPayment_Db");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.PlanName).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.Property(e => e.CreatedBy).HasMaxLength(100);
+            entity.Property(e => e.CreatedAt).HasColumnType("datetime").HasDefaultValueSql("GETDATE()");
+        });
+
+        modelBuilder.Entity<CommissionPlan>(entity =>
+        {
+            entity.ToTable("CommissionPlan", "InstantPayment_Db");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.PlanId).IsRequired();
+            entity.Property(e => e.SlabRange).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.AdminShare).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.WlAdminShare).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.MdShare).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.AdShare).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.RtShare).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.CommissionType).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.ServiceId).IsRequired();
+            entity.Property(e => e.APICode).HasMaxLength(50);
+            entity.Property(e => e.OperatorId).IsRequired();
+            entity.Property(e => e.CreatedAt).HasColumnType("datetime").HasDefaultValueSql("GETDATE()");
+            entity.Property(e => e.CreatedBy).HasMaxLength(100);
+
+            entity.HasIndex(e => e.PlanId);
+        });
+
+        modelBuilder.Entity<APICode>(entity =>
+        {
+            entity.ToTable("APICode", "InstantPayment_Db");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.APICodeValue).HasMaxLength(10).IsRequired();
+            entity.Property(e => e.Name).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.Property(e => e.IsDeleted).HasDefaultValue(false);
+            entity.Property(e => e.CreatedAt).HasColumnType("datetime").HasDefaultValueSql("GETDATE()");
+            entity.Property(e => e.CreatedBy).HasMaxLength(100);
+
+            entity.HasIndex(e => e.APICodeValue).IsUnique();
+        });
+
+        modelBuilder.Entity<TblSuperAdminUserBalance>(entity =>
+        {
+            entity.ToTable("tblSuperAdminUserBalance", "InstantPayment_Db");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.UserId);
+            entity.Property(e => e.UserName).HasMaxLength(255).IsUnicode(false);
+            entity.Property(e => e.OldBal).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.Amount).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.NewBal).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.TxnType).HasMaxLength(255).IsUnicode(false);
+            entity.Property(e => e.CrdrType).HasMaxLength(50).IsUnicode(false);
+            entity.Property(e => e.Remarks).IsUnicode(false);
+            entity.Property(e => e.Txndate).HasColumnType("datetime");
+            entity.Property(e => e.TxnAmount).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.SurComm).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.Tds).HasColumnType("decimal(18, 2)");
+
+            entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => e.Txndate);
         });
 
         OnModelCreatingPartial(modelBuilder);

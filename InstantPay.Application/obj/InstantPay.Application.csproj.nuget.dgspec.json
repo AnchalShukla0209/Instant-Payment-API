@@ -62,6 +62,10 @@
               "target": "Package",
               "version": "[4.0.3, )"
             },
+            "EPPlus": {
+              "target": "Package",
+              "version": "[7.5.2, )"
+            },
             "MailKit": {
               "target": "Package",
               "version": "[4.14.1, )"

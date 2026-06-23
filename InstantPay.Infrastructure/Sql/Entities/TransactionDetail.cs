@@ -81,4 +81,6 @@ public partial class TransactionDetail
 
     public decimal? WlComm { get; set; }
     public int? ServiceId { get; set; }
+
+    public decimal? SuperAdminShare { get; set; }
 }

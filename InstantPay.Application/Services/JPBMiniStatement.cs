@@ -26,13 +26,15 @@ namespace InstantPay.Application.Services
         private readonly IHttpClientFactory _httpFactory;
         private readonly IConfiguration _config;
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly IWalletService _walletService;
         private readonly TimeSpan _cacheDuration;
-        public JPBMiniStatement(AppDbContext context, IHttpClientFactory httpFactory, IConfiguration config, IHttpContextAccessor httpContextAccessor)
+        public JPBMiniStatement(AppDbContext context, IHttpClientFactory httpFactory, IConfiguration config, IHttpContextAccessor httpContextAccessor, IWalletService walletService)
         {
             _context = context;
             _httpFactory = httpFactory;
             _config = config;
             _httpContextAccessor = httpContextAccessor;
+            _walletService = walletService;
             var hours = _config.GetSection("JPBAEPS").GetValue<int?>("CacheHours") ?? 24;
             _cacheDuration = TimeSpan.FromHours(hours);
         }
@@ -287,12 +289,7 @@ namespace InstantPay.Application.Services
 
             var userData = _context.TblUsers.Where(id => id.Id == Convert.ToInt32(model.UserId)).FirstOrDefault();
 
-            var latestWallet = await _context.Tbluserbalances
-                .Where(x => x.UserId == userData.Id)
-                .OrderByDescending(x => x.Id)
-                .FirstOrDefaultAsync();
-
-            var currentBalance = latestWallet?.NewBal ?? 0;
+            decimal currentBalance = await _walletService.GetBalanceAsync(userData.Id);
 
 
             var tx = new TransactionDetail

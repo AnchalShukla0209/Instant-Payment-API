@@ -15,13 +15,15 @@ namespace InstantPay.Application.Services
         private readonly AppDbContext _context;
         private readonly ILogger<PaymentService> _logger;
         private readonly ISmsService _smsService;
+        private readonly IWalletService _walletService;
         private readonly string _basePath = Path.Combine(Directory.GetCurrentDirectory(), "UploadFiles", "PaymentRequestTxn");
 
-        public PaymentService(AppDbContext context, ILogger<PaymentService> logger, ISmsService smsService)
+        public PaymentService(AppDbContext context, ILogger<PaymentService> logger, ISmsService smsService, IWalletService walletService)
         {
             _context = context;
             _logger = logger;
             _smsService = smsService;
+            _walletService = walletService;
         }
 
         public async Task<Guid> CreatePaymentRequestAsync(PaymentRequestDto request, int userId)
@@ -106,36 +108,19 @@ namespace InstantPay.Application.Services
                     var user = await _context.TblUsers.FirstOrDefaultAsync(u => u.Id == payment.UserId);
                     if (user != null)
                     {
-                        var lastBalance = await _context.Tbluserbalances
-                            .Where(b => b.UserId == payment.UserId)
-                            .OrderByDescending(b => b.Id)
-                            .Select(b => b.NewBal)
-                            .FirstOrDefaultAsync();
+                        var (oldBal, newBal, walletEntryId) = await _walletService.CreditAsync(
+                            user.Id,
+                            user.Username ?? (user.Name + "-" + user.Phone),
+                            payment.Amount ?? 0,
+                            payment.Amount ?? 0,
+                            0, 0,
+                            "PaymentApproval",
+                            $"Payment approved for Txn {payment.PaymentTxnId}",
+                            user.Wlid);
 
-                        decimal oldBal = (decimal)lastBalance;
-                        decimal newBal = oldBal + payment.Amount ?? 0;
-
-                        var walletTxn = new Tbluserbalance
-                        {
-                            TxnAmount = payment.Amount,
-                            SurCom = 0,
-                            Tds = 0,
-                            UserId = user.Id,
-                            UserName = user.Username,
-                            OldBal = oldBal,
-                            Amount = payment.Amount,
-                            NewBal = newBal,
-                            TxnType = "PaymentApproval",
-                            CrdrType = "Credit",
-                            Remarks = $"Payment approved for Txn {payment.PaymentTxnId}",
-                            WlId = user.Wlid,
-                            Txndate = DateTime.Now
-                        };
-
-                        await _context.Tbluserbalances.AddAsync(walletTxn);
                         payment.openingBalance = oldBal;
                         payment.closingBalance = newBal;
-                        payment.TxnId = walletTxn.Id.ToString();
+                        payment.TxnId = walletEntryId.ToString();
 
                         smsData = new DebitCreditSmsRequest
                         {

@@ -10,5 +10,6 @@ namespace InstantPay.Application.Interfaces.SMS
     public interface ISmsService
     {
         Task<bool> SendDebitCreditSmsAsync(DebitCreditSmsRequest data);
+        Task<string> SendTransactionSmsAsync(string mobileNo, string accountNo, string amount, string templateId);
     }
 }

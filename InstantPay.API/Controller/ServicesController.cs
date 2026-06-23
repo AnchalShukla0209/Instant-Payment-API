@@ -99,5 +99,12 @@ namespace InstantPay.API.Controller
             if (error != null) return NotFound(error);
             return Ok("Service deleted successfully.");
         }
+
+        [HttpGet("dropdown")]
+        public async Task<IActionResult> GetServicesDropdown()
+        {
+            var result = await _service.GetServicesDropdownAsync();
+            return Ok(result);
+        }
     }
 }
