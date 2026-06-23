@@ -20,6 +20,7 @@ namespace InstantPay.SharedKernel.Entity
         public string ServiceName { get; set; }
         public string ServicePath { get; set; }
         public bool IsActive { get; set; }
+        public bool IsActiveOnApk { get; set; }
     }
 
 }

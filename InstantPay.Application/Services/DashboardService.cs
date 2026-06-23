@@ -15,19 +15,17 @@ namespace InstantPay.Application.Services
     public class DashboardService : IDashboardService
     {
         private readonly AppDbContext _context;
+        private readonly IWalletService _walletService;
 
-        public DashboardService(AppDbContext context)
+        public DashboardService(AppDbContext context, IWalletService walletService)
         {
             _context = context;
+            _walletService = walletService;
         }
 
         public async Task<DashboardDto> GetDashboardAsync(int userId, string username)
         {
-            var walletAmount = await _context.Tbluserbalances
-                .Where(x => x.UserId == userId)
-                .OrderByDescending(x => x.Id)
-                .Select(x => x.NewBal)
-                .FirstOrDefaultAsync();
+            var walletAmount = await _walletService.GetBalanceAsync(userId);
 
             var services = await _context.Tbl_Services
                 .Where(x => x.IsDeleted == false)
@@ -36,7 +34,8 @@ namespace InstantPay.Application.Services
                     ServiceId = x.Id,
                     ServiceName = x.ServiceName ?? "",
                     ServiceImagePath = x.ServicePath ?? "",
-                    ActiveStatus = x.IsActive
+                    ActiveStatus = x.IsActive,
+                    ActiveStatusOnApk = x.isActiveOnApk
                 }).ToListAsync();
 
             var totalTransaction = await _context.TransactionDetails.SumAsync(x => (long?)x.TransId) ?? 0L;
@@ -68,7 +67,7 @@ namespace InstantPay.Application.Services
 
             return new DashboardDto
             {
-                WalletAmount = walletAmount ?? 0,
+                WalletAmount = walletAmount,
                 Services = services,
                 TotalTransaction = totalTransaction,
                 UserJoined = userJoined,
@@ -80,11 +79,7 @@ namespace InstantPay.Application.Services
         {
             try
             {
-                var walletAmount = await _context.Tbluserbalances
-                    .Where(x => x.UserId == request.UserId)
-                    .OrderByDescending(x => x.Id)
-                    .Select(x => x.NewBal)
-                    .FirstOrDefaultAsync();
+                var walletAmount = await _walletService.GetBalanceAsync(request.UserId);
 
                 var result = new WalletBalanceDto
                 {

@@ -101,4 +101,7 @@ public partial class TblUser
 
     public int? FailedUnlockAttempts { get; set; }
     public DateTime? LockoutEnd { get; set; }
+
+    public int? CommissionPlanId { get; set; }
+    public int? SuperAdminId { get; set; }
 }

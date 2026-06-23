@@ -59,6 +59,11 @@
         ],
         "requestBody": {
           "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAgentRequestDto"
+              }
+            },
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CreateAgentRequestDto"
@@ -90,6 +95,11 @@
         ],
         "requestBody": {
           "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentEKYCRequestDto"
+              }
+            },
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/AgentEKYCRequestDto"
@@ -121,6 +131,11 @@
         ],
         "requestBody": {
           "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/BalanceInquiryRequestDto"
+              }
+            },
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/BalanceInquiryRequestDto"
@@ -152,6 +167,11 @@
         ],
         "requestBody": {
           "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/MiniStatementRequest"
+              }
+            },
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/MiniStatementRequest"
@@ -183,6 +203,11 @@
         ],
         "requestBody": {
           "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/CashWithdrawalRequest"
+              }
+            },
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CashWithdrawalRequest"
@@ -214,6 +239,11 @@
         ],
         "requestBody": {
           "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/CashDepositRequest"
+              }
+            },
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CashDepositRequest"
@@ -238,6 +268,142 @@
         }
       }
     },
+    "/api/APICode/dropdown": {
+      "get": {
+        "tags": [
+          "APICode"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/AppRelease/upload": {
+      "post": {
+        "tags": [
+          "AppRelease"
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "versionName": {
+                    "type": "string"
+                  },
+                  "versionCode": {
+                    "type": "integer",
+                    "format": "int32"
+                  },
+                  "releaseNotes": {
+                    "type": "string"
+                  }
+                }
+              },
+              "encoding": {
+                "file": {
+                  "style": "form"
+                },
+                "versionName": {
+                  "style": "form"
+                },
+                "versionCode": {
+                  "style": "form"
+                },
+                "releaseNotes": {
+                  "style": "form"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/AppRelease/download/{fileName}": {
+      "get": {
+        "tags": [
+          "AppRelease"
+        ],
+        "parameters": [
+          {
+            "name": "fileName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/AppRelease/list": {
+      "get": {
+        "tags": [
+          "AppRelease"
+        ],
+        "parameters": [
+          {
+            "name": "commonsearch",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pageIndex",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/AppRelease/latest": {
+      "get": {
+        "tags": [
+          "AppRelease"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/Auth/unlock": {
       "post": {
         "tags": [
@@ -245,6 +411,11 @@
         ],
         "requestBody": {
           "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UnlockRequestDto"
+              }
+            },
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/UnlockRequestDto"
@@ -276,6 +447,11 @@
         ],
         "requestBody": {
           "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserRequestForCP"
+              }
+            },
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/UserRequestForCP"
@@ -307,6 +483,11 @@
         ],
         "requestBody": {
           "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForgetPasswordRequest"
+              }
+            },
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ForgetPasswordRequest"
@@ -338,6 +519,11 @@
         ],
         "requestBody": {
           "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetPasswordRequest"
+              }
+            },
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ResetPasswordRequest"
@@ -369,6 +555,11 @@
         ],
         "requestBody": {
           "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetPasswordRequest"
+              }
+            },
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ResetPasswordRequest"
@@ -400,6 +591,11 @@
         ],
         "requestBody": {
           "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResendOtpRequest"
+              }
+            },
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ResendOtpRequest"
@@ -431,6 +627,11 @@
         ],
         "requestBody": {
           "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserRequestForCP"
+              }
+            },
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/UserRequestForCP"
@@ -492,6 +693,11 @@
         ],
         "requestBody": {
           "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/BankDto"
+              }
+            },
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/BankDto"
@@ -567,6 +773,11 @@
         ],
         "requestBody": {
           "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/BankDto"
+              }
+            },
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/BankDto"
@@ -624,6 +835,186 @@
         }
       }
     },
+    "/api/Beneficiary/Save": {
+      "post": {
+        "tags": [
+          "Beneficiary"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveBeneficiaryRequest"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveBeneficiaryRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveBeneficiaryRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveBeneficiaryRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Beneficiary/SendOtp": {
+      "post": {
+        "tags": [
+          "Beneficiary"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendOtpRequest"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendOtpRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendOtpRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendOtpRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Beneficiary/ResendOtp": {
+      "post": {
+        "tags": [
+          "Beneficiary"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendOtpRequest"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendOtpRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendOtpRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendOtpRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Beneficiary/Delete": {
+      "post": {
+        "tags": [
+          "Beneficiary"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteBeneficiaryRequest"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteBeneficiaryRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteBeneficiaryRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteBeneficiaryRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Beneficiary/GetBeneficiaryList": {
+      "post": {
+        "tags": [
+          "Beneficiary"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/GetBeneficiaryListRequest"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GetBeneficiaryListRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GetBeneficiaryListRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/GetBeneficiaryListRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/Client/Client-Report": {
       "post": {
         "tags": [
@@ -631,6 +1022,11 @@
         ],
         "requestBody": {
           "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/EncryptedRequest"
+              }
+            },
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/EncryptedRequest"
@@ -924,6 +1320,11 @@
         ],
         "requestBody": {
           "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/WalletTransactionRequest"
+              }
+            },
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/WalletTransactionRequest"
@@ -955,6 +1356,11 @@
         ],
         "requestBody": {
           "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/EncryptedRequest"
+              }
+            },
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/EncryptedRequest"
@@ -1278,6 +1684,11 @@
         ],
         "requestBody": {
           "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/WalletTransactionRequest"
+              }
+            },
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/WalletTransactionRequest"
@@ -1302,6 +1713,340 @@
         }
       }
     },
+    "/api/CommissionPlan/plan/create": {
+      "post": {
+        "tags": [
+          "CommissionPlan"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePlanDetailDto"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePlanDetailDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePlanDetailDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePlanDetailDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/CommissionPlan/plan/update": {
+      "put": {
+        "tags": [
+          "CommissionPlan"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePlanDetailDto"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePlanDetailDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePlanDetailDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePlanDetailDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/CommissionPlan/plan/{id}": {
+      "get": {
+        "tags": [
+          "CommissionPlan"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "CommissionPlan"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/CommissionPlan/plan/dropdown": {
+      "get": {
+        "tags": [
+          "CommissionPlan"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/CommissionPlan/plan/list": {
+      "get": {
+        "tags": [
+          "CommissionPlan"
+        ],
+        "parameters": [
+          {
+            "name": "pageNumber",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 10
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/CommissionPlan/create": {
+      "post": {
+        "tags": [
+          "CommissionPlan"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCommissionPlanDto"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCommissionPlanDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCommissionPlanDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCommissionPlanDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/CommissionPlan/update": {
+      "put": {
+        "tags": [
+          "CommissionPlan"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCommissionPlanDto"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCommissionPlanDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCommissionPlanDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCommissionPlanDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/CommissionPlan/{id}": {
+      "get": {
+        "tags": [
+          "CommissionPlan"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "CommissionPlan"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/CommissionPlan/dropdown": {
+      "get": {
+        "tags": [
+          "CommissionPlan"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/CommissionPlan/list": {
+      "get": {
+        "tags": [
+          "CommissionPlan"
+        ],
+        "parameters": [
+          {
+            "name": "pageNumber",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 10
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/consignment/track": {
       "post": {
         "tags": [
@@ -1309,6 +2054,11 @@
         ],
         "requestBody": {
           "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "type": "string"
+              }
+            },
             "application/json": {
               "schema": {
                 "type": "string"
@@ -1374,6 +2124,114 @@
         }
       }
     },
+    "/api/FinoAEPS": {
+      "post": {
+        "tags": [
+          "FinoAEPS"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/FinoAepsRequest"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FinoAepsRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FinoAepsRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/FinoAepsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/FinoAEPS/DailyLoginCheck": {
+      "post": {
+        "tags": [
+          "FinoAEPS"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/FinoAepsDailyLoginCheckRequest"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FinoAepsDailyLoginCheckRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FinoAepsDailyLoginCheckRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/FinoAepsDailyLoginCheckRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/FinoAEPS/MerchantEkyc": {
+      "post": {
+        "tags": [
+          "FinoAEPS"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/FinoMerchantEkycRequest"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FinoMerchantEkycRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FinoMerchantEkycRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/FinoMerchantEkycRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/IQore/fetch": {
       "post": {
         "tags": [
@@ -1381,6 +2239,11 @@
         ],
         "requestBody": {
           "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/InsuranceFetchRequestDto"
+              }
+            },
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/InsuranceFetchRequestDto"
@@ -1412,6 +2275,11 @@
         ],
         "requestBody": {
           "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/BillFetchRequestDto"
+              }
+            },
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/BillFetchRequestDto"
@@ -1443,6 +2311,11 @@
         ],
         "requestBody": {
           "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequestDto"
+              }
+            },
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/LoginRequestDto"
@@ -1474,6 +2347,11 @@
         ],
         "requestBody": {
           "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/EncryptedRequest"
+              }
+            },
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/EncryptedRequest"
@@ -1505,6 +2383,11 @@
         ],
         "requestBody": {
           "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/EncryptedRequest"
+              }
+            },
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/EncryptedRequest"
@@ -1570,6 +2453,11 @@
         ],
         "requestBody": {
           "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/EncryptedRequest"
+              }
+            },
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/EncryptedRequest"
@@ -1654,6 +2542,11 @@
         ],
         "requestBody": {
           "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanRequestPayload"
+              }
+            },
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/PlanRequestPayload"
@@ -1685,6 +2578,11 @@
         ],
         "requestBody": {
           "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanRequestPayload"
+              }
+            },
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/PlanRequestPayload"
@@ -1802,6 +2700,11 @@
         ],
         "requestBody": {
           "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ToggleRequestDto"
+              }
+            },
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ToggleRequestDto"
@@ -1833,6 +2736,11 @@
         ],
         "requestBody": {
           "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ToggleRequestDto"
+              }
+            },
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ToggleRequestDto"
@@ -1864,6 +2772,11 @@
         ],
         "requestBody": {
           "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ToggleRequestDto"
+              }
+            },
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ToggleRequestDto"
@@ -1895,6 +2808,11 @@
         ],
         "requestBody": {
           "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ToggleRequestDto"
+              }
+            },
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ToggleRequestDto"
@@ -1926,6 +2844,11 @@
         ],
         "requestBody": {
           "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/DmtRequest"
+              }
+            },
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/DmtRequest"
@@ -1951,6 +2874,122 @@
       }
     },
     "/api/MoneyTransfer/status/{txnId}": {
+      "get": {
+        "tags": [
+          "MoneyTransfer"
+        ],
+        "parameters": [
+          {
+            "name": "txnId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/MoneyTransfer/nifi/transfer": {
+      "post": {
+        "tags": [
+          "MoneyTransfer"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/NifiDmtRequest"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NifiDmtRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NifiDmtRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/NifiDmtRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/MoneyTransfer/nifi/status/{txnId}": {
+      "get": {
+        "tags": [
+          "MoneyTransfer"
+        ],
+        "parameters": [
+          {
+            "name": "txnId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/MoneyTransfer/fzp/transfer": {
+      "post": {
+        "tags": [
+          "MoneyTransfer"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/FinzepDmtRequest"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FinzepDmtRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FinzepDmtRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/FinzepDmtRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/MoneyTransfer/fzp/status/{txnId}": {
       "get": {
         "tags": [
           "MoneyTransfer"
@@ -2043,6 +3082,11 @@
         ],
         "requestBody": {
           "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationDto"
+              }
+            },
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/NotificationDto"
@@ -2074,6 +3118,11 @@
         ],
         "requestBody": {
           "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationDto"
+              }
+            },
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/NotificationDto"
@@ -2105,6 +3154,11 @@
         ],
         "requestBody": {
           "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/EncryptedRequestDto"
+              }
+            },
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/EncryptedRequestDto"
@@ -2122,6 +3176,29 @@
             }
           }
         },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Operator/dropdown/{serviceId}": {
+      "get": {
+        "tags": [
+          "Operator"
+        ],
+        "parameters": [
+          {
+            "name": "serviceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK"
@@ -2226,6 +3303,11 @@
         ],
         "requestBody": {
           "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentUpdateDto"
+              }
+            },
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/PaymentUpdateDto"
@@ -2373,6 +3455,582 @@
         }
       }
     },
+    "/api/PPI/PPIAadhar/GenerateAadharOtp": {
+      "post": {
+        "tags": [
+          "PPIAadhar"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPIAadharOtpRequest"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPIAadharOtpRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPIAadharOtpRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPIAadharOtpRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/PPI/PPIAadhar/ValidateAadharOtp": {
+      "post": {
+        "tags": [
+          "PPIAadhar"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPIValidateAadharOtpRequest"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPIValidateAadharOtpRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPIValidateAadharOtpRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPIValidateAadharOtpRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/PPI/PPIAadhar/AadharBiometric": {
+      "post": {
+        "tags": [
+          "PPIAadhar"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPIAadharBiometricRequest"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPIAadharBiometricRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPIAadharBiometricRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPIAadharBiometricRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/PPI/PPIAadhar/ValidatePan": {
+      "post": {
+        "tags": [
+          "PPIAadhar"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPIPanRequest"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPIPanRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPIPanRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPIPanRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/PPI/PPIBeneficiary/GetBeneficiaryList": {
+      "post": {
+        "tags": [
+          "PPIBeneficiary"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPIBeneListRequest"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPIBeneListRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPIBeneListRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPIBeneListRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/PPI/PPIBeneficiary/AddBeneficiary": {
+      "post": {
+        "tags": [
+          "PPIBeneficiary"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPIAddBeneRequest"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPIAddBeneRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPIAddBeneRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPIAddBeneRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/PPI/PPIBeneficiary/ResendOtp": {
+      "post": {
+        "tags": [
+          "PPIBeneficiary"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPIResendOtpRequest"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPIResendOtpRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPIResendOtpRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPIResendOtpRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/PPI/PPIBeneficiary/ValidateOtp": {
+      "post": {
+        "tags": [
+          "PPIBeneficiary"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPIValidateOtpRequest"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPIValidateOtpRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPIValidateOtpRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPIValidateOtpRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/PPI/PPIBeneficiary/DeleteGetOtp": {
+      "post": {
+        "tags": [
+          "PPIBeneficiary"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPIDeleteOtpRequest"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPIDeleteOtpRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPIDeleteOtpRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPIDeleteOtpRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/PPI/PPIBeneficiary/DeleteVerifyOtp": {
+      "post": {
+        "tags": [
+          "PPIBeneficiary"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPIDeleteVerifyRequest"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPIDeleteVerifyRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPIDeleteVerifyRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPIDeleteVerifyRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/PPI/PPIFundTransfer/GetOtp": {
+      "post": {
+        "tags": [
+          "PPIFundTransfer"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPIFundTransferOtpRequest"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPIFundTransferOtpRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPIFundTransferOtpRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPIFundTransferOtpRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/PPI/PPIMoneyTransfer/Transfer": {
+      "post": {
+        "tags": [
+          "PPIMoneyTransfer"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPIMoneyTransferRequest"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPIMoneyTransferRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPIMoneyTransferRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPIMoneyTransferRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/PPI/PPIOtp/GenerateOtp": {
+      "post": {
+        "tags": [
+          "PPIOtp"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/GeneratePPIOtpRequest"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GeneratePPIOtpRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GeneratePPIOtpRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/GeneratePPIOtpRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/PPI/PPIOtp/VerifyOtp": {
+      "post": {
+        "tags": [
+          "PPIOtp"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyPPIOtpRequest"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyPPIOtpRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyPPIOtpRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyPPIOtpRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/PPI/PPIPayment/SendPaymentOtp": {
+      "post": {
+        "tags": [
+          "PPIPayment"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPISendPaymentOtpRequest"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPISendPaymentOtpRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPISendPaymentOtpRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPISendPaymentOtpRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/PPI/PPIWallet/LoadWallet": {
+      "post": {
+        "tags": [
+          "PPIWallet"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPILoadWalletRequest"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPILoadWalletRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPILoadWalletRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPILoadWalletRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/razorpay/create-order": {
       "post": {
         "tags": [
@@ -2380,6 +4038,11 @@
         ],
         "requestBody": {
           "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOrderRequest"
+              }
+            },
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CreateOrderRequest"
@@ -2411,6 +4074,11 @@
         ],
         "requestBody": {
           "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentVerifyRequest"
+              }
+            },
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/PaymentVerifyRequest"
@@ -2454,6 +4122,11 @@
         ],
         "requestBody": {
           "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/EncryptedRequest"
+              }
+            },
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/EncryptedRequest"
@@ -2485,6 +4158,11 @@
         ],
         "requestBody": {
           "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/EncryptedRequest"
+              }
+            },
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/EncryptedRequest"
@@ -2516,6 +4194,11 @@
         ],
         "requestBody": {
           "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/TxnRequest"
+              }
+            },
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/TxnRequest"
@@ -2547,6 +4230,11 @@
         ],
         "requestBody": {
           "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/TxnUpdateRequest"
+              }
+            },
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/TxnUpdateRequest"
@@ -2578,6 +4266,11 @@
         ],
         "requestBody": {
           "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/EncryptedRequest"
+              }
+            },
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/EncryptedRequest"
@@ -2673,6 +4366,11 @@
         ],
         "requestBody": {
           "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ServiceDtoRequest"
+              }
+            },
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ServiceDtoRequest"
@@ -2725,6 +4423,11 @@
         ],
         "requestBody": {
           "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ServiceDtoRequest"
+              }
+            },
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ServiceDtoRequest"
@@ -2742,6 +4445,18 @@
             }
           }
         },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Services/dropdown": {
+      "get": {
+        "tags": [
+          "Services"
+        ],
         "responses": {
           "200": {
             "description": "OK"
@@ -2794,6 +4509,11 @@
         ],
         "requestBody": {
           "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/WithdrawalRequestDto"
+              }
+            },
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/WithdrawalRequestDto"
@@ -2898,6 +4618,11 @@
         ],
         "requestBody": {
           "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCommissionCommand"
+              }
+            },
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateCommissionCommand"
@@ -2934,6 +4659,78 @@
         }
       }
     },
+    "/api/WebhookforFinzepPayout": {
+      "post": {
+        "tags": [
+          "WebhookforFinzepPayout"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/FinzepWebhookPayload"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FinzepWebhookPayload"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FinzepWebhookPayload"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/FinzepWebhookPayload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/WebhookfornifiPayout": {
+      "post": {
+        "tags": [
+          "WebhookfornifiPayout"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/NifiEncryptedResponse"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NifiEncryptedResponse"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NifiEncryptedResponse"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/NifiEncryptedResponse"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/WebsiteInfo/get-info": {
       "get": {
         "tags": [
@@ -2953,6 +4750,11 @@
         ],
         "requestBody": {
           "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/WhatsAppBroadcastRequest"
+              }
+            },
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/WhatsAppBroadcastRequest"
@@ -3352,6 +5154,61 @@
         },
         "additionalProperties": false
       },
+      "CreateCommissionPlanDto": {
+        "type": "object",
+        "properties": {
+          "planId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "slabRange": {
+            "type": "string",
+            "nullable": true
+          },
+          "adminShare": {
+            "type": "number",
+            "format": "double"
+          },
+          "wlAdminShare": {
+            "type": "number",
+            "format": "double"
+          },
+          "mdShare": {
+            "type": "number",
+            "format": "double"
+          },
+          "adShare": {
+            "type": "number",
+            "format": "double"
+          },
+          "rtShare": {
+            "type": "number",
+            "format": "double"
+          },
+          "commissionType": {
+            "type": "string",
+            "nullable": true
+          },
+          "serviceId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "apiCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "operatorId": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "createdBy": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "CreateOrderRequest": {
         "type": "object",
         "properties": {
@@ -3386,6 +5243,46 @@
           "paymentMethod": {
             "type": "string",
             "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreatePlanDetailDto": {
+        "type": "object",
+        "properties": {
+          "planName": {
+            "type": "string",
+            "nullable": true
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "createdBy": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "DeleteBeneficiaryRequest": {
+        "required": [
+          "beneficiaryId",
+          "customerNumber",
+          "otp"
+        ],
+        "type": "object",
+        "properties": {
+          "customerNumber": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "beneficiaryId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "otp": {
+            "minLength": 1,
+            "type": "string"
           }
         },
         "additionalProperties": false
@@ -3458,6 +5355,233 @@
         },
         "additionalProperties": false
       },
+      "FinoAepsDailyLoginCheckRequest": {
+        "type": "object",
+        "properties": {
+          "sessionKey": {
+            "type": "string",
+            "nullable": true
+          },
+          "apiKey": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "FinoAepsRequest": {
+        "type": "object",
+        "properties": {
+          "sessionKey": {
+            "type": "string",
+            "nullable": true
+          },
+          "apiKey": {
+            "type": "string",
+            "nullable": true
+          },
+          "aadharno": {
+            "type": "string",
+            "nullable": true
+          },
+          "bankiinno": {
+            "type": "string",
+            "nullable": true
+          },
+          "mobileno": {
+            "type": "string",
+            "nullable": true
+          },
+          "customermobileno": {
+            "type": "string",
+            "nullable": true
+          },
+          "amount": {
+            "type": "string",
+            "nullable": true
+          },
+          "txntype": {
+            "type": "string",
+            "nullable": true
+          },
+          "bankName": {
+            "type": "string",
+            "nullable": true
+          },
+          "latitude": {
+            "type": "string",
+            "nullable": true
+          },
+          "longitude": {
+            "type": "string",
+            "nullable": true
+          },
+          "fingerdata": {
+            "type": "string",
+            "nullable": true
+          },
+          "deviceSrNo": {
+            "type": "string",
+            "nullable": true
+          },
+          "deviceType": {
+            "type": "string",
+            "nullable": true
+          },
+          "comingFrom": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "FinoMerchantEkycRequest": {
+        "type": "object",
+        "properties": {
+          "sessionKey": {
+            "type": "string",
+            "nullable": true
+          },
+          "apiKey": {
+            "type": "string",
+            "nullable": true
+          },
+          "aadharno": {
+            "type": "string",
+            "nullable": true
+          },
+          "nameasperPan": {
+            "type": "string",
+            "nullable": true
+          },
+          "mobileno": {
+            "type": "string",
+            "nullable": true
+          },
+          "dob": {
+            "type": "string",
+            "nullable": true
+          },
+          "pancardno": {
+            "type": "string",
+            "nullable": true
+          },
+          "firstname": {
+            "type": "string",
+            "nullable": true
+          },
+          "lastName": {
+            "type": "string",
+            "nullable": true
+          },
+          "fingerdata": {
+            "type": "string",
+            "nullable": true
+          },
+          "deviceType": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "FinzepDmtRequest": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "nullable": true
+          },
+          "transactionPin": {
+            "type": "string",
+            "nullable": true
+          },
+          "amount": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "accountNumber": {
+            "type": "string",
+            "nullable": true
+          },
+          "beneficiaryName": {
+            "type": "string",
+            "nullable": true
+          },
+          "beneficiaryMobile": {
+            "type": "string",
+            "nullable": true
+          },
+          "bankName": {
+            "type": "string",
+            "nullable": true
+          },
+          "ifsc": {
+            "type": "string",
+            "nullable": true
+          },
+          "remark": {
+            "type": "string",
+            "nullable": true
+          },
+          "comingFrom": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "FinzepWebhookPayload": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "msg": {
+            "type": "string",
+            "nullable": true
+          },
+          "rpid": {
+            "type": "string",
+            "nullable": true
+          },
+          "liveID": {
+            "type": "string",
+            "nullable": true
+          },
+          "beneName": {
+            "type": "string",
+            "nullable": true
+          },
+          "account": {
+            "type": "string",
+            "nullable": true
+          },
+          "amount": {
+            "type": "number",
+            "format": "double"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "errorCode": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "chargedAmount": {
+            "type": "number",
+            "format": "double"
+          },
+          "opid": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "ForgetPasswordRequest": {
         "type": "object",
         "properties": {
@@ -3472,6 +5596,52 @@
           "panNumber": {
             "type": "string",
             "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "GeneratePPIOtpRequest": {
+        "required": [
+          "apiKey",
+          "pincode",
+          "rtName",
+          "senderMobile",
+          "userId"
+        ],
+        "type": "object",
+        "properties": {
+          "userId": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "senderMobile": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "apiKey": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "pincode": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "rtName": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "GetBeneficiaryListRequest": {
+        "required": [
+          "customerNumber"
+        ],
+        "type": "object",
+        "properties": {
+          "customerNumber": {
+            "minLength": 1,
+            "type": "string"
           }
         },
         "additionalProperties": false
@@ -3578,6 +5748,63 @@
         },
         "additionalProperties": false
       },
+      "NifiDmtRequest": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "nullable": true
+          },
+          "transactionPin": {
+            "type": "string",
+            "nullable": true
+          },
+          "amount": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "accountNumber": {
+            "type": "string",
+            "nullable": true
+          },
+          "beneficiaryName": {
+            "type": "string",
+            "nullable": true
+          },
+          "bankName": {
+            "type": "string",
+            "nullable": true
+          },
+          "ifsc": {
+            "type": "string",
+            "nullable": true
+          },
+          "mobile": {
+            "type": "string",
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
+          },
+          "remark": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "NifiEncryptedResponse": {
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "NotificationDto": {
         "type": "object",
         "properties": {
@@ -3593,6 +5820,626 @@
           "status": {
             "type": "string",
             "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "PPIAadharBiometricRequest": {
+        "required": [
+          "aadharNo",
+          "apiKey",
+          "applicationNumber",
+          "biometricdata",
+          "consentId",
+          "latitude",
+          "longitude",
+          "pincode",
+          "rtName",
+          "senderMobile",
+          "tokeyKey",
+          "userId"
+        ],
+        "type": "object",
+        "properties": {
+          "userId": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "apiKey": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "tokeyKey": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "applicationNumber": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "pincode": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "rtName": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "aadharNo": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "senderMobile": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "latitude": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "longitude": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "biometricdata": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "consentId": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PPIAadharOtpRequest": {
+        "required": [
+          "aadharNo",
+          "apiKey",
+          "applicationNumber",
+          "consentId",
+          "pincode",
+          "rtName",
+          "tokeyKey",
+          "userId"
+        ],
+        "type": "object",
+        "properties": {
+          "userId": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "apiKey": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "tokeyKey": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "aadharNo": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "consentId": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "applicationNumber": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "pincode": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "rtName": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PPIAddBeneRequest": {
+        "required": [
+          "accountNo",
+          "apiKey",
+          "bankName",
+          "beneName",
+          "ifscCode",
+          "senderMobile",
+          "tokeyKey",
+          "userId"
+        ],
+        "type": "object",
+        "properties": {
+          "userId": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "senderMobile": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "apiKey": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "tokeyKey": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "beneName": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "accountNo": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "ifscCode": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "bankName": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PPIBeneListRequest": {
+        "required": [
+          "apiKey",
+          "senderMobile",
+          "tokeyKey",
+          "userId"
+        ],
+        "type": "object",
+        "properties": {
+          "userId": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "senderMobile": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "apiKey": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "tokeyKey": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PPIDeleteOtpRequest": {
+        "required": [
+          "apiKey",
+          "beneficiaryid",
+          "mobilenumber",
+          "tokenkey",
+          "userId"
+        ],
+        "type": "object",
+        "properties": {
+          "userId": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "mobilenumber": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "beneficiaryid": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "apiKey": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "tokenkey": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PPIDeleteVerifyRequest": {
+        "required": [
+          "apiKey",
+          "mobilenumber",
+          "otp",
+          "otpToken",
+          "tokenkey",
+          "userId"
+        ],
+        "type": "object",
+        "properties": {
+          "userId": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "mobilenumber": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "otpToken": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "otp": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "apiKey": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "tokenkey": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PPIFundTransferOtpRequest": {
+        "required": [
+          "amount",
+          "apiKey",
+          "bankAccountNumber",
+          "beneficiaryId",
+          "ifscCode",
+          "mobileNumber",
+          "tokeyKey",
+          "userId"
+        ],
+        "type": "object",
+        "properties": {
+          "userId": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "apiKey": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "tokeyKey": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "mobileNumber": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "bankAccountNumber": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "ifscCode": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "beneficiaryId": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "amount": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PPILoadWalletRequest": {
+        "required": [
+          "amount",
+          "apiKey",
+          "sendermobile",
+          "tokeyKey",
+          "userId"
+        ],
+        "type": "object",
+        "properties": {
+          "userId": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "apiKey": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "sendermobile": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "amount": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "tokeyKey": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "comingFrom": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "PPIMoneyTransferRequest": {
+        "required": [
+          "accountNo",
+          "amount",
+          "apiKey",
+          "bankName",
+          "beneId",
+          "beneName",
+          "ifscCode",
+          "otp",
+          "otpToken",
+          "sendermobile",
+          "tokeyKey",
+          "txnMode",
+          "userId"
+        ],
+        "type": "object",
+        "properties": {
+          "userId": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "apiKey": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "tokeyKey": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "sendermobile": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "beneName": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "accountNo": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "ifscCode": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "beneId": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "amount": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "txnMode": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "bankName": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "otpToken": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "otp": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "comingFrom": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "PPIPanRequest": {
+        "required": [
+          "apiKey",
+          "applicationNumber",
+          "pancardNo",
+          "pincode",
+          "rtName",
+          "tokeyKey",
+          "userId"
+        ],
+        "type": "object",
+        "properties": {
+          "userId": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "apiKey": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "tokeyKey": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "pancardNo": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "applicationNumber": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "pincode": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "rtName": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PPIResendOtpRequest": {
+        "required": [
+          "apiKey",
+          "otptoken",
+          "tokenkey",
+          "userId"
+        ],
+        "type": "object",
+        "properties": {
+          "userId": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "otptoken": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "apiKey": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "tokenkey": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PPISendPaymentOtpRequest": {
+        "required": [
+          "accountNo",
+          "amount",
+          "apiKey",
+          "beneId",
+          "ifsccode",
+          "senderMobile",
+          "tokeyKey",
+          "userId"
+        ],
+        "type": "object",
+        "properties": {
+          "userId": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "apiKey": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "tokeyKey": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "senderMobile": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "beneId": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "amount": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "accountNo": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "ifsccode": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PPIValidateAadharOtpRequest": {
+        "required": [
+          "aadharToken",
+          "apiKey",
+          "applicationNumber",
+          "otp",
+          "senderMobile",
+          "tokeyKey",
+          "userId"
+        ],
+        "type": "object",
+        "properties": {
+          "userId": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "apiKey": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "aadharToken": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "applicationNumber": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "otp": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "senderMobile": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "tokeyKey": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PPIValidateOtpRequest": {
+        "required": [
+          "apiKey",
+          "otp",
+          "otptoken",
+          "tokenkey",
+          "userId"
+        ],
+        "type": "object",
+        "properties": {
+          "userId": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "otp": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "apiKey": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "otptoken": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "tokenkey": {
+            "minLength": 1,
+            "type": "string"
           }
         },
         "additionalProperties": false
@@ -3683,6 +6530,52 @@
         },
         "additionalProperties": false
       },
+      "SaveBeneficiaryRequest": {
+        "required": [
+          "accountNumber",
+          "bankName",
+          "customerNumber",
+          "ifsc",
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "customerNumber": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "name": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "accountNumber": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "bankName": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "ifsc": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SendOtpRequest": {
+        "required": [
+          "customerNumber"
+        ],
+        "type": "object",
+        "properties": {
+          "customerNumber": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "ServiceDtoRequest": {
         "type": "object",
         "properties": {
@@ -3695,6 +6588,9 @@
             "nullable": true
           },
           "isActive": {
+            "type": "boolean"
+          },
+          "isActiveOnApk": {
             "type": "boolean"
           }
         },
@@ -3715,6 +6611,10 @@
             "type": "number",
             "format": "double"
           },
+          "totalMATMAmount": {
+            "type": "number",
+            "format": "double"
+          },
           "aepsWithdrawnAmount": {
             "type": "number",
             "format": "double"
@@ -3723,11 +6623,19 @@
             "type": "number",
             "format": "double"
           },
+          "matmWithdrawnAmount": {
+            "type": "number",
+            "format": "double"
+          },
           "availableAEPSAmount": {
             "type": "number",
             "format": "double"
           },
           "availableRazorpayAmount": {
+            "type": "number",
+            "format": "double"
+          },
+          "availableMATMAmount": {
             "type": "number",
             "format": "double"
           },
@@ -3931,6 +6839,78 @@
         },
         "additionalProperties": false
       },
+      "UpdateCommissionPlanDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "planId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "slabRange": {
+            "type": "string",
+            "nullable": true
+          },
+          "adminShare": {
+            "type": "number",
+            "format": "double"
+          },
+          "wlAdminShare": {
+            "type": "number",
+            "format": "double"
+          },
+          "mdShare": {
+            "type": "number",
+            "format": "double"
+          },
+          "adShare": {
+            "type": "number",
+            "format": "double"
+          },
+          "rtShare": {
+            "type": "number",
+            "format": "double"
+          },
+          "commissionType": {
+            "type": "string",
+            "nullable": true
+          },
+          "serviceId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "apiCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "operatorId": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "UpdatePlanDetailDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "planName": {
+            "type": "string",
+            "nullable": true
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
       "UserRequestForCP": {
         "type": "object",
         "properties": {
@@ -3996,11 +6976,19 @@
             "type": "number",
             "format": "double"
           },
+          "matmAmount": {
+            "type": "number",
+            "format": "double"
+          },
           "aepsWithdrawn": {
             "type": "number",
             "format": "double"
           },
           "razorpayWithdrawn": {
+            "type": "number",
+            "format": "double"
+          },
+          "matmWithdrawn": {
             "type": "number",
             "format": "double"
           },
@@ -4011,6 +6999,38 @@
           "availableRazorpay": {
             "type": "number",
             "format": "double"
+          },
+          "availableMATM": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "additionalProperties": false
+      },
+      "VerifyPPIOtpRequest": {
+        "required": [
+          "apiKey",
+          "otp",
+          "otpToken",
+          "userId"
+        ],
+        "type": "object",
+        "properties": {
+          "userId": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "otpToken": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "apiKey": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "otp": {
+            "minLength": 1,
+            "type": "string"
           }
         },
         "additionalProperties": false
@@ -4055,12 +7075,20 @@
       "WhatsAppBroadcastRequest": {
         "type": "object",
         "properties": {
-          "message": {
+          "link": {
             "type": "string",
             "nullable": true
           },
           "sendToActiveUsersOnly": {
             "type": "boolean",
+            "nullable": true
+          },
+          "templateName": {
+            "type": "string",
+            "nullable": true
+          },
+          "languageCode": {
+            "type": "string",
             "nullable": true
           }
         },

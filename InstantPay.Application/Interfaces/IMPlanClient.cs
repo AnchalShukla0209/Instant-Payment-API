@@ -11,6 +11,7 @@ namespace InstantPay.Application.Interfaces
     public interface IMPlanClient
     {
         //Task<RechargePlanResponse> GetRechargePlansAsync(PlanRequestPayload payload);
-        Task<object> GetRechargePlansAsync(PlanRequestPayload payload);
+        Task<string> GetRechargePlansAsync(PlanRequestPayload payload);
+        Task<string> GetRechargePlansNewAsync(PlanRequestPayload payload);
     }
 }

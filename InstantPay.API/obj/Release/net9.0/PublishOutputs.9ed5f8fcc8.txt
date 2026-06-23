@@ -20,6 +20,8 @@ C:\Instant Projects\Instant-Payment-API\publish\MediatR.dll
 C:\Instant Projects\Instant-Payment-API\publish\MediatR.Contracts.dll
 C:\Instant Projects\Instant-Payment-API\publish\MediatR.Extensions.Microsoft.DependencyInjection.dll
 C:\Instant Projects\Instant-Payment-API\publish\Microsoft.AspNetCore.Authentication.JwtBearer.dll
+C:\Instant Projects\Instant-Payment-API\publish\Microsoft.AspNetCore.JsonPatch.dll
+C:\Instant Projects\Instant-Payment-API\publish\Microsoft.AspNetCore.Mvc.NewtonsoftJson.dll
 C:\Instant Projects\Instant-Payment-API\publish\Microsoft.AspNetCore.OpenApi.dll
 C:\Instant Projects\Instant-Payment-API\publish\Microsoft.Bcl.AsyncInterfaces.dll
 C:\Instant Projects\Instant-Payment-API\publish\Microsoft.Data.SqlClient.dll
@@ -42,6 +44,7 @@ C:\Instant Projects\Instant-Payment-API\publish\MimeKit.dll
 C:\Instant Projects\Instant-Payment-API\publish\MongoDB.Bson.dll
 C:\Instant Projects\Instant-Payment-API\publish\MongoDB.Driver.dll
 C:\Instant Projects\Instant-Payment-API\publish\Newtonsoft.Json.dll
+C:\Instant Projects\Instant-Payment-API\publish\Newtonsoft.Json.Bson.dll
 C:\Instant Projects\Instant-Payment-API\publish\BouncyCastle.Crypto.dll
 C:\Instant Projects\Instant-Payment-API\publish\Razorpay.dll
 C:\Instant Projects\Instant-Payment-API\publish\WebDriver.dll

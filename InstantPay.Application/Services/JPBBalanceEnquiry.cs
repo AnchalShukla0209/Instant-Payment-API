@@ -27,14 +27,16 @@ namespace InstantPay.Application.Services
         private readonly IHttpClientFactory _httpFactory;
         private readonly IConfiguration _config;
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly IWalletService _walletService;
         private readonly TimeSpan _cacheDuration;
         private readonly IMemoryCache _cache;
-        public JPBBalanceEnquiry(AppDbContext context, IHttpClientFactory httpFactory, IConfiguration config, IHttpContextAccessor httpContextAccessor, IMemoryCache cache)
+        public JPBBalanceEnquiry(AppDbContext context, IHttpClientFactory httpFactory, IConfiguration config, IHttpContextAccessor httpContextAccessor, IMemoryCache cache, IWalletService walletService)
         {
             _context = context;
             _httpFactory = httpFactory;
             _config = config;
             _httpContextAccessor = httpContextAccessor;
+            _walletService = walletService;
             var hours = _config.GetSection("JPBAEPS").GetValue<int?>("CacheHours") ?? 24;
             _cacheDuration = TimeSpan.FromHours(hours);
             _cache = cache;
@@ -959,7 +961,7 @@ namespace InstantPay.Application.Services
         private async Task<TransactionDetail> CreateTransactionRow(BalanceInquiryRequestDto model, string uid, string request)
         {
             var user = _context.TblUsers.First(x => x.Id == Convert.ToInt32(model.UserId));
-            var wallet = await _context.Tbluserbalances.Where(x => x.UserId == user.Id).OrderByDescending(x => x.Id).FirstOrDefaultAsync();
+            decimal walletBal = await _walletService.GetBalanceAsync(user.Id);
 
 
             var tx = new TransactionDetail
@@ -973,9 +975,9 @@ namespace InstantPay.Application.Services
                 ServiceName = "AEPS",
                 OperatorName = "AEPS_BALANCE_ENQUIRY",
                 Mobileno = Mask(model.AadhaarNumber),
-                OldBal = wallet?.NewBal ?? 0,
+                OldBal = walletBal,
                 Amount = 0,
-                NewBal = wallet?.NewBal.ToString(),
+                NewBal = walletBal.ToString(),
                 Status = "INIT",
                 ApiReq = Truncate(RedactSensitive(request), 4000),
                 ReqDate = DateTime.Now,

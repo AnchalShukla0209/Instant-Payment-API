@@ -38,5 +38,19 @@ namespace InstantPay.API.Controller
                 return BadRequest(new { message = ex.Message });
             }
         }
+
+        [HttpGet("dropdown/{serviceId}")]
+        public async Task<IActionResult> GetOperatorsByServiceId(int serviceId)
+        {
+            try
+            {
+                var result = await _getOperatorsQuery.GetOperatorsByServiceIdAsync(serviceId);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
     }
 }

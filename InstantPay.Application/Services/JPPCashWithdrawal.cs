@@ -29,13 +29,15 @@ namespace InstantPay.Application.Services
         private readonly IHttpClientFactory _httpFactory;
         private readonly IConfiguration _config;
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly IWalletService _walletService;
         private readonly TimeSpan _cacheDuration;
-        public JPPCashWithdrawal(AppDbContext context, IHttpClientFactory httpFactory, IConfiguration config, IHttpContextAccessor httpContextAccessor)
+        public JPPCashWithdrawal(AppDbContext context, IHttpClientFactory httpFactory, IConfiguration config, IHttpContextAccessor httpContextAccessor, IWalletService walletService)
         {
             _context = context;
             _httpFactory = httpFactory;
             _config = config;
             _httpContextAccessor = httpContextAccessor;
+            _walletService = walletService;
             var hours = _config.GetSection("JPBAEPS").GetValue<int?>("CacheHours") ?? 24;
             _cacheDuration = TimeSpan.FromHours(hours);
         }
@@ -298,12 +300,7 @@ namespace InstantPay.Application.Services
 
             var userData = _context.TblUsers.Where(id => id.Id == Convert.ToInt32(model.UserId)).FirstOrDefault();
 
-            var latestWallet = await _context.Tbluserbalances
-                .Where(x => x.UserId == userData.Id)
-                .OrderByDescending(x => x.Id)
-                .FirstOrDefaultAsync(cancellationToken);
-
-            var currentBalance = latestWallet?.NewBal ?? 0m;
+            decimal currentBalance = await _walletService.GetBalanceAsync(userData.Id, cancellationToken);
 
             int slabId = model.Amount switch
             {
@@ -515,25 +512,14 @@ namespace InstantPay.Application.Services
                                         {
                                             if (parsed.ResponseCode == "00" && parsed.ResponseMessage.ToUpper() == "SUCCESS")
                                             {
-                                                var ub = new Tbluserbalance
-                                                {
-                                                    UserId = userData.Id,
-                                                    UserName = userData.Name + "-" + userData.Phone,
-                                                    OldBal = currentBalance,
-                                                    Amount = model.Amount,
-                                                    NewBal = Newbal,
-                                                    TxnType = "AEPS_CASH_WITHDRAWAL",
-                                                    CrdrType = "CR", // Option B => credit
-                                                    Remarks = $"AEPS Withdrawal TXN:{tx.TxnId}",
-                                                    WlId = userData.Wlid,
-                                                    Txndate = DateTime.Now,
-                                                    TxnAmount = model.Amount,
-                                                    SurCom = rtComm,
-                                                    Tds = tds
-                                                };
-
-                                                await _context.Tbluserbalances.AddAsync(ub, cancellationToken);
-                                                await _context.SaveChangesAsync(cancellationToken);
+                                                var (_, actualNewBal, _) = await _walletService.CreditAsync(
+                                                    userData.Id, userData.Name + "-" + userData.Phone,
+                                                    model.Amount, cost, rtComm, tds,
+                                                    "AEPS_CASH_WITHDRAWAL",
+                                                    $"AEPS Withdrawal TXN:{tx.TxnId}",
+                                                    userData.Wlid, cancellationToken);
+                                                Newbal = actualNewBal;
+                                                tx.NewBal = Convert.ToString(actualNewBal);
                                             }
                                         }
                                         catch (Exception ubEx)

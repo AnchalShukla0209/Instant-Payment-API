@@ -8,10 +8,13 @@ namespace InstantPay.Application.DTOs
         public string UserId { get; set; } = string.Empty;
         public decimal TotalAEPSAmount { get; set; }
         public decimal TotalRazorpayAmount { get; set; }
+        public decimal TotalMATMAmount { get; set; }
         public decimal AEPSWithdrawnAmount { get; set; }
         public decimal RazorpayWithdrawnAmount { get; set; }
+        public decimal MATMWithdrawnAmount { get; set; }
         public decimal AvailableAEPSAmount { get; set; }
         public decimal AvailableRazorpayAmount { get; set; }
+        public decimal AvailableMATMAmount { get; set; }
         public DateTime SettlementFromDate { get; set; }
         public DateTime SettlementToDate { get; set; }
         public List<UserSettlementDetail> UserSettlements { get; set; } = new();
@@ -23,17 +26,20 @@ namespace InstantPay.Application.DTOs
         public string UserName { get; set; } = string.Empty;
         public decimal AEPSAmount { get; set; }
         public decimal RazorpayAmount { get; set; }
+        public decimal MATMAmount { get; set; }
         public decimal AEPSWithdrawn { get; set; }
         public decimal RazorpayWithdrawn { get; set; }
+        public decimal MATMWithdrawn { get; set; }
         public decimal AvailableAEPS { get; set; }
         public decimal AvailableRazorpay { get; set; }
+        public decimal AvailableMATM { get; set; }
     }
 
     public class WithdrawalRequestDto
     {
         public string UserId { get; set; } = string.Empty;
         public decimal Amount { get; set; }
-        public string WithdrawalType { get; set; } = string.Empty; // "AEPS" or "Razorpay"
+        public string WithdrawalType { get; set; } = string.Empty; // "AEPS", "MATM", or "Razorpay"
         
         // Beneficiary details for payout
         public string BankName { get; set; } = string.Empty;

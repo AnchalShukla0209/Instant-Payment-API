@@ -25,12 +25,14 @@ namespace InstantPay.Application.Services
         private IFileHandler _IFileHandler;
         private readonly AesEncryptionService _aes;
         private readonly ISmsService _smsService;
-        public ClientUserOperation(AppDbContext context, IFileHandler iFileHandler, AesEncryptionService aes, ISmsService smsservice)
+        private readonly IWalletService _walletService;
+        public ClientUserOperation(AppDbContext context, IFileHandler iFileHandler, AesEncryptionService aes, ISmsService smsservice, IWalletService walletService)
         {
             _context = context;
             _IFileHandler = iFileHandler;
             _aes = aes;
             _smsService = smsservice;
+            _walletService = walletService;
         }
 
         public async Task<GetClientUsersWithMainBalanceResponse> GetClientUserList(GetClientUserQuery request)
@@ -478,40 +480,18 @@ namespace InstantPay.Application.Services
                     return new WalletTransactionResponse { ErrorMessage = "Invalid Txn Pin", IsSuccessful = false };
                 }
 
-                // ✅ Step 3: Get last balance
-                var oldBalance = await _context.Tbluserbalances
-                    .Where(b => b.UserId == request.UserId)
-                    .OrderByDescending(b => b.Id)
-                    .Select(b => b.NewBal)
-                    .FirstOrDefaultAsync() ?? 0m;
-
-                // ✅ Step 4: Compute new balance & transaction type
+                // ✅ Steps 3-5: Atomically read balance and insert wallet entry (race-condition-safe via WalletService)
                 bool isCredit = request.Status == WalletOperationStatus.Credit;
-                var newBalance = isCredit ? oldBalance + request.Amount : oldBalance - request.Amount;
-
                 var txnType = isCredit ? "WALLET TOPUP BY ADMIN" : "WALLET DEBIT BY ADMIN";
                 var crdrType = isCredit ? "Credit" : "Debit";
                 var remarks = $"{request.remarks} | {txnType} For Account No {user.Phone} | {crdrType} by Services | Wallet {crdrType} BY Admin Account";
+                var userName = user.Name + "-" + user.Phone;
 
-                // ✅ Step 5: Insert transaction
-                var walletEntry = new Tbluserbalance
-                {
-                    TxnAmount = request.Amount,
-                    SurCom = 0,
-                    Tds = 0,
-                    UserId = request.UserId,
-                    UserName = user.Name + "-" + user.Phone,
-                    OldBal = oldBalance,
-                    Amount = request.Amount,
-                    NewBal = newBalance,
-                    TxnType = txnType,
-                    CrdrType = crdrType,
-                    Remarks = remarks,
-                    Txndate = DateTime.Now
-                };
-
-                _context.Tbluserbalances.Add(walletEntry);
-                await _context.SaveChangesAsync();
+                var (oldBalance, newBalance, walletEntryId) = isCredit
+                    ? await _walletService.CreditAsync(request.UserId, userName,
+                        request.Amount, request.Amount, 0, 0, txnType, remarks)
+                    : await _walletService.DebitAsync(request.UserId, userName,
+                        request.Amount, request.Amount, 0, 0, txnType, remarks);
 
                 var payment = new TblPaymentRequest
                 {
@@ -519,7 +499,7 @@ namespace InstantPay.Application.Services
                     BankId = Guid.Parse("61A14EEF-9765-45BA-AD22-ADE44D01F708"),
                     UserId = request.UserId,
                     Amount = request.Amount,
-                    TxnId = walletEntry.Id.ToString(),
+                    TxnId = walletEntryId.ToString(),
                     DeposideMode = isCredit? "BORROW Credit by Admin": "Debit By Admin",
                     Status = "Approved",
                     CreatedBy = request.ActionById,
@@ -563,7 +543,7 @@ namespace InstantPay.Application.Services
                     TxnType = txnType,
                     CrdrType = crdrType,
                     Remarks = remarks,
-                    Txndate = walletEntry.Txndate,
+                    Txndate = DateTime.Now,
                     ErrorMessage = isCredit ? "Balance Credited Successfully" : "Balance Debited Successfully",
                     IsSuccessful = true
                 };

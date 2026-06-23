@@ -75,5 +75,59 @@ namespace InstantPay.Application.Services.SMS
                 return false;
             }
         }
+
+        public async Task<string> SendTransactionSmsAsync(string mobileNo, string accountNo, string amount, string templateId)
+        {
+            try
+            {
+                string dtime = DateTime.Now.ToString("dd-MM-yyyy HH:mm:ss");
+                string authKey = _config["MSG91:AuthKey"];
+                string url = "https://control.msg91.com/api/v5/flow/";
+
+                var body = new
+                {
+                    template_id = templateId,
+                    short_url = "0",
+                    recipients = new[]
+                    {
+                        new
+                        {
+                            mobiles = "91" + mobileNo,
+                            ACNO = accountNo,
+                            AMT = amount,
+                            Datetime = dtime
+                        }
+                    }
+                };
+
+                var json = System.Text.Json.JsonSerializer.Serialize(body);
+                var request = new HttpRequestMessage(HttpMethod.Post, url);
+                request.Headers.Add("authkey", authKey);
+                request.Headers.Add("cache-control", "no-cache");
+                request.Headers.Add("Accept", "application/json");
+                var content = new StringContent(json, Encoding.UTF8);
+                content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
+                request.Content = content;
+
+                var response = await _httpClient.SendAsync(request);
+                var responseContent = await response.Content.ReadAsStringAsync();
+
+                var logdetails = new Apilog
+                {
+                    Apiname = "SendTransactionSMS",
+                    Reqdatae = DateTime.Now,
+                    Request = json,
+                    Response = responseContent
+                };
+                _context.Apilogs.Add(logdetails);
+                await _context.SaveChangesAsync();
+
+                return responseContent;
+            }
+            catch
+            {
+                return "-1";
+            }
+        }
     }
 }

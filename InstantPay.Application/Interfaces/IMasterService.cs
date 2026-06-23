@@ -17,7 +17,8 @@ namespace InstantPay.Application.Interfaces
 
         Task<ServiceStatusResponse> GetServiceStatus(string Mode = "", int UserId = 0);
 
-        Task<object> GetRechargePlans(PlanRequestPayload payload);
+        Task<string> GetRechargePlans(PlanRequestPayload payload);
+        Task<string> GetRechargePlansNew(PlanRequestPayload payload);
 
         Task<List<ServiceDTO>> GetServices();
 

@@ -26,11 +26,13 @@ namespace InstantPay.Application.Services
         private readonly AppDbContext _context;
         private readonly IMPlanClient _mPlanClient;
         private readonly IA2ZClient _a2zClient;
-        public MasterService(AppDbContext context, IMPlanClient mPlanClient, IA2ZClient a2zclient)
+        private readonly IWalletService _walletService;
+        public MasterService(AppDbContext context, IMPlanClient mPlanClient, IA2ZClient a2zclient, IWalletService walletService)
         {
             _context = context;
             _mPlanClient = mPlanClient;
             _a2zClient = a2zclient;
+            _walletService = walletService;
         }
         public async Task<ServiceMasterDTO> GetSuperAdminDashboardData(int? ServiceId, int userId, string username, int year)
         {
@@ -39,11 +41,7 @@ namespace InstantPay.Application.Services
                 var pieData = new List<int>() { 0, 0, 0 };
                 var lineData = Enumerable.Repeat(0, 12).ToList();
 
-                var walletAmount = await _context.Tbluserbalances
-                   .Where(x => x.UserId == userId && x.UserName.Trim().ToLower() == username.Trim().ToLower())
-                   .OrderByDescending(x => x.Id)
-                   .Select(x => x.NewBal)
-                   .FirstOrDefaultAsync();
+                var walletAmount = await _walletService.GetBalanceAsync(userId);
 
                 var totalTransaction1 = await _context.TransactionDetails.CountAsync();
                 var totalTransaction2 = await _context.TblPaymentRequest.CountAsync();
@@ -131,7 +129,7 @@ namespace InstantPay.Application.Services
                 return new ServiceMasterDTO
                 {
                     services = services,
-                    walletAmount = walletAmount ?? 0,
+                    walletAmount = walletAmount,
                     totalTransection = totalTransaction,
                     totalUserJoined = userJoined,
                     pieData = pieData,
@@ -205,15 +203,16 @@ namespace InstantPay.Application.Services
                             bool userServiceActive = _context.TblUsers
                                 .Any(u => u.Aeps != null && u.Aeps.Trim().ToLower() == "active" && u.Id == UserId);
 
-                            bool? serviceActive = _context.Tbl_Services
+                            var serviceData = _context.Tbl_Services
                                 .Where(s => s.ServiceName.Trim().ToLower() == normalizedMode && s.IsDeleted == false)
-                                .Select(s => s.IsActive)   // only pull the isActive column
-                                .FirstOrDefault();         // default(bool) = false
+                                .Select(s => new { s.IsActive, s.isActiveOnApk })
+                                .FirstOrDefault();
 
                             return new ServiceStatusResponse
                             {
                                 UserServiceActive = userServiceActive,
-                                ServiceActive = (bool)serviceActive
+                                ServiceActive = serviceData?.IsActive ?? false,
+                                ServiceActiveOnApk = serviceData?.isActiveOnApk ?? false
                             };
                         }
 
@@ -224,15 +223,16 @@ namespace InstantPay.Application.Services
                             bool userServiceActive = _context.TblUsers
                                 .Any(u => u.Aeps != null && u.MoneyTransfer.Trim().ToLower() == "active" && u.Id == UserId);
 
-                            bool? serviceActive = _context.Tbl_Services
+                            var serviceData = _context.Tbl_Services
                                 .Where(s => s.ServiceName.Trim().ToLower() == normalizedMode && s.IsDeleted == false)
-                                .Select(s => s.IsActive)
+                                .Select(s => new { s.IsActive, s.isActiveOnApk })
                                 .FirstOrDefault();
 
                             return new ServiceStatusResponse
                             {
                                 UserServiceActive = userServiceActive,
-                                ServiceActive = (bool)serviceActive
+                                ServiceActive = serviceData?.IsActive ?? false,
+                                ServiceActiveOnApk = serviceData?.isActiveOnApk ?? false
                             };
                         }
 
@@ -243,15 +243,16 @@ namespace InstantPay.Application.Services
                             bool userServiceActive = _context.TblUsers
                                 .Any(u => u.Aeps != null && u.MobileRecharge.Trim().ToLower() == "active" && u.Id == UserId);
 
-                            bool? serviceActive = _context.Tbl_Services
+                            var serviceData = _context.Tbl_Services
                                 .Where(s => s.ServiceName.Trim().ToLower() == normalizedMode && s.IsDeleted == false)
-                                .Select(s => s.IsActive)
+                                .Select(s => new { s.IsActive, s.isActiveOnApk })
                                 .FirstOrDefault();
 
                             return new ServiceStatusResponse
                             {
                                 UserServiceActive = userServiceActive,
-                                ServiceActive = (bool)serviceActive
+                                ServiceActive = serviceData?.IsActive ?? false,
+                                ServiceActiveOnApk = serviceData?.isActiveOnApk ?? false
                             };
                         }
 
@@ -262,15 +263,16 @@ namespace InstantPay.Application.Services
                             bool userServiceActive = _context.TblUsers
                                 .Any(u => u.Aeps != null && u.BillPayment.Trim().ToLower() == "active" && u.Id == UserId);
 
-                            bool? serviceActive = _context.Tbl_Services
+                            var serviceData = _context.Tbl_Services
                                 .Where(s => s.ServiceName.Trim().ToLower() == normalizedMode && s.IsDeleted == false)
-                                .Select(s => s.IsActive)
+                                .Select(s => new { s.IsActive, s.isActiveOnApk })
                                 .FirstOrDefault();
 
                             return new ServiceStatusResponse
                             {
                                 UserServiceActive = userServiceActive,
-                                ServiceActive = (bool)serviceActive
+                                ServiceActive = serviceData?.IsActive ?? false,
+                                ServiceActiveOnApk = serviceData?.isActiveOnApk ?? false
                             };
 
                         }
@@ -290,9 +292,14 @@ namespace InstantPay.Application.Services
 
         }
 
-        public async Task<object> GetRechargePlans(PlanRequestPayload payload)
+        public async Task<string> GetRechargePlans(PlanRequestPayload payload)
         {
             return await _mPlanClient.GetRechargePlansAsync(payload);
+        }
+
+        public async Task<string> GetRechargePlansNew(PlanRequestPayload payload)
+        {
+            return await _mPlanClient.GetRechargePlansNewAsync(payload);
         }
 
         public async Task<A2ZRechargePlanResponse> GetRechargePlan(PlanRequestPayload payload)
@@ -316,7 +323,9 @@ namespace InstantPay.Application.Services
                 {
                     key = x.CategoryCode,
                     label = x.ServiceName,
-                    icon = x.Icon
+                    icon = x.Icon,
+                    isActiveOnWeb = x.IsActive,
+                    isActiveOnApk = x.isActiveOnApk
                 })
                 .ToListAsync();
         }

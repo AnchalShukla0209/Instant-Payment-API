@@ -18,4 +18,5 @@ public partial class Tbl_Services
     public string? CategoryCode { get; set; }
 
     public string? Icon { get; set; }
+    public bool? isActiveOnApk { get; set; }
 }

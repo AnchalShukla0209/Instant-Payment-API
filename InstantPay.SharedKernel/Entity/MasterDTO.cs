@@ -36,6 +36,7 @@ namespace InstantPay.SharedKernel.Entity
         
         public bool UserServiceActive { get; set; }
         public bool ServiceActive { get; set; }
+        public bool ServiceActiveOnApk { get; set; }
     }
 
 }
