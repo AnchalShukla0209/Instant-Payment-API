@@ -126,9 +126,9 @@ namespace InstantPay.API.Controller
                 }
 
                 if (string.IsNullOrEmpty(request.WithdrawalType) || 
-                    (request.WithdrawalType.ToUpper() != "AEPS" && request.WithdrawalType.ToUpper() != "RAZORPAY"))
+                    (request.WithdrawalType.ToUpper() != "AEPS" && request.WithdrawalType.ToUpper() != "RAZORPAY" && request.WithdrawalType.ToUpper() != "MATM"))
                 {
-                    return BadRequest(new { message = "WithdrawalType must be 'AEPS' or 'Razorpay'" });
+                    return BadRequest(new { message = "WithdrawalType must be 'AEPS' or 'Razorpay' or 'MATM'" });
                 }
 
                 var result = await _settlementService.WithdrawAmountAsync(request);

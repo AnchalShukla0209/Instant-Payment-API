@@ -10,8 +10,8 @@ namespace InstantPay.SharedKernel.RequestPayload.WhatsApp
     {
         public string Link { get; set; }
         public bool? SendToActiveUsersOnly { get; set; } = true;
-        public string TemplateName { get; set; }
-        public string LanguageCode { get; set; }
+        public string? TemplateName { get; set; } = "";
+        public string? LanguageCode { get; set; } = "";
     }
 
     public class WhatsAppBroadcastResult
@@ -23,5 +23,6 @@ namespace InstantPay.SharedKernel.RequestPayload.WhatsApp
         public int FailedSends { get; set; }
         public List<string> FailedPhoneNumbers { get; set; } = new();
         public DateTime SentAt { get; set; }
+        public string ErrorDetails { get; set; }
     }
 }

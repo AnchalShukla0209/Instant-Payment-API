@@ -53,6 +53,7 @@ namespace InstantPay.API.Controller
             return Ok(result);
         }
 
+        [AllowAnonymous]
         [HttpPost("forget-password")]
         public async Task<IActionResult> ForgetPassword([FromBody] ForgetPasswordRequest request)
         {
@@ -61,6 +62,7 @@ namespace InstantPay.API.Controller
             return Ok(result);
         }
 
+        [AllowAnonymous]
         [HttpPost("expiry-forget-password")]
         public async Task<IActionResult> ExpiryForgetPassword([FromBody] ResetPasswordRequest request)
         {
@@ -85,6 +87,7 @@ namespace InstantPay.API.Controller
             return Ok(result);
         }
 
+        [AllowAnonymous]
         [HttpPost("ValidateUserInfoAndSentOTP")]
         public async Task<IActionResult> ValidateUserInfoAndSentOTP([FromBody] UserRequestForCP request)
         {

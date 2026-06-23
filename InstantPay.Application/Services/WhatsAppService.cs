@@ -56,6 +56,11 @@ namespace InstantPay.Application.Services
 
                 var authKey = _config["WhatsApp:Msg91AuthKey"];
                 var integratedNumber = _config["WhatsApp:Msg91IntegratedNumber"];
+                var helloAppHash = _config["WhatsApp:HelloAppHash"];
+                var phpSessionId = _config["WhatsApp:PhpSessionId"];
+
+                _logger.LogInformation("Using AuthKey: {AuthKey}, IntegratedNumber: {IntegratedNumber}",
+                    authKey?.Substring(0, Math.Min(10, authKey?.Length ?? 0)) + "...", integratedNumber);
 
                 if (string.IsNullOrWhiteSpace(authKey))
                     throw new InvalidOperationException("WhatsApp:Msg91AuthKey is not configured.");
@@ -64,7 +69,7 @@ namespace InstantPay.Application.Services
 
                 var templateName = !string.IsNullOrWhiteSpace(request.TemplateName)
                     ? request.TemplateName
-                    : _config.GetValue<string>("WhatsApp:TemplateName") ?? "ins_pay_upd";
+                    : _config.GetValue<string>("WhatsApp:TemplateName") ?? "inspay_notify";
                 var templateLang = !string.IsNullOrWhiteSpace(request.LanguageCode)
                     ? request.LanguageCode
                     : _config.GetValue<string>("WhatsApp:TemplateLanguageCode") ?? "hi";
@@ -147,17 +152,24 @@ namespace InstantPay.Application.Services
                         };
 
                         var json = JsonSerializer.Serialize(payload, JsonOpts);
+                        _logger.LogInformation("MSG91 Request Payload: {Json}", json);
 
+                        using var client = new HttpClient();
                         using var httpReq = new HttpRequestMessage(HttpMethod.Post, bulkApiUrl);
                         httpReq.Headers.TryAddWithoutValidation("accept", "application/json");
                         httpReq.Headers.TryAddWithoutValidation("authkey", authKey);
+                        httpReq.Headers.TryAddWithoutValidation("content-type", "application/json");
+                        if (!string.IsNullOrWhiteSpace(helloAppHash) && !string.IsNullOrWhiteSpace(phpSessionId))
+                        {
+                            httpReq.Headers.TryAddWithoutValidation("Cookie", $"HELLO_APP_HASH={helloAppHash}; PHPSESSID={phpSessionId}");
+                        }
                         httpReq.Content = new StringContent(json, Encoding.UTF8, "application/json");
 
                         _logger.LogInformation(
                             "Dispatching batch {BatchNo}/{Total} ({Count} recipients)",
                             batchNumber, batches.Count, batch.Count);
 
-                        var response = await _httpClient.SendAsync(httpReq);
+                        var response = await client.SendAsync(httpReq);
                         var responseBody = await response.Content.ReadAsStringAsync();
 
                         _logger.LogInformation(
@@ -172,6 +184,7 @@ namespace InstantPay.Application.Services
                         {
                             result.FailedSends += batch.Count;
                             result.FailedPhoneNumbers.AddRange(batch.Select(b => b.Phone));
+                            result.ErrorDetails = $"Batch {batchNumber} failed [{(int)response.StatusCode}]: {responseBody}";
                             _logger.LogError(
                                 "MSG91 batch {BatchNo} failed [{StatusCode}]: {Body}",
                                 batchNumber, (int)response.StatusCode, responseBody);
@@ -181,6 +194,7 @@ namespace InstantPay.Application.Services
                     {
                         result.FailedSends += batch.Count;
                         result.FailedPhoneNumbers.AddRange(batch.Select(b => b.Phone));
+                        result.ErrorDetails = $"Exception in batch {batchNumber}: {ex.Message}";
                         _logger.LogError(ex, "Exception in batch {BatchNo} of {Count} messages", batchNumber, batch.Count);
                     }
                 }

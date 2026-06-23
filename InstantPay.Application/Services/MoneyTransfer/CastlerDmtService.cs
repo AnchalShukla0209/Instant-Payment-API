@@ -26,13 +26,15 @@ namespace InstantPay.Application.Services.MoneyTransfer
         private readonly ICastlerAuthService _auth;
         private readonly AppDbContext _context;
         private readonly IHttpClientFactory _httpClientFactory;
+        private readonly IWalletService _walletService;
 
-        public CastlerDmtService(IOptions<CastlerConfig> config, ICastlerAuthService repo, AppDbContext context, IHttpClientFactory httpClientFactory)
+        public CastlerDmtService(IOptions<CastlerConfig> config, ICastlerAuthService repo, AppDbContext context, IHttpClientFactory httpClientFactory, IWalletService walletService)
         {
             _httpClientFactory = httpClientFactory;
             _config = config.Value;
             _auth = repo;
             _context = context;
+            _walletService = walletService;
         }
 
         private async Task<decimal> GetCommissionAsync(
@@ -110,12 +112,7 @@ namespace InstantPay.Application.Services.MoneyTransfer
                     return Fail("Duplicate Transaction");
 
 
-                var wallet = await _context.Tbluserbalances
-                            .Where(x => x.UserId == user.Id)
-                            .OrderByDescending(x => x.Id)
-                            .FirstOrDefaultAsync(cancellationToken);
-
-                decimal currentBalance = wallet?.NewBal ?? 0m;
+                decimal currentBalance = await _walletService.GetBalanceAsync(user.Id, cancellationToken);
 
                 decimal charge = (decimal)(model.Amount * 0.4m / 100);
                 decimal totalDebit = (decimal)(model.Amount + charge);
@@ -225,24 +222,14 @@ namespace InstantPay.Application.Services.MoneyTransfer
 
                 await _context.TransactionDetails.AddAsync(tx, cancellationToken);
 
-                _context.Tbluserbalances.Add(new Tbluserbalance
-                {
-                    UserId = user.Id,
-                    UserName = user.Name + "-" + user.Phone,
-                    OldBal = currentBalance,
-                    Amount = model.Amount,
-                    NewBal = Newbal,
-                    TxnType = "Money_Transfer_Debit",
-                    CrdrType = "DR",
-                    Remarks = $"Money Transfer CASH DEPOSIT TXN:{tx.TxnId}",
-                    WlId = user.Wlid,
-                    Txndate = DateTime.Now,
-                    TxnAmount = model.Amount,
-                    SurCom = rtComm,
-                    Tds = tds
-                });
-
-                await _context.SaveChangesAsync(cancellationToken);
+                decimal actualNewbal;
+                (_, actualNewbal, _) = await _walletService.DebitAsync(
+                    user.Id, user.Name + "-" + user.Phone,
+                    model.Amount ?? 0, cost, rtComm, tds,
+                    "Money_Transfer_Debit",
+                    $"Money Transfer CASH DEPOSIT TXN:{tx.TxnId}",
+                    user.Wlid, cancellationToken);
+                Newbal = actualNewbal;
 
                 string token = await _auth.GetToken();
                 if (string.IsNullOrEmpty(token))
@@ -278,24 +265,13 @@ namespace InstantPay.Application.Services.MoneyTransfer
                 }
                 else
                 {
-                    // REFUND
-                    decimal refundBalance = Newbal + cost;
-                    _context.Tbluserbalances.Add(new Tbluserbalance
-                    {
-                        UserId = user.Id,
-                        UserName = user.Name + "-" + user.Phone,
-                        OldBal = Newbal,
-                        Amount = cost,
-                        NewBal = refundBalance,
-                        TxnType = "Money_Transfer_Refund",
-                        CrdrType = "DR",
-                        Remarks = $"Refund For Money Transfer CASH DEPOSIT TXN:{tx.TxnId}",
-                        WlId = user.Wlid,
-                        Txndate = DateTime.Now,
-                        TxnAmount = model.Amount,
-                        SurCom = rtComm,
-                        Tds = tds
-                    });
+                    // REFUND — atomically credit back the debited amount
+                    await _walletService.CreditAsync(
+                        user.Id, user.Name + "-" + user.Phone,
+                        model.Amount ?? 0, cost, rtComm, tds,
+                        "Money_Transfer_Refund",
+                        $"Refund For Money Transfer CASH DEPOSIT TXN:{tx.TxnId}",
+                        user.Wlid, cancellationToken);
 
 
                     tx.Status = "FAILED";

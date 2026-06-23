@@ -21,7 +21,8 @@ namespace InstantPay.SharedKernel.Entity
         public int ServiceId { get; set; }
         public string ServiceName { get; set; } = string.Empty;
         public string ServiceImagePath { get; set; } = string.Empty;
-        public bool? ActiveStatus { get; set; } 
+        public bool? ActiveStatus { get; set; }
+        public bool? ActiveStatusOnApk { get; set; }
     }
 
 }

@@ -26,13 +26,15 @@ namespace InstantPay.Application.Services
         private readonly IRechargeApiProviderService _provider;
         private readonly ApiTransactionRecoveryService _recoveryService;
         private readonly ILogger<RechargeService> _logger;
+        private readonly IWalletService _walletService;
 
-        public RechargeService(AppDbContext context, IRechargeApiProviderService provider, ApiTransactionRecoveryService recoveryService, ILogger<RechargeService> logger)
+        public RechargeService(AppDbContext context, IRechargeApiProviderService provider, ApiTransactionRecoveryService recoveryService, ILogger<RechargeService> logger, IWalletService walletService)
         {
             _context = context;
             _provider = provider;
             _recoveryService = recoveryService;
             _logger = logger;
+            _walletService = walletService;
         }
 
         public async Task<ResponseSuccess> SubmitRechargeAsync(RechargeRequestDto request)
@@ -62,12 +64,7 @@ namespace InstantPay.Application.Services
                 return new ResponseSuccess { success = false, message = "Invalid Transaction PIN" };
             }
 
-            var latestWallet = await _context.Tbluserbalances
-                .Where(x => x.UserId == request.UserId)
-                .OrderByDescending(x => x.Id)
-                .FirstOrDefaultAsync();
-
-            decimal currentBalance = latestWallet?.NewBal ?? 0;
+            decimal currentBalance = await _walletService.GetBalanceAsync(request.UserId);
             if (currentBalance < request.Amount)
             {
                 return new ResponseSuccess { success = false, message = "Insufficient balance in wallet. Please add funds." };
@@ -460,15 +457,10 @@ namespace InstantPay.Application.Services
                     }
                 }
 
-                decimal balBefore = (decimal)await _context.Tbluserbalances
-                    .Where(b => b.UserId == userKey)
-                    .OrderByDescending(b => b.Id)
-                    .Select(b => b.NewBal)
-                    .FirstOrDefaultAsync();
-
                 decimal tds = retailerComm * 0.05m;
                 decimal cost = amount - retailerComm + tds;
 
+                decimal balBefore = await _walletService.GetBalanceAsync(userKey);
                 decimal newBal = balBefore - cost;
 
                 var txn = await _context.TransactionDetails
@@ -511,23 +503,15 @@ namespace InstantPay.Application.Services
 
                     _context.TransactionDetails.Add(txn);
 
-                    // Debit user balance
-                    _context.Tbluserbalances.Add(new Tbluserbalance
-                    {
-                        TxnAmount = amount,
-                        SurCom = retailerComm,
-                        Tds = tds,
-                        UserId = userKey,
-                        UserName = $"{data.Name}-{data.Phone}",
-                        OldBal = balBefore,
-                        Amount = amount,
-                        NewBal = balBefore - amount,
-                        TxnType = serviceName,
-                        CrdrType = "Debit",
-                        Remarks = $"Debit For {serviceName} {accountNo}",
-                        WlId = data.Wlid,
-                        Txndate = DateTime.Now
-                    });
+                    decimal actualNew;
+                    (balBefore, actualNew, _) = await _walletService.DebitAsync(
+                        userKey, $"{data.Name}-{data.Phone}",
+                        amount, amount, retailerComm, tds,
+                        serviceName,
+                        $"Debit For {serviceName} {accountNo}",
+                        data.Wlid);
+                    txn.OldBal = balBefore;
+                    txn.NewBal = Convert.ToString(actualNew);
 
                 }
                 else
@@ -564,8 +548,6 @@ namespace InstantPay.Application.Services
                         .Select(u => new { u.Id, Username = u.Name + "-" + u.Phone + "", u.Wlid })
                         .ToListAsync();
 
-                    var balancesToAdd = new List<Tbluserbalance>();
-
                     foreach (var u in commissionUsers)
                     {
                         var info = userInfos.FirstOrDefault(x => x.Id == u);
@@ -583,32 +565,13 @@ namespace InstantPay.Application.Services
                         decimal tdsAmt = commAmt * 0.05m;
                         decimal netAmount = Math.Abs(commAmt - tdsAmt);
 
-                        decimal oldBal = (decimal)await _context.Tbluserbalances
-                            .Where(b => b.UserId == info.Id)
-                            .OrderByDescending(b => b.Id)
-                            .Select(b => b.NewBal)
-                            .FirstOrDefaultAsync();
-
-                        balancesToAdd.Add(new Tbluserbalance
-                        {
-                            TxnAmount = txn.Amount,
-                            SurCom = commAmt,
-                            Tds = tdsAmt,
-                            UserId = info.Id,
-                            UserName = info.Username,
-                            OldBal = oldBal,
-                            Amount = netAmount,
-                            NewBal = oldBal + netAmount,
-                            TxnType = "Commission",
-                            CrdrType = "Credit",
-                            Remarks = $"{serviceName} Commission Received For Account no {accountNo}",
-                            WlId = info.Wlid,
-                            Txndate = DateTime.Now
-                        });
+                        await _walletService.CreditAsync(
+                            info.Id, info.Username,
+                            txn.Amount ?? 0, netAmount, commAmt, tdsAmt,
+                            "Commission",
+                            $"{serviceName} Commission Received For Account no {accountNo}",
+                            info.Wlid);
                     }
-
-                    if (balancesToAdd.Any())
-                        _context.Tbluserbalances.AddRange(balancesToAdd);
 
                     txn.NewBal = Convert.ToString(balBefore - amount);
                     _context.TransactionDetails.Update(txn);
@@ -617,31 +580,13 @@ namespace InstantPay.Application.Services
                 else if (newStatus.ToUpper() == "FAILED" && txn != null && flagforUpdate == true)
                 {
                     decimal refundAmount = Convert.ToDecimal(txn.Amount);
-                    decimal lastBal = (decimal)await _context.Tbluserbalances
-                        .Where(b => b.UserId == userKey)
-                        .OrderByDescending(b => b.Id)
-                        .Select(b => b.NewBal)
-                        .FirstOrDefaultAsync();
 
-                    decimal newRefundBal = lastBal + refundAmount;
-
-                    // Add refund entry in wallet
-                    _context.Tbluserbalances.Add(new Tbluserbalance
-                    {
-                        TxnAmount = txn.Amount,
-                        SurCom = 0,
-                        Tds = 0,
-                        UserId = userKey,
-                        UserName = $"{data.Name}-{data.Phone}",
-                        OldBal = lastBal,
-                        Amount = refundAmount,
-                        NewBal = newRefundBal,
-                        TxnType = serviceName + " Refund",
-                        CrdrType = "Credit",
-                        Remarks = $"{serviceName} Failed Refund For Account {accountNo}",
-                        WlId = data.Wlid,
-                        Txndate = DateTime.Now
-                    });
+                    await _walletService.CreditAsync(
+                        userKey, $"{data.Name}-{data.Phone}",
+                        txn.Amount ?? 0, refundAmount, 0, 0,
+                        serviceName + " Refund",
+                        $"{serviceName} Failed Refund For Account {accountNo}",
+                        data.Wlid);
 
                     txn.NewBal = Convert.ToString(txn.OldBal);
                     txn.Status = "Failed";

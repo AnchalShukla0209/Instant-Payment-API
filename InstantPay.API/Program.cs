@@ -30,6 +30,10 @@ using InstantPay.Application.Services.RazorPay;
 
 using InstantPay.Application.Services.SMS;
 
+using InstantPay.Application.Interfaces.FinoAeps;
+
+using InstantPay.Application.Services.FinoAeps;
+
 using InstantPay.Infrastructure.Mongo;
 
 using InstantPay.Infrastructure.Security;
@@ -43,6 +47,16 @@ using InstantPay.SharedKernel.AppSettingsConfiguration;
 using InstantPay.SharedKernel.Entity;
 
 using InstantPay.SharedKernel.Entity.CastlerConfigDTO;
+
+using InstantPay.SharedKernel.Entity.FinzepConfigDTO;
+
+using InstantPay.SharedKernel.Entity.NIFIConfigDTO;
+
+using InstantPay.Application.Interfaces.MoneyTransfer.Finzep;
+
+using InstantPay.Application.Interfaces.MoneyTransfer.NIFI;
+
+using InstantPay.Application.Services;
 
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 
@@ -68,7 +82,8 @@ System.Net.ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | S
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddNewtonsoftJson();
 
 var configuration = builder.Configuration;
 
@@ -93,6 +108,9 @@ else
     builder.Services.AddDbContext<AppDbContext>(options =>
 
         options.UseSqlServer(configuration.GetConnectionString("Sql")));
+
+    builder.Services.AddDbContext<BeneficiaryDbContext>(options =>
+        options.UseSqlServer(configuration.GetConnectionString("BeneficiaryDb")));
 
 
 
@@ -216,15 +234,10 @@ builder.Services.AddCors(options =>
 
     {
 
-        policy.WithOrigins(
-
-            "https://demo2.instantpayment.co.in",
-
-            "https://neqs.co.in",
-
-            "http://localhost:4200"
-
-        )
+        policy.SetIsOriginAllowed(origin => 
+            origin == "https://demo2.instantpayment.co.in" ||
+            origin == "https://neqs.co.in" ||
+            origin == "http://localhost:4200")
 
         .AllowAnyHeader()
 
@@ -382,6 +395,19 @@ builder.Services.Configure<CastlerConfig>(
 
 
 
+builder.Services.Configure<NIFIConfig>(
+
+    builder.Configuration.GetSection("NIFIConfig"));
+
+
+
+builder.Services.Configure<FinzepConfig>(
+
+    builder.Configuration.GetSection("FinzepConfig"));
+
+
+
+
 builder.Services.Configure<PanApiSettings>(
 
     builder.Configuration.GetSection("PanApiSettings")
@@ -440,6 +466,36 @@ builder.Services.AddScoped<IJPPCashWithdrawal, JPPCashWithdrawal>();
 
 builder.Services.AddScoped<IJPBCashDeposit, JPBCashDeposit>();
 
+// ── FINO AEPS ────────────────────────────────────────────────────────────────
+builder.Services.AddHttpClient("FINO", client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(90);
+    client.DefaultRequestHeaders.ExpectContinue = false;
+})
+.ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+{
+    Expect100ContinueTimeout = TimeSpan.Zero,
+    ConnectTimeout           = TimeSpan.FromSeconds(15),
+    UseProxy                 = false,
+    AutomaticDecompression   = DecompressionMethods.None
+});
+
+builder.Services.AddScoped<IFinoAepsApiClient,         FinoAepsApiClient>();
+builder.Services.AddScoped<IFinoAepsTransactionService, FinoAepsTransactionService>();
+builder.Services.AddScoped<IFinoAepsWalletService,      FinoAepsWalletService>();
+builder.Services.AddScoped<IFinoAepsCommissionService,  FinoAepsCommissionService>();
+builder.Services.AddScoped<IFinoAepsDailyLoginCheckService, FinoAepsDailyLoginCheckService>();
+builder.Services.AddScoped<IFinoMerchantEkycService,    FinoMerchantEkycService>();
+builder.Services.AddScoped<IFINOBalanceEnquiryService,  FINOBalanceEnquiryService>();
+builder.Services.AddScoped<IFINOCashWithdrawalService,  FINOCashWithdrawalService>();
+builder.Services.AddScoped<IFINOMiniStatementService,   FINOMiniStatementService>();
+builder.Services.AddScoped<IFINOCashDepositService,     FINOCashDepositService>();
+builder.Services.AddScoped<IFINOAadharPayService,       FINOAadharPayService>();
+builder.Services.AddScoped<IFINODailyLoginService,      FINODailyLoginService>();
+builder.Services.AddScoped<IFINORegistrationService,    FINORegistrationService>();
+builder.Services.AddScoped<IFinoAepsService,            FinoAepsService>();
+// ─────────────────────────────────────────────────────────────────────────────
+
 builder.Services.AddScoped<IInsuranceInfoService, InsuranceInfoService>();
 
 builder.Services.AddScoped<IBillInfoService, BillInfoService>();
@@ -453,6 +509,8 @@ builder.Services.AddScoped<IRechargeApiProviderService, RechargeApiProviderServi
 builder.Services.AddScoped<IInstantPayLogService, InstantPayLogService>();
 
 builder.Services.AddScoped<IWalletRepository, WalletRepositry>();
+builder.Services.AddScoped<IWalletService, WalletService>();
+builder.Services.AddScoped<ICommissionService, CommissionService>();
 
 builder.Services.AddScoped<ISettlementService, SettlementService>();
 
@@ -467,6 +525,18 @@ builder.Services.AddScoped<IAppReleaseService>(provider =>
     var logger = provider.GetRequiredService<ILogger<AppReleaseService>>();
     return new AppReleaseService(ctx, logger, env.WebRootPath);
 });
+
+builder.Services.AddScoped<IPlanDetailService, PlanDetailService>();
+builder.Services.AddScoped<ICommissionPlanService, CommissionPlanService>();
+builder.Services.AddScoped<IAPICodeService, APICodeService>();
+builder.Services.AddScoped<IBeneficiaryService, BeneficiaryService>();
+builder.Services.AddScoped<InstantPay.Application.Interfaces.PPI.IPPIOtpService, InstantPay.Application.Services.PPI.PPIOtpService>();
+builder.Services.AddScoped<InstantPay.Application.Interfaces.PPI.IPPIBeneficiaryService, InstantPay.Application.Services.PPI.PPIBeneficiaryService>();
+builder.Services.AddScoped<InstantPay.Application.Interfaces.PPI.IPPIAadharService, InstantPay.Application.Services.PPI.PPIAadharService>();
+builder.Services.AddScoped<InstantPay.Application.Interfaces.PPI.IPPIPaymentService, InstantPay.Application.Services.PPI.PPIPaymentService>();
+builder.Services.AddScoped<InstantPay.Application.Interfaces.PPI.IPPIWalletService, InstantPay.Application.Services.PPI.PPIWalletService>();
+builder.Services.AddScoped<InstantPay.Application.Interfaces.PPI.IPPIFundTransferService, InstantPay.Application.Services.PPI.PPIFundTransferService>();
+builder.Services.AddScoped<InstantPay.Application.Interfaces.PPI.IPPIMoneyTransferService, InstantPay.Application.Services.PPI.PPIMoneyTransferService>();
 
 builder.Services.AddHttpClient<ISmsService, SmsService>()
 
@@ -511,6 +581,11 @@ builder.Services.AddHttpClient<ISmsService, SmsService>()
 builder.Services.AddHttpClient<ICastlerAuthService, CastlerAuthService>();
 
 builder.Services.AddScoped<ICastlerDmtService, CastlerDmtService>();
+
+builder.Services.AddScoped<INifiDmtService, NifiDmtService>();
+
+builder.Services.AddScoped<IFinzepDmtService, FinzepDmtService>();
+
 
 builder.Services.AddHttpClient<IPanService, PanService>();
 

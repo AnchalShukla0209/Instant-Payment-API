@@ -45,5 +45,41 @@ namespace InstantPay.Infrastructure.Security
             var cipherBytes = encryptor.TransformFinalBlock(plainBytes, 0, plainBytes.Length);
             return Convert.ToBase64String(cipherBytes);
         }
+
+        // OpenSSL-compatible encryption for FINO API
+        public static string OpenSSLEncrypt(string plainText, string key)
+        {
+            var keyBytes = Encoding.UTF8.GetBytes(key.PadRight(32, '0').Substring(0, 32));
+            var iv = new byte[16];
+            var plainBytes = Encoding.UTF8.GetBytes(plainText);
+
+            using var aes = Aes.Create();
+            aes.Key = keyBytes;
+            aes.IV = iv;
+            aes.Mode = CipherMode.ECB;
+            aes.Padding = PaddingMode.PKCS7;
+
+            using var encryptor = aes.CreateEncryptor();
+            var cipherBytes = encryptor.TransformFinalBlock(plainBytes, 0, plainBytes.Length);
+            return Convert.ToBase64String(cipherBytes);
+        }
+
+        // OpenSSL-compatible decryption for FINO API
+        public static string OpenSSLDecrypt(string cipherText, string key)
+        {
+            var keyBytes = Encoding.UTF8.GetBytes(key.PadRight(32, '0').Substring(0, 32));
+            var iv = new byte[16];
+            var cipherBytes = Convert.FromBase64String(cipherText);
+
+            using var aes = Aes.Create();
+            aes.Key = keyBytes;
+            aes.IV = iv;
+            aes.Mode = CipherMode.ECB;
+            aes.Padding = PaddingMode.PKCS7;
+
+            using var decryptor = aes.CreateDecryptor();
+            var plainBytes = decryptor.TransformFinalBlock(cipherBytes, 0, cipherBytes.Length);
+            return Encoding.UTF8.GetString(plainBytes);
+        }
     }
 }

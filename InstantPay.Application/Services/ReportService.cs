@@ -15,10 +15,12 @@ namespace InstantPay.Application.Services
     {
         private readonly AppDbContext _context;
         private readonly IEmailService _emailService;
-        public ReportService(AppDbContext context, IEmailService emailService)
+        private readonly IWalletService _walletService;
+        public ReportService(AppDbContext context, IEmailService emailService, IWalletService walletService)
         {
             _context = context;
             _emailService = emailService;
+            _walletService = walletService;
         }
 
         public async Task<PaginatedTxnResultDto> GetTransactionReportAsync(string serviceType, string status, string dateFrom, string dateTo, int userId, int pageIndex = 1, int pageSize = 50, string commonsearch = "", int ispaginationenabled = 1)
@@ -136,7 +138,7 @@ namespace InstantPay.Application.Services
             else if (serviceType == "ADMIN LESSER REPORT")
             {
                 query = from t in _context.TblWlbalances
-                        join ud in _context.TblUsers on Convert.ToInt32(t.UserId) equals ud.Id
+                        join ud in _context.TblWlUsers on Convert.ToInt32(t.UserId) equals ud.Id
                         where (string.IsNullOrEmpty(dateFrom) || t.Txndate.Value.Date >= DateTime.Parse(dateFrom).Date)
                            && (string.IsNullOrEmpty(dateTo) || t.Txndate.Value.Date <= DateTime.Parse(dateTo).Date)
                            && (userId == 0 || t.UserId == Convert.ToString(userId))
@@ -146,14 +148,14 @@ namespace InstantPay.Application.Services
                             Id = t.Id,
                             TXN_ID = string.Empty,
                             BankRefNo = string.Empty,
-                            UserName = ud.Name + "-"+ ud.Phone ?? t.UserName ?? string.Empty,
+                            UserName = ud.UserName + "-" + ud.Phone ?? string.Empty,
                             OperatorName = string.Empty,
                             AccountNo = string.Empty,
                             OpeningBal = t.OldBal,
-                            Amount = t.Amount,
+                            Amount = t.TxnAmount,
                             Closing = t.NewBal,
                             Status = t.CrdrType,
-                            APIName = string.Empty,
+                            APIName = t.TxnType,
                             ComingFrom = string.Empty,
                             MasterDistributor = string.Empty,
                             Distributor = string.Empty,
@@ -163,7 +165,45 @@ namespace InstantPay.Application.Services
                             Failed = string.Empty,
                             APIRes = ispaginationenabled > 0 ? t.Remarks ?? string.Empty : "",
                             flagforTrans = 0,
-                            servicename = ""
+                            BeneName = Convert.ToString(t.SurComm),
+                            CustomerMobile = Convert.ToString(t.Tds),
+                            servicename = Convert.ToString(t.TxnAmount)
+                        };
+            }
+
+            else if (serviceType == "SUPERADMIN LESSER REPORT")
+            {
+                query = from t in _context.TblSuperAdminUserBalances
+                        join ud in _context.TblSuperadmins on Convert.ToInt32(t.UserId) equals ud.Id
+                        where (string.IsNullOrEmpty(dateFrom) || t.Txndate.Value.Date >= DateTime.Parse(dateFrom).Date)
+                           && (string.IsNullOrEmpty(dateTo) || t.Txndate.Value.Date <= DateTime.Parse(dateTo).Date)
+                           && (userId == 0 || t.UserId == userId)
+
+                        select new TxnReportData
+                        {
+                            Id = t.Id,
+                            TXN_ID = string.Empty,
+                            BankRefNo = string.Empty,
+                            UserName = ud.Name + "-" + ud.Username ?? string.Empty,
+                            OperatorName = string.Empty,
+                            AccountNo = string.Empty,
+                            OpeningBal = t.OldBal,
+                            Amount = t.TxnAmount,
+                            Closing = t.NewBal,
+                            Status = t.CrdrType,
+                            APIName = t.TxnType,
+                            ComingFrom = string.Empty,
+                            MasterDistributor = string.Empty,
+                            Distributor = string.Empty,
+                            TimeStamp = t.Txndate,
+                            UpdatedTime = null,
+                            Success = string.Empty,
+                            Failed = string.Empty,
+                            APIRes = ispaginationenabled > 0 ? t.Remarks ?? string.Empty : "",
+                            flagforTrans = 0,
+                            BeneName = Convert.ToString(t.SurComm),
+                            CustomerMobile = Convert.ToString(t.Tds),
+                            servicename = Convert.ToString(t.TxnAmount)
                         };
             }
 
@@ -328,7 +368,7 @@ namespace InstantPay.Application.Services
                                  UserId = t.UserKey ?? string.Empty
                              }).FirstOrDefaultAsync();
             }
-            else if (string.Equals(ServiceName?.Trim(), "SettlementAEPS", StringComparison.OrdinalIgnoreCase) || string.Equals(ServiceName?.Trim(), "SettlementRazorpay", StringComparison.OrdinalIgnoreCase))
+            else if (string.Equals(ServiceName?.Trim(), "SettlementAEPS", StringComparison.OrdinalIgnoreCase) || string.Equals(ServiceName?.Trim(), "SettlementRazorpay", StringComparison.OrdinalIgnoreCase) || string.Equals(ServiceName?.Trim(), "SettlementMATM", StringComparison.OrdinalIgnoreCase))
             {
                 txn = await (from t in _context.SettlementWithdrawals
                              where t.Id == txnId
@@ -397,14 +437,8 @@ namespace InstantPay.Application.Services
                         return (new TxnUpdateResponse { ErrorMsg = "Invalid User", Flag = false });
                     }
 
-                    var lastBalance = await _context.Tbluserbalances
-                            .Where(b => b.UserId == request.UserId)
-                            .OrderByDescending(b => b.Id)
-                            .Select(b => b.NewBal)
-                            .FirstOrDefaultAsync();
-
-                    decimal oldBal = (decimal)lastBalance;
-                    decimal newBal = oldBal + request.Amount;
+                    decimal currentBal = await _walletService.GetBalanceAsync(request.UserId);
+                    decimal estimatedNewBal = currentBal + request.Amount;
 
                     if (string.Equals(request.ServiceName?.Trim(), "QR CODE", StringComparison.OrdinalIgnoreCase) || string.Equals(request.ServiceName?.Trim(), "Online Payment", StringComparison.OrdinalIgnoreCase))
                     {
@@ -439,7 +473,7 @@ namespace InstantPay.Application.Services
                             );
                         }
                     }
-                    else if (string.Equals(request.ServiceName?.Trim(), "SETTLEMENT", StringComparison.OrdinalIgnoreCase) || string.Equals(request.ServiceName?.Trim(), "SettlementAEPS", StringComparison.OrdinalIgnoreCase) || string.Equals(request.ServiceName?.Trim(), "SettlementRazorpay", StringComparison.OrdinalIgnoreCase))
+                    else if (string.Equals(request.ServiceName?.Trim(), "SETTLEMENT", StringComparison.OrdinalIgnoreCase) || string.Equals(request.ServiceName?.Trim(), "SettlementAEPS", StringComparison.OrdinalIgnoreCase) || string.Equals(request.ServiceName?.Trim(), "SettlementRazorpay", StringComparison.OrdinalIgnoreCase) || string.Equals(request.ServiceName?.Trim(), "SettlementMATM", StringComparison.OrdinalIgnoreCase))
                     {
                         var settlement = await _context.SettlementWithdrawals.FirstOrDefaultAsync(s => s.Id == request.TransId);
                         if (settlement == null)
@@ -485,8 +519,8 @@ namespace InstantPay.Application.Services
                         txn.UpdateDate = DateTime.Now;
                         if (string.Equals(request.Status?.Trim(), "SUCCESS", StringComparison.OrdinalIgnoreCase))
                         {
-                            txn.OldBal = oldBal;
-                            txn.NewBal = newBal.ToString();
+                            txn.OldBal = currentBal;
+                            txn.NewBal = estimatedNewBal.ToString();
                             txn.Brid = request.AccountNo;
                         }
                         _context.TransactionDetails.Update(txn);
@@ -511,26 +545,13 @@ namespace InstantPay.Application.Services
 
                     if (string.Equals(request.Status?.Trim(), "SUCCESS", StringComparison.OrdinalIgnoreCase) && (string.Equals(request.ServiceName?.Trim(), "AEPS", StringComparison.OrdinalIgnoreCase) || string.Equals(request.ServiceName?.Trim(), "MATM", StringComparison.OrdinalIgnoreCase) || string.Equals(request.ServiceName?.Trim(), "Online Payment", StringComparison.OrdinalIgnoreCase) || string.Equals(request.ServiceName?.Trim(), "QR CODE", StringComparison.OrdinalIgnoreCase)))
                     {
-                        //AEPS MATM/ QR Code/ Online Payment
-                        var walletTxn = new Tbluserbalance
-                        {
-                            TxnAmount = request.Amount,
-                            SurCom = 0,
-                            Tds = 0,
-                            UserId = request.UserId,
-                            UserName = user.Name + "-" + user.Phone,
-                            OldBal = oldBal,
-                            Amount = request.Amount,
-                            NewBal = newBal,
-                            TxnType = request.ServiceName,
-                            CrdrType = "Credit",
-                            Remarks = $"{request.Remarks} || {request.ServiceName}",
-                            WlId = user.Wlid,
-                            Txndate = DateTime.Now
-                        };
-
-                        await _context.Tbluserbalances.AddAsync(walletTxn);
-                        await _context.SaveChangesAsync();
+                        await _walletService.CreditAsync(
+                            request.UserId,
+                            user.Name + "-" + user.Phone,
+                            request.Amount, request.Amount, 0, 0,
+                            request.ServiceName,
+                            $"{request.Remarks} || {request.ServiceName}",
+                            user.Wlid);
                     }
                 }
 
@@ -562,7 +583,7 @@ namespace InstantPay.Application.Services
                             _context.Tblonlinepayments.Update(txn);
                             await _context.SaveChangesAsync();
                         }
-                        else if (string.Equals(request.ServiceName?.Trim(), "SETTLEMENT", StringComparison.OrdinalIgnoreCase) || string.Equals(request.ServiceName?.Trim(), "SettlementAEPS", StringComparison.OrdinalIgnoreCase) || string.Equals(request.ServiceName?.Trim(), "SettlementRazorpay", StringComparison.OrdinalIgnoreCase))
+                        else if (string.Equals(request.ServiceName?.Trim(), "SETTLEMENT", StringComparison.OrdinalIgnoreCase) || string.Equals(request.ServiceName?.Trim(), "SettlementAEPS", StringComparison.OrdinalIgnoreCase) || string.Equals(request.ServiceName?.Trim(), "SettlementRazorpay", StringComparison.OrdinalIgnoreCase) || string.Equals(request.ServiceName?.Trim(), "SettlementMATM", StringComparison.OrdinalIgnoreCase))
                         {
                             var settlement = await _context.SettlementWithdrawals.FirstOrDefaultAsync(s => s.Id == request.TransId);
                             if (settlement == null)
@@ -590,34 +611,13 @@ namespace InstantPay.Application.Services
                             await _context.SaveChangesAsync();
                         }
 
-                        var lastBalance = await _context.Tbluserbalances
-                            .Where(b => b.UserId == request.UserId)
-                            .OrderByDescending(b => b.Id)
-                            .Select(b => b.NewBal)
-                            .FirstOrDefaultAsync();
-
-                        decimal oldBal = (decimal)lastBalance;
-                        decimal newBal = oldBal + request.Amount;
-
-                        var walletTxn = new Tbluserbalance
-                        {
-                            TxnAmount = request.Amount,
-                            SurCom = 0,
-                            Tds = 0,
-                            UserId = request.UserId,
-                            UserName = user.Name + "-" + user.Phone,
-                            OldBal = oldBal,
-                            Amount = request.Amount,
-                            NewBal = newBal,
-                            TxnType = request.ServiceName,
-                            CrdrType = "Credit",
-                            Remarks = $"Reverse Amount Credit For {request.ServiceName +"||"+ AccountNo}",
-                            WlId = user.Wlid,
-                            Txndate = DateTime.Now
-                        };
-
-                        await _context.Tbluserbalances.AddAsync(walletTxn);
-                        await _context.SaveChangesAsync();
+                        await _walletService.CreditAsync(
+                            request.UserId,
+                            user.Name + "-" + user.Phone,
+                            request.Amount, request.Amount, 0, 0,
+                            request.ServiceName,
+                            $"Reverse Amount Credit For {request.ServiceName + "||" + AccountNo}",
+                            user.Wlid);
 
                         // Send email notification for settlement status change
                         if (user != null)

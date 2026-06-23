@@ -9,11 +9,13 @@ namespace InstantPay.Application.Services
     {
         private readonly AppDbContext _context;
         private readonly IAeronpayPayoutService _payoutService;
+        private readonly IWalletService _walletService;
 
-        public SettlementService(AppDbContext context, IAeronpayPayoutService payoutService)
+        public SettlementService(AppDbContext context, IAeronpayPayoutService payoutService, IWalletService walletService)
         {
             _context = context;
             _payoutService = payoutService;
+            _walletService = walletService;
         }
 
         private decimal CalculateCharge(decimal amount, string withdrawalType)
@@ -21,6 +23,10 @@ namespace InstantPay.Application.Services
             if (withdrawalType.ToUpper() == "AEPS")
             {
                 return 10; // Flat 10 rs for AEPS
+            }
+            else if (withdrawalType.ToUpper() == "MATM")
+            {
+                return 10; // Flat 10 rs for MATM
             }
             else if (withdrawalType.ToUpper() == "RAZORPAY")
             {
@@ -52,8 +58,18 @@ namespace InstantPay.Application.Services
                 // Query AEPS transactions for last 2 days (excluding today)
                 var aepsQuery = _context.TransactionDetails
                     .Where(t =>
-                        (t.OperatorName == "AEPS_CASH_WITHDRAWAL" || t.OperatorName == "CW") &&
+                        (t.OperatorName == "AEPS_CASH_WITHDRAWAL" || t.OperatorName == "CW" || t.OperatorName== "FINO_AEPS_CASH_WITHDRAWAL") &&
                         t.ServiceName == "AEPS" &&
+                        t.Status == "SUCCESS" &&
+                        t.ReqDate.HasValue &&
+                        t.ReqDate.Value.Date >= fromDate &&
+                        t.ReqDate.Value.Date <= toDate);
+
+                // Query MATM transactions for last 2 days (excluding today)
+                var matmQuery = _context.TransactionDetails
+                    .Where(t =>
+                        t.OperatorName == "CW" &&
+                        t.ServiceName == "MATM" &&
                         t.Status == "SUCCESS" &&
                         t.ReqDate.HasValue &&
                         t.ReqDate.Value.Date >= fromDate &&
@@ -72,10 +88,15 @@ namespace InstantPay.Application.Services
                 if (!string.IsNullOrEmpty(userId))
                 {
                     aepsQuery = aepsQuery.Where(t => t.UserId == userId);
+                    matmQuery = matmQuery.Where(t => t.UserId == userId);
                     razorpayQuery = razorpayQuery.Where(p => p.UserKey == userId);
                 }
 
                 var aepsTransactions = await aepsQuery
+                    .OrderByDescending(t => t.TransId)
+                    .ToListAsync();
+
+                var matmTransactions = await matmQuery
                     .OrderByDescending(t => t.TransId)
                     .ToListAsync();
 
@@ -85,6 +106,17 @@ namespace InstantPay.Application.Services
 
                 // Group by UserId for AEPS
                 var aepsByUser = aepsTransactions
+                    .GroupBy(t => t.UserId ?? "Unknown")
+                    .Select(g => new
+                    {
+                        UserId = g.Key,
+                        UserName = g.FirstOrDefault()?.UserName ?? "",
+                        TotalAmount = g.Sum(t => t.Amount ?? 0)
+                    })
+                    .ToDictionary(x => x.UserId, x => (x.UserName, x.TotalAmount));
+
+                // Group by UserId for MATM
+                var matmByUser = matmTransactions
                     .GroupBy(t => t.UserId ?? "Unknown")
                     .Select(g => new
                     {
@@ -106,7 +138,7 @@ namespace InstantPay.Application.Services
                     .ToDictionary(x => x.UserId, x => (x.UserName, x.TotalAmount));
 
                 // Get all unique users
-                var allUsers = aepsByUser.Keys.Union(razorpayByUser.Keys).ToList();
+                var allUsers = aepsByUser.Keys.Union(matmByUser.Keys).Union(razorpayByUser.Keys).ToList();
 
                 // Get withdrawal amounts from SettlementWithdrawals table
                 var withdrawals = await GetWithdrawalsAsync(fromDate, toDate, today, userId);
@@ -116,12 +148,16 @@ namespace InstantPay.Application.Services
                 foreach (var user in allUsers)
                 {
                     var aepsData = aepsByUser.ContainsKey(user) ? aepsByUser[user] : ("", 0);
+                    var matmData = matmByUser.ContainsKey(user) ? matmByUser[user] : ("", 0);
                     var razorpayData = razorpayByUser.ContainsKey(user) ? razorpayByUser[user] : ("", 0);
-                    var userName = !string.IsNullOrEmpty(aepsData.UserName) ? aepsData.UserName : razorpayData.UserName;
+                    var userName = !string.IsNullOrEmpty(aepsData.UserName) ? aepsData.UserName : 
+                                   (!string.IsNullOrEmpty(matmData.UserName) ? matmData.UserName : razorpayData.UserName);
                     
                     var aepsAmount = aepsData.TotalAmount;
+                    var matmAmount = matmData.TotalAmount;
                     var razorpayAmount = razorpayData.TotalAmount;
                     var aepsWithdrawn = withdrawals.ContainsKey(user) ? withdrawals[user].AEPSWithdrawn : 0;
+                    var matmWithdrawn = withdrawals.ContainsKey(user) ? withdrawals[user].MATMWithdrawn : 0;
                     var razorpayWithdrawn = withdrawals.ContainsKey(user) ? withdrawals[user].RazorpayWithdrawn : 0;
 
                     userSettlements.Add(new UserSettlementDetail
@@ -129,28 +165,36 @@ namespace InstantPay.Application.Services
                         UserId = user,
                         UserName = userName,
                         AEPSAmount = aepsAmount,
+                        MATMAmount = matmAmount,
                         RazorpayAmount = razorpayAmount,
                         AEPSWithdrawn = aepsWithdrawn,
+                        MATMWithdrawn = matmWithdrawn,
                         RazorpayWithdrawn = razorpayWithdrawn,
                         AvailableAEPS = aepsAmount - aepsWithdrawn,
+                        AvailableMATM = matmAmount - matmWithdrawn,
                         AvailableRazorpay = razorpayAmount - razorpayWithdrawn
                     });
                 }
 
                 // Calculate totals
                 var totalAEPS = aepsByUser.Values.Sum(x => x.TotalAmount);
+                var totalMATM = matmByUser.Values.Sum(x => x.TotalAmount);
                 var totalRazorpay = razorpayByUser.Values.Sum(x => x.TotalAmount);
                 var totalAEPSWithdrawn = userSettlements.Sum(u => u.AEPSWithdrawn);
+                var totalMATMWithdrawn = userSettlements.Sum(u => u.MATMWithdrawn);
                 var totalRazorpayWithdrawn = userSettlements.Sum(u => u.RazorpayWithdrawn);
 
                 return new SettlementDto
                 {
                     UserId = userId ?? "All Users",
                     TotalAEPSAmount = totalAEPS,
+                    TotalMATMAmount = totalMATM,
                     TotalRazorpayAmount = totalRazorpay,
                     AEPSWithdrawnAmount = totalAEPSWithdrawn,
+                    MATMWithdrawnAmount = totalMATMWithdrawn,
                     RazorpayWithdrawnAmount = totalRazorpayWithdrawn,
                     AvailableAEPSAmount = totalAEPS - totalAEPSWithdrawn,
+                    AvailableMATMAmount = totalMATM - totalMATMWithdrawn,
                     AvailableRazorpayAmount = totalRazorpay - totalRazorpayWithdrawn,
                     SettlementFromDate = fromDate,
                     SettlementToDate = toDate,
@@ -230,6 +274,22 @@ namespace InstantPay.Application.Services
                     }
                     remainingAmount = availableAmount - request.Amount;
                 }
+                else if (request.WithdrawalType.ToUpper() == "MATM")
+                {
+                    availableAmount = userSettlement.AvailableMATM;
+                    if (request.Amount > availableAmount)
+                    {
+                        return new WithdrawalResponseDto
+                        {
+                            Success = false,
+                            Message = $"Insufficient MATM balance. Available: {availableAmount}, Requested: {request.Amount}",
+                            RemainingAmount = availableAmount,
+                            NewWalletBalance = 0,
+                            Charge = 0
+                        };
+                    }
+                    remainingAmount = availableAmount - request.Amount;
+                }
                 else if (request.WithdrawalType.ToUpper() == "RAZORPAY")
                 {
                     availableAmount = userSettlement.AvailableRazorpay;
@@ -251,7 +311,7 @@ namespace InstantPay.Application.Services
                     return new WithdrawalResponseDto
                     {
                         Success = false,
-                        Message = "Invalid withdrawal type. Use 'AEPS' or 'Razorpay'",
+                        Message = "Invalid withdrawal type. Use 'AEPS', 'MATM', or 'Razorpay'",
                         RemainingAmount = 0,
                         NewWalletBalance = 0,
                         Charge = 0
@@ -272,23 +332,7 @@ namespace InstantPay.Application.Services
                     };
                 }
 
-                var currentWalletBalance = await _context.Tbluserbalances
-                    .Where(w => w.UserId == userIdInt)
-                    .OrderByDescending(w => w.Id)
-                    .Select(w => w.NewBal)
-                    .FirstOrDefaultAsync();
-
-                if (currentWalletBalance == null)
-                {
-                    return new WithdrawalResponseDto
-                    {
-                        Success = false,
-                        Message = "User wallet not found",
-                        RemainingAmount = availableAmount,
-                        NewWalletBalance = 0,
-                        Charge = 0
-                    };
-                }
+                decimal currentWalletBalance = await _walletService.GetBalanceAsync(userIdInt);
 
                 // Calculate charge
                 var charge = CalculateCharge(request.Amount, request.WithdrawalType);
@@ -301,7 +345,7 @@ namespace InstantPay.Application.Services
                         Success = false,
                         Message = $"Insufficient wallet balance. Wallet Balance: {currentWalletBalance}, Required: {totalDebit} (Amount: {request.Amount} + Charge: {charge})",
                         RemainingAmount = availableAmount,
-                        NewWalletBalance = currentWalletBalance.Value,
+                        NewWalletBalance = currentWalletBalance,
                         Charge = charge
                     };
                 }
@@ -314,7 +358,7 @@ namespace InstantPay.Application.Services
                         Success = false,
                         Message = "Bank account, IFSC, and beneficiary name are required for payout",
                         RemainingAmount = availableAmount,
-                        NewWalletBalance = currentWalletBalance.Value,
+                        NewWalletBalance = currentWalletBalance,
                         Charge = charge
                     };
                 }
@@ -335,7 +379,7 @@ namespace InstantPay.Application.Services
                         Success = false,
                         Message = $"A withdrawal of {request.Amount} to the same bank account was processed within the last 5 minutes. Please wait before trying again.",
                         RemainingAmount = availableAmount,
-                        NewWalletBalance = currentWalletBalance.Value,
+                        NewWalletBalance = currentWalletBalance,
                         Charge = charge
                     };
                 }
@@ -359,7 +403,7 @@ namespace InstantPay.Application.Services
                         Success = false,
                         Message = $"A duplicate transaction with the same details already exists. Transaction ID: {exactDuplicate.Id}, Date: {exactDuplicate.WithdrawalDate}",
                         RemainingAmount = availableAmount,
-                        NewWalletBalance = currentWalletBalance.Value,
+                        NewWalletBalance = currentWalletBalance,
                         Charge = charge
                     };
                 }
@@ -368,14 +412,11 @@ namespace InstantPay.Application.Services
                 using var transaction = await _context.Database.BeginTransactionAsync();
                 try
                 {
-                   
-
                     // Call Aeronpay payout API
-                    
                     var payoutRequest = new AeronpayPayoutRequest
                     {
                         AccountNumber = "99760187733",
-                        Amount = request.Amount - charge,
+                        Amount = request.WithdrawalType.ToUpper() == "AEPS" || request.WithdrawalType.ToUpper() == "MATM"? request.Amount - charge : request.Amount,
                         ClientReferenceId = clientReferenceId,
                         Latitude = userData.Lat ?? "76.7887",
                         Longitude = userData.Longitute ?? "78.7654",
@@ -388,30 +429,18 @@ namespace InstantPay.Application.Services
                     };
 
                     var payoutResponse = await _payoutService.ProcessPayoutAsync(payoutRequest);
-                    var newWalletBalance = currentWalletBalance.Value - totalDebit;
+                    decimal newWalletBalance = currentWalletBalance - totalDebit;
                     payoutResponse.Status = payoutResponse?.Status?.ToUpper() == "BAD_REQUEST_ERROR" ? "FAILED" : payoutResponse?.Status;
                     if (payoutResponse?.Status?.ToUpper() != "FALSE" && payoutResponse?.Status?.ToUpper() != "FAILED")
                     {
-                        // Debit withdrawal amount from user wallet
-                       
-                        var walletEntry = new Tbluserbalance
-                        {
-                            UserId = userIdInt,
-                            UserName = userData.Name + "-" + userData.Phone,
-                            Amount = request.Amount,
-                            CrdrType = "DR",
-                            OldBal = currentWalletBalance.Value,
-                            NewBal = newWalletBalance,
-                            Txndate = DateTime.Now,
-                            TxnType = "SETTLEMENT_WITHDRAWAL",
-                            Remarks = $"{request.WithdrawalType} Settlement Withdrawal || " + payoutRequest.ClientReferenceId + "",
-                            SurCom = charge,
-                            TxnAmount = request.Amount,
-                            WlId = "1",
-
-                        };
-
-                        _context.Tbluserbalances.Add(walletEntry);
+                        // Atomically debit withdrawal amount from user wallet (race-condition-safe via WalletService)
+                        (_, newWalletBalance, _) = await _walletService.DebitAsync(
+                            userIdInt,
+                            userData.Name + "-" + userData.Phone,
+                            request.Amount, totalDebit, charge, 0,
+                            "SETTLEMENT_WITHDRAWAL",
+                            $"{request.WithdrawalType} Settlement Withdrawal || {payoutRequest.ClientReferenceId}",
+                            "1");
                     }
                     // Record settlement withdrawal with payout details
                     string Username = userData.Name + "-" + userData.Phone;
@@ -455,7 +484,7 @@ namespace InstantPay.Application.Services
             }
         }
 
-        private async Task<Dictionary<string, (decimal AEPSWithdrawn, decimal RazorpayWithdrawn)>> GetWithdrawalsAsync(
+        private async Task<Dictionary<string, (decimal AEPSWithdrawn, decimal MATMWithdrawn, decimal RazorpayWithdrawn)>> GetWithdrawalsAsync(
             DateTime fromDate, DateTime toDate, DateTime razorpayToDate, string? userId = null)
         {
             try
@@ -463,6 +492,13 @@ namespace InstantPay.Application.Services
                 // Get AEPS withdrawals for last 2 days (excluding today)
                 var aepsQuery = _context.SettlementWithdrawals
                     .Where(w => w.WithdrawalType.ToUpper() == "AEPS" &&
+                                w.SettlementFromDate == fromDate &&
+                                w.SettlementToDate == toDate &&
+                                (w.PayoutStatus.Trim().ToUpper() == "SUCCESS" || w.PayoutStatus.Trim().ToUpper() == "PENDING"));
+
+                // Get MATM withdrawals for last 2 days (excluding today)
+                var matmQuery = _context.SettlementWithdrawals
+                    .Where(w => w.WithdrawalType.ToUpper() == "MATM" &&
                                 w.SettlementFromDate == fromDate &&
                                 w.SettlementToDate == toDate &&
                                 (w.PayoutStatus.Trim().ToUpper() == "SUCCESS" || w.PayoutStatus.Trim().ToUpper() == "PENDING"));
@@ -477,6 +513,7 @@ namespace InstantPay.Application.Services
                 if (!string.IsNullOrEmpty(userId))
                 {
                     aepsQuery = aepsQuery.Where(w => w.UserId == userId);
+                    matmQuery = matmQuery.Where(w => w.UserId == userId);
                     razorpayQuery = razorpayQuery.Where(w => w.UserId == userId);
                 }
 
@@ -489,6 +526,15 @@ namespace InstantPay.Application.Services
                     })
                     .ToDictionaryAsync(x => x.UserId, x => x.AEPSWithdrawn);
 
+                var matmWithdrawals = await matmQuery
+                    .GroupBy(w => w.UserId)
+                    .Select(g => new
+                    {
+                        UserId = g.Key,
+                        MATMWithdrawn = g.Sum(w => w.Amount)
+                    })
+                    .ToDictionaryAsync(x => x.UserId, x => x.MATMWithdrawn);
+
                 var razorpayWithdrawals = await razorpayQuery
                     .GroupBy(w => w.UserId)
                     .Select(g => new
@@ -499,14 +545,15 @@ namespace InstantPay.Application.Services
                     .ToDictionaryAsync(x => x.UserId, x => x.RazorpayWithdrawn);
 
                 // Merge results
-                var allUsers = aepsWithdrawals.Keys.Union(razorpayWithdrawals.Keys).ToList();
-                var result = new Dictionary<string, (decimal, decimal)>();
+                var allUsers = aepsWithdrawals.Keys.Union(matmWithdrawals.Keys).Union(razorpayWithdrawals.Keys).ToList();
+                var result = new Dictionary<string, (decimal, decimal, decimal)>();
 
                 foreach (var user in allUsers)
                 {
                     var aepsWithdrawn = aepsWithdrawals.ContainsKey(user) ? aepsWithdrawals[user] : 0;
+                    var matmWithdrawn = matmWithdrawals.ContainsKey(user) ? matmWithdrawals[user] : 0;
                     var razorpayWithdrawn = razorpayWithdrawals.ContainsKey(user) ? razorpayWithdrawals[user] : 0;
-                    result[user] = (aepsWithdrawn, razorpayWithdrawn);
+                    result[user] = (aepsWithdrawn, matmWithdrawn, razorpayWithdrawn);
                 }
 
                 return result;
@@ -515,7 +562,7 @@ namespace InstantPay.Application.Services
             {
                 // Log error here
                 Console.WriteLine($"Error fetching withdrawals: {ex.Message}");
-                return new Dictionary<string, (decimal, decimal)>();
+                return new Dictionary<string, (decimal, decimal, decimal)>();
             }
         }
 

@@ -1,4 +1,5 @@
-﻿using InstantPay.Application.Interfaces;
+﻿using InstantPay.Application.DTOs;
+using InstantPay.Application.Interfaces;
 using InstantPay.Infrastructure.Sql.Entities;
 using InstantPay.SharedKernel.Entity;
 using Microsoft.EntityFrameworkCore;
@@ -60,6 +61,7 @@ namespace InstantPay.Application.Services
                 ServiceName = dto.ServiceName.Trim(),
                 ServicePath = dto.ServicePath,
                 IsActive = dto.IsActive,
+                isActiveOnApk = dto.IsActiveOnApk,
                 IsDeleted = false
             };
 
@@ -85,6 +87,7 @@ namespace InstantPay.Application.Services
             service.ServiceName = dto.ServiceName.Trim();
             service.ServicePath = dto.ServicePath;
             service.IsActive = dto.IsActive;
+            service.isActiveOnApk = dto.IsActiveOnApk;
 
             _context.Tbl_Services.Update(service);
             await _context.SaveChangesAsync();
@@ -104,6 +107,22 @@ namespace InstantPay.Application.Services
             _context.Tbl_Services.Update(service);
             await _context.SaveChangesAsync();
             return null;
+        }
+
+        public async Task<List<ServiceDropdownDto>> GetServicesDropdownAsync()
+        {
+            return await _context.Tbl_Services
+                .Where(s => s.IsDeleted == false && s.IsActive == true)
+                .OrderBy(s => s.ServiceName)
+                .Select(s => new ServiceDropdownDto
+                {
+                    Id = s.Id,
+                    ServiceName = s.ServiceName,
+                    Icon = s.Icon,
+                    IsActive = s.IsActive,
+                    IsActiveOnApk = s.isActiveOnApk
+                })
+                .ToListAsync();
         }
 
     }

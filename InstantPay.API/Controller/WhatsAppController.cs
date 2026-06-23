@@ -49,7 +49,8 @@ namespace InstantPay.API.Controller
                             successfulSends = result.SuccessfulSends,
                             failedSends = result.FailedSends,
                             failedPhoneNumbers = result.FailedPhoneNumbers,
-                            sentAt = result.SentAt
+                            sentAt = result.SentAt,
+                            errorDetails = result.ErrorDetails
                         }
                     });
                 }
@@ -63,7 +64,9 @@ namespace InstantPay.API.Controller
                         {
                             totalUsers = result.TotalUsers,
                             successfulSends = result.SuccessfulSends,
-                            failedSends = result.FailedSends
+                            failedSends = result.FailedSends,
+                            failedPhoneNumbers = result.FailedPhoneNumbers,
+                            errorDetails = result.ErrorDetails
                         }
                     });
                 }

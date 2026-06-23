@@ -1,4 +1,5 @@
-﻿using InstantPay.Infrastructure.Sql.Entities;
+﻿using InstantPay.Application.DTOs;
+using InstantPay.Infrastructure.Sql.Entities;
 using InstantPay.SharedKernel.Entity;
 using System;
 using System.Collections.Generic;
@@ -15,6 +16,7 @@ namespace InstantPay.Application.Interfaces
         Task<string> CreateAsync(ServiceDtoRequest dto);
         Task<string> UpdateAsync(int id, ServiceDtoRequest dto);
         Task<string> DeleteAsync(int id);
+        Task<List<ServiceDropdownDto>> GetServicesDropdownAsync();
     }
 
 }

@@ -19,12 +19,12 @@ namespace InstantPay.API.Controller
     {
         private readonly IConfiguration _config;
         private readonly AppDbContext _context;
-        private readonly IWalletRepository _walletrepo;
-        public RazorpayWebhookController(IConfiguration config, AppDbContext context, IWalletRepository walletrepo)
+        private readonly IWalletService _walletService;
+        public RazorpayWebhookController(IConfiguration config, AppDbContext context, IWalletService walletService)
         {
             _config = config;
             _context = context;
-            _walletrepo = walletrepo;
+            _walletService = walletService;
         }
 
 
@@ -91,7 +91,6 @@ namespace InstantPay.API.Controller
                 var userData = await _context.TblUsers
                     .FirstOrDefaultAsync(x => x.Id == Convert.ToInt32(txn.UserKey));
 
-                var oldBalance = await _walletrepo.GetLatestWalletBalanceAsync(Convert.ToInt32(txn.UserKey));
                 if (eventType == "payment.captured")
                 {
                     txn.Status = "Success";
@@ -100,28 +99,16 @@ namespace InstantPay.API.Controller
                     txn.Cardno = last4;
                     txn.Cardtype = network;
                     txn.ResDate = DateTime.Now;
-
-                    // 👉 Save RRN (if column exists)
                     txn.Rrn = rrn;
 
-                    var walletData = new Tbluserbalance
-                    {
-                        Amount = txn.TransferAmt,
-                        CrdrType = "CR",
-                        NewBal = oldBalance + txn.TransferAmt,
-                        OldBal = oldBalance,
-                        SurCom = txn.TxnCharge + txn.Gst,
-                        Tds = 0,
-                        TxnAmount = txn.Amount,
-                        WlId = userData?.Wlid,
-                        Txndate = DateTime.Now,
-                        TxnType = "CREDIT BY PAYMENT GATEWAY",
-                        UserId = Convert.ToInt32(txn.UserKey),
-                        UserName = userData?.Name + "-" + userData?.Phone,
-                        Remarks = $"Credited | OrderId: {txn.OrderId} | RRN: {rrn}"
-                    };
-
-                    await _walletrepo.AddWalletEntryAsync(walletData);
+                    await _walletService.CreditAsync(
+                        Convert.ToInt32(txn.UserKey),
+                        (userData?.Name + "-" + userData?.Phone),
+                        txn.Amount ?? 0, txn.TransferAmt ?? 0,
+                        txn.TxnCharge + txn.Gst ?? 0, 0,
+                        "CREDIT BY PAYMENT GATEWAY",
+                        $"Credited | OrderId: {txn.OrderId} | RRN: {rrn}",
+                        userData?.Wlid);
                 }
                 else if (eventType == "payment.failed")
                 {
