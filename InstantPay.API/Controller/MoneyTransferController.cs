@@ -1,11 +1,14 @@
 ﻿using InstantPay.Application.Interfaces;
 using InstantPay.Application.Interfaces.MoneyTransfer.Castler;
+using InstantPay.Application.Interfaces.MoneyTransfer.AeronPay;
 using InstantPay.Application.Interfaces.MoneyTransfer.Finzep;
 using InstantPay.Application.Interfaces.MoneyTransfer.NIFI;
+using InstantPay.Application.Interfaces.MoneyTransfer.RechargeKit;
 using InstantPay.Application.Services;
 using InstantPay.Infrastructure.Sql.Entities;
 using InstantPay.SharedKernel.RequestPayload;
 using InstantPay.SharedKernel.RequestPayload.MoneyTransfer.Castler;
+using InstantPay.SharedKernel.RequestPayload.MoneyTransfer.AeronPay;
 using InstantPay.SharedKernel.RequestPayload.MoneyTransfer.Finzep;
 using InstantPay.SharedKernel.RequestPayload.MoneyTransfer.NIFI;
 using InstantPay.SharedKernel.Results;
@@ -25,13 +28,17 @@ namespace InstantPay.API.Controller
         private readonly ICastlerDmtService _dmtService;
         private readonly INifiDmtService _nifiDmtService;
         private readonly IFinzepDmtService _finzepDmtService;
+        private readonly IAeronpayDmtService _aeronpayDmtService;
+        private readonly IRechargeKitDmtService _rechargeKitDmtService;
         private readonly AppDbContext _context;
 
-        public MoneyTransferController(ICastlerDmtService dmtService, INifiDmtService nifiDmtService, IFinzepDmtService finzepDmtService, AppDbContext context)
+        public MoneyTransferController(ICastlerDmtService dmtService, INifiDmtService nifiDmtService, IFinzepDmtService finzepDmtService, IAeronpayDmtService aeronpayDmtService, IRechargeKitDmtService rechargeKitDmtService, AppDbContext context)
         {
             _dmtService = dmtService;
             _nifiDmtService = nifiDmtService;
             _finzepDmtService = finzepDmtService;
+            _aeronpayDmtService = aeronpayDmtService;
+            _rechargeKitDmtService = rechargeKitDmtService;
             _context = context;
         }
 
@@ -195,6 +202,144 @@ namespace InstantPay.API.Controller
                 var log = new Apilog
                 {
                     Apiname = "FZP-CheckStatus",
+                    Reqdatae = DateTime.Now,
+                    Request = requestJson,
+                    Response = responseJson
+                };
+                _context.Apilogs.Add(log);
+                await _context.SaveChangesAsync(cancellationToken);
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return Ok(new LoginModel
+                {
+                    Status_Code = "0",
+                    Message = "ERR:500 " + ex.Message,
+                    Data = null
+                });
+            }
+        }
+
+        [HttpPost("arp/transfer")]
+        public async Task<IActionResult> AeronpayTransfer([FromBody] AeronpayDmtRequest model, CancellationToken cancellationToken)
+        {
+            try
+            {
+                string ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "103.49.124.63";
+                string requestJson = JsonConvert.SerializeObject(model);
+
+                var result = await _aeronpayDmtService.MoneyTransfer(model, ip, cancellationToken);
+                string responseJson = JsonConvert.SerializeObject(result);
+
+                // Log to apilogs table
+                var log = new Apilog
+                {
+                    Apiname = "ARP-Transfer",
+                    Reqdatae = DateTime.Now,
+                    Request = requestJson,
+                    Response = responseJson
+                };
+                _context.Apilogs.Add(log);
+                await _context.SaveChangesAsync(cancellationToken);
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return Ok(new LoginModel
+                {
+                    Status_Code = "0",
+                    Message = "ERR:500 " + ex.Message,
+                    Data = null
+                });
+            }
+        }
+
+        [HttpGet("arp/status/{txnId}")]
+        public async Task<IActionResult> AeronpayCheckStatus(string txnId, CancellationToken cancellationToken)
+        {
+            try
+            {
+                string requestJson = txnId;
+
+                var result = await _aeronpayDmtService.CheckStatus(txnId, cancellationToken);
+                string responseJson = JsonConvert.SerializeObject(result);
+
+                // Log to apilogs table
+                var log = new Apilog
+                {
+                    Apiname = "ARP-CheckStatus",
+                    Reqdatae = DateTime.Now,
+                    Request = requestJson,
+                    Response = responseJson
+                };
+                _context.Apilogs.Add(log);
+                await _context.SaveChangesAsync(cancellationToken);
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return Ok(new LoginModel
+                {
+                    Status_Code = "0",
+                    Message = "ERR:500 " + ex.Message,
+                    Data = null
+                });
+            }
+        }
+
+        [HttpPost("rkit/transfer")]
+        public async Task<IActionResult> RechargeKitTransfer([FromBody] AeronpayDmtRequest model, CancellationToken cancellationToken)
+        {
+            try
+            {
+                string ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "103.49.124.63";
+                string requestJson = JsonConvert.SerializeObject(model);
+
+                var result = await _rechargeKitDmtService.MoneyTransfer(model, ip, cancellationToken);
+                string responseJson = JsonConvert.SerializeObject(result);
+
+                // Log to apilogs table
+                var log = new Apilog
+                {
+                    Apiname = "RKIT-Transfer",
+                    Reqdatae = DateTime.Now,
+                    Request = requestJson,
+                    Response = responseJson
+                };
+                _context.Apilogs.Add(log);
+                await _context.SaveChangesAsync(cancellationToken);
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return Ok(new LoginModel
+                {
+                    Status_Code = "0",
+                    Message = "ERR:500 " + ex.Message,
+                    Data = null
+                });
+            }
+        }
+
+        [HttpGet("rkit/status/{txnId}")]
+        public async Task<IActionResult> RechargeKitCheckStatus(string txnId, CancellationToken cancellationToken)
+        {
+            try
+            {
+                string requestJson = txnId;
+
+                var result = await _rechargeKitDmtService.CheckStatus(txnId, cancellationToken);
+                string responseJson = JsonConvert.SerializeObject(result);
+
+                // Log to apilogs table
+                var log = new Apilog
+                {
+                    Apiname = "RKIT-CheckStatus",
                     Reqdatae = DateTime.Now,
                     Request = requestJson,
                     Response = responseJson

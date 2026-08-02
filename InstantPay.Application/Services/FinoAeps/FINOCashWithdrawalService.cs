@@ -50,7 +50,7 @@ namespace InstantPay.Application.Services.FinoAeps
             {
                 MerchantID  = request.mobileno,
                 Version     = "1001",
-                ServiceID   = "188",
+                ServiceID   = onUs ? "182" : "188",
                 ClientRefID = txnId,
                 MobileNo    = request.mobileno,
                 AadharNo    = request.aadharno,
@@ -87,12 +87,12 @@ namespace InstantPay.Application.Services.FinoAeps
                 ApiMsg      : "",
                 ApiRes      : "",
                 ApiReq      : bodyJson,
-                Comm        : commission.RetailerCommission,
-                MdComm      : commission.MdCommission,
-                AdComm      : commission.AdCommission,
-                WlComm      : commission.WlCommission,
-                Tds         : commission.Tds,
-                Cost        : commission.Cost,
+                Comm        : onUs ? 0 : commission.RetailerCommission,
+                MdComm      : onUs ? 0 : commission.MdCommission,
+                AdComm      : onUs ? 0 : commission.AdCommission,
+                WlComm      : onUs ? 0 : commission.WlCommission,
+                Tds         : onUs ? 0 : commission.Tds,
+                Cost        : onUs ? Convert.ToDecimal(request.amount) : commission.Cost,
                 NewBal      : 0,
                 IfscCode    : null,
                 CustomerName: request.customermobileno ?? request.mobileno,
@@ -115,11 +115,11 @@ namespace InstantPay.Application.Services.FinoAeps
             if (result.IsSuccess && (status.Equals("Success", StringComparison.OrdinalIgnoreCase) || status.Equals("SUCCESS", StringComparison.OrdinalIgnoreCase)))
             {
                 decimal oldBal = await _walletService.GetLatestWalletBalanceAsync(int.Parse(userId), ct);
-                newBal = oldBal + commission.Cost;
-                await _walletService.CreditAsync(int.Parse(userId), commission.Cost, "CW", request.BankName ?? "", txnId, ct);
+                newBal = oldBal + (onUs ? Convert.ToDecimal(request.amount) : commission.Cost);
+                await _walletService.CreditAsync(int.Parse(userId), onUs? Convert.ToDecimal(request.amount) : commission.Cost, "CW", request.BankName ?? "", txnId, onUs, ct);
             }
 
-            await _txnService.UpdateWithCommissionAsync(txnId, status, result.RawResponse, commission, newBal, rrn, ct);
+            await _txnService.UpdateWithCommissionAsync(txnId, status, result.RawResponse, commission, newBal, rrn, onUs, Convert.ToDecimal(request.amount), ct);
 
             if (!result.IsSuccess)
                 return Err(result.MessageString);

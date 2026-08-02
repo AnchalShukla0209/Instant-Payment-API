@@ -70,7 +70,7 @@ namespace InstantPay.Application.Services.FinoAeps
                 }
             }
 
-            decimal tds = rtComm * 5 / 100;
+            decimal tds = rtComm * 2 / 100;
             decimal cost = (amount + rtComm) - tds;
 
             return new FinoAepsCommission

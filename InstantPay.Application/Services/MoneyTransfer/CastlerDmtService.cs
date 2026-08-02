@@ -107,6 +107,18 @@ namespace InstantPay.Application.Services.MoneyTransfer
                 if (user == null || !VerifyPin(model.TransactionPin, user.TxnPin))
                     return Fail("Invalid Pin");
 
+                string appLockName = $"CST_{user.Id}_{model.AccountNumber}_{model.Amount}";
+                int lockResult = (await _context.Database
+                    .SqlQueryRaw<int>(
+                        "DECLARE @r INT; EXEC @r = sp_getapplock @Resource = {0}, @LockMode = 'Exclusive', @LockOwner = 'Transaction', @LockTimeout = 5000; SELECT @r",
+                        appLockName)
+                    .ToListAsync()).First();
+                if (lockResult < 0)
+                {
+                    await dbTransaction.RollbackAsync(cancellationToken);
+                    return Fail("Transaction already in progress, please try again");
+                }
+
                 var duplicate = await _context.TransactionDetails.AnyAsync(x => x.UserId == user.Id.ToString() && x.Amount == model.Amount && x.AccountNo == model.AccountNumber && x.ServiceName == "Money Transfer" && x.ReqDate >= DateTime.Now.AddSeconds(-150), cancellationToken);
                 if (duplicate)
                     return Fail("Duplicate Transaction");

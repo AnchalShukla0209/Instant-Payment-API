@@ -80,6 +80,8 @@ namespace InstantPay.API.Controller
                     var user = await _context.TblUsers.FirstOrDefaultAsync(x => x.Id == Convert.ToInt32(tx.UserId), cancellationToken);
                     if (user != null)
                     {
+                        // Wallet was pre-debited before the API call in MoneyTransfer.
+                        // Only distribute commission here.
                         await DistributeCommissionAsync(tx, user, Convert.ToDecimal(tx.Amount), user.CommissionPlanId ?? 1);
                     }
                 }

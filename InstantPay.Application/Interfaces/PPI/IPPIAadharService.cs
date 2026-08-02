@@ -8,4 +8,5 @@ public interface IPPIAadharService
     Task<PPIValidateAadharOtpResponse> ValidateAadharOtpAsync(PPIValidateAadharOtpRequest request);
     Task<PPIAadharBiometricResponse> AadharBiometricAsync(PPIAadharBiometricRequest request);
     Task<PPIPanResponse> ValidatePanAsync(PPIPanRequest request);
+    Task<PPICreateWalletResponse> CreateWalletAsync(PPICreateWalletRequest request);
 }

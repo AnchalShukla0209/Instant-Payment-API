@@ -2,7 +2,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using InstantPay.SharedKernel;
 
 namespace InstantPay.SharedKernel.Results
 {
@@ -12,6 +14,7 @@ namespace InstantPay.SharedKernel.Results
         public string Mobile { get; set; }
         public string Operator { get; set; }
         public List<BillData> Rdata { get; set; }
+        public string RawContent { get; set; }
     }
 
     public class BillData
@@ -19,6 +22,7 @@ namespace InstantPay.SharedKernel.Results
         public int? Status { get; set; }
         public string Desc { get; set; }
         public string CustomerName { get; set; }
+        [JsonConverter(typeof(FlexibleStringConverter))]
         public string Billamount { get; set; }
         public string Billdate { get; set; }
         public string Duedate { get; set; }

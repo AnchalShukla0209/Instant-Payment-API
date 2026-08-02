@@ -34,8 +34,6 @@ namespace InstantPay.API.Controller
         public async Task<IActionResult> SubmitRecharge(EncryptedRequest request)
         {
             var decryptedJson = _aes.Decrypt(request.Data);
-            //var jsonString = JsonSerializer.Deserialize<string>(decryptedJson);
-
             var dto = JsonSerializer.Deserialize<EncryptedWrapperDto>(decryptedJson, new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true
@@ -44,9 +42,17 @@ namespace InstantPay.API.Controller
             var responseJson = JsonSerializer.Serialize(result);
             var encryptedResponse = _aes.Encrypt(responseJson);
             return Ok(new { data = encryptedResponse });
-
         }
 
+        [HttpGet("checkstatus")]
+        public async Task<IActionResult> CheckStatus([FromQuery] string txnId)
+        {
+            if (string.IsNullOrWhiteSpace(txnId))
+                return BadRequest(new { success = false, message = "txnId is required" });
+
+            var result = await _rechargeService.CheckStatusAsync(txnId);
+            return Ok(result);
+        }
 
     }
 }

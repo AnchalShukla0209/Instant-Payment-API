@@ -97,6 +97,10 @@ namespace InstantPay.Application.Services.MoneyTransfer
         {
             try
             {
+                if(model?.BankName?.ToUpper().Trim() == "AIRTEL PAYMENTS BANK")
+                {
+                    return Fail("Service Down for AIRTEL PAYMENTS BANK Please try with other Bank Name");
+                }
                 var user = await _context.TblUsers.FirstOrDefaultAsync(x => x.Id == Convert.ToInt32(model.UserId), cancellationToken);
                 if (user == null)
                     return Fail("User not found");
@@ -104,74 +108,144 @@ namespace InstantPay.Application.Services.MoneyTransfer
                 if (!VerifyPin(model.TransactionPin, user.TxnPin))
                     return Fail("Invalid Pin");
 
-                var duplicate = await _context.TransactionDetails.AnyAsync(
-                    x => x.UserId == user.Id.ToString()
-                      && x.Amount == model.Amount
-                      && x.AccountNo == model.AccountNumber
-                      && x.ServiceName == "DMT"
-                      && x.ReqDate >= DateTime.Now.AddSeconds(-150),
-                    cancellationToken);
+                decimal rtComm = 0m;
+                decimal totalDebit = 0m;
+                decimal newBal = 0m;
+                int apiRequestId = 0;
+                int planId = 0;
+                TransactionDetail tx = null!;
 
-                if (duplicate || model.Amount < 500)
-                    return Fail(duplicate ? "Duplicate Transaction" : "Amount should not be less than 500");
-
-                decimal currentBalance = await _walletService.GetBalanceAsync(user.Id, cancellationToken);
-
-                int planId = user.CommissionPlanId ?? 1;
-                decimal rtComm = await GetCommissionFromPlanAsync(planId, Convert.ToDecimal(model.Amount), "RT");
-                decimal totalDebit = Convert.ToDecimal(model.Amount) + rtComm;
-
-                if (currentBalance < totalDebit)
-                    return Fail("Insufficient Balance");
-
-                decimal newBal = currentBalance - totalDebit;
-                int apiRequestId = new Random().Next(100000, 9999999);
-
-                var tx = new TransactionDetail
+                await using var dbTx = await _context.Database.BeginTransactionAsync(cancellationToken);
+                try
                 {
-                    UserId = Convert.ToString(user.Id),
-                    UserName = user.Name + "-" + user.Phone,
-                    WlId = user.Wlid,
-                    MdId = user.Mdid,
-                    AdId = user.Adid,
-                    TxnId = apiRequestId.ToString(),
-                    ServiceName = "DMT",
-                    OperatorName = "Money Transfer",
-                    OpId = null,
-                    Mobileno = model.BeneficiaryMobile,
-                    OldBal = currentBalance,
-                    Amount = model.Amount,
-                    Comm = 0,
-                    Charge = rtComm,
-                    Cost = totalDebit,
-                    NewBal = Convert.ToString(newBal),
-                    Status = "Pending",
-                    Brid = null,
-                    TxnType = "Debit",
-                    ApiTxnId = apiRequestId.ToString(),
-                    ApiName = "FZP",
-                    AdminRemarks = null,
-                    ApiMsg = null,
-                    ApiRes = null,
-                    ApiReq = Truncate(JsonConvert.SerializeObject(model), 4000),
-                    ReqDate = DateTime.Now,
-                    UpdateDate = DateTime.Now,
-                    CustomerName = model.BeneficiaryName,
-                    AccountNo = model.AccountNumber,
-                    ComingFrom = model.ComingFrom,
-                    IfscCode = model.IFSC,
-                    BankName = model.BankName,
-                    Tds = 0,
-                    TxnMode = null,
-                    MdComm = 0,
-                    AdComm = 0,
-                    WlComm = 0,
-                    ServiceId = 6,
-                    SuperAdminShare = 0
-                };
+                    string appLockName = $"FZP_{user.Id}_{model.AccountNumber}_{model.Amount}";
+                    int lockResult = (await _context.Database
+                        .SqlQueryRaw<int>(
+                            "DECLARE @r INT; EXEC @r = sp_getapplock @Resource = {0}, @LockMode = 'Exclusive', @LockOwner = 'Transaction', @LockTimeout = 5000; SELECT @r",
+                            appLockName)
+                        .ToListAsync()).First();
 
-                await _context.TransactionDetails.AddAsync(tx, cancellationToken);
-                await _context.SaveChangesAsync(cancellationToken);
+                    if (lockResult < 0)
+                    {
+                        await dbTx.RollbackAsync(cancellationToken);
+                        return Fail("Transaction already in progress, please try again");
+                    }
+
+                    var duplicate = await _context.TransactionDetails.AnyAsync(
+                        x => x.UserId == user.Id.ToString()
+                          && x.Amount == model.Amount
+                          && x.AccountNo == model.AccountNumber
+                          && x.ServiceName == "DMT"
+                          && x.ReqDate >= DateTime.Now.AddSeconds(-150),
+                        cancellationToken);
+
+                    if (duplicate || (model.Amount < 500 || model.Amount > 100000))
+                    {
+                        await dbTx.RollbackAsync(cancellationToken);
+                        return Fail(duplicate ? "Duplicate Transaction" : "Amount should be in range of 500-100000");
+                    }
+
+                    decimal currentBalance = await _walletService.GetBalanceAsync(user.Id, cancellationToken);
+
+                    planId = user.CommissionPlanId ?? 1;
+                    rtComm = await GetCommissionFromPlanAsync(planId, Convert.ToDecimal(model.Amount), "RT");
+                    totalDebit = Convert.ToDecimal(model.Amount) + rtComm;
+
+                    if (currentBalance < totalDebit)
+                    {
+                        await dbTx.RollbackAsync(cancellationToken);
+                        return Fail("Insufficient Balance");
+                    }
+
+                    newBal = currentBalance - totalDebit;
+                    apiRequestId = new Random().Next(100000, 9999999);
+
+                    tx = new TransactionDetail
+                    {
+                        UserId = Convert.ToString(user.Id),
+                        UserName = user.Name + "-" + user.Phone,
+                        WlId = user.Wlid,
+                        MdId = user.Mdid,
+                        AdId = user.Adid,
+                        TxnId = apiRequestId.ToString(),
+                        ServiceName = "DMT",
+                        OperatorName = "Money Transfer",
+                        OpId = null,
+                        Mobileno = model.BeneficiaryMobile,
+                        OldBal = currentBalance,
+                        Amount = model.Amount,
+                        Comm = 0,
+                        Charge = rtComm,
+                        Cost = totalDebit,
+                        NewBal = Convert.ToString(newBal),
+                        Status = "Pending",
+                        Brid = null,
+                        TxnType = "Debit",
+                        ApiTxnId = apiRequestId.ToString(),
+                        ApiName = "FZP",
+                        AdminRemarks = null,
+                        ApiMsg = null,
+                        ApiRes = null,
+                        ApiReq = Truncate(JsonConvert.SerializeObject(model), 4000),
+                        ReqDate = DateTime.Now,
+                        UpdateDate = DateTime.Now,
+                        CustomerName = model.BeneficiaryName,
+                        AccountNo = model.AccountNumber,
+                        ComingFrom = model.ComingFrom,
+                        IfscCode = model.IFSC,
+                        BankName = model.BankName,
+                        Tds = 0,
+                        TxnMode = null,
+                        MdComm = 0,
+                        AdComm = 0,
+                        WlComm = 0,
+                        ServiceId = 6,
+                        SuperAdminShare = 0
+                    };
+
+                    await _context.TransactionDetails.AddAsync(tx, cancellationToken);
+                    await _context.SaveChangesAsync(cancellationToken);
+                    await dbTx.CommitAsync(cancellationToken);
+                }
+                catch
+                {
+                    await dbTx.RollbackAsync(CancellationToken.None);
+                    throw;
+                }
+
+                // Pre-debit: debit wallet before calling the API.
+                // If debit fails for any reason, abort immediately — no API call is made.
+                try
+                {
+                    var (_, _, debitEntryId) = await _walletService.DebitAsync(
+                        user.Id, user.Name + "-" + user.Phone,
+                        model.Amount ?? 0, totalDebit, rtComm, 0,
+                        "Money_Transfer_Debit",
+                        $"DMT Payment For Account No {tx.AccountNo}| Debit by Services | Amount Debit For DMT TxnId {tx.TxnId}",
+                        user.Wlid, CancellationToken.None);
+
+                    // Solid check: SELECT to confirm the debit row was persisted before calling the API.
+                    bool debitVerified = debitEntryId > 0
+                        && await _context.Tbluserbalances.AnyAsync(
+                               b => b.Id == debitEntryId && b.UserId == user.Id, CancellationToken.None);
+
+                    if (!debitVerified)
+                    {
+                        tx.Status = "FAILED";
+                        tx.ApiMsg = "Wallet debit failed before API call";
+                        tx.UpdateDate = DateTime.Now;
+                        try { await _context.SaveChangesAsync(CancellationToken.None); } catch { }
+                        return Fail("Please try again later, there is an issue with your wallet");
+                    }
+                }
+                catch
+                {
+                    tx.Status = "FAILED";
+                    tx.ApiMsg = "Wallet debit failed before API call";
+                    tx.UpdateDate = DateTime.Now;
+                    try { await _context.SaveChangesAsync(CancellationToken.None); } catch { }
+                    return Fail("Please try again later, there is an issue with your wallet");
+                }
 
                 // Build Finzep payload
                 var payload = new FinzepPayoutApiRequest
@@ -221,13 +295,6 @@ namespace InstantPay.Application.Services.MoneyTransfer
                         tx.Status = "SUCCESS";
                         tx.Brid = brid;
 
-                        (_, _, _) = await _walletService.DebitAsync(
-                            user.Id, user.Name + "-" + user.Phone,
-                            model.Amount ?? 0, totalDebit, rtComm, 0,
-                            "Money_Transfer_Debit",
-                            $"DMT Payment For Account No {tx.AccountNo}| Debit by Services | Amount Debit For DMT TxnId {tx.TxnId}",
-                            user.Wlid, cancellationToken);
-
                         await DistributeCommissionAsync(tx, user, Convert.ToDecimal(model.Amount), planId);
                         await _context.SaveChangesAsync(cancellationToken);
 
@@ -238,21 +305,15 @@ namespace InstantPay.Application.Services.MoneyTransfer
                     {
                         tx.Status = "FAILED";
                         tx.Brid = brid;
-                        await _context.SaveChangesAsync(cancellationToken);
+                        await _context.SaveChangesAsync(CancellationToken.None);
+                        await RefundUserAsync(tx);
                     }
                     else
                     {
                         tx.Status = "PENDING";
                         tx.Brid = brid;
                         await _context.SaveChangesAsync(cancellationToken);
-
-                        (_, _, _) = await _walletService.DebitAsync(
-                            user.Id, user.Name + "-" + user.Phone,
-                            model.Amount ?? 0, totalDebit, rtComm, 0,
-                            "Money_Transfer_Debit",
-                            $"DMT Payment For Account No {tx.AccountNo}| Debit by Services | Amount Debit For DMT TxnId {tx.TxnId}",
-                            user.Wlid, cancellationToken);
-                            // Send transaction SMS
+                        // Send transaction SMS
                         _ = _smsService.SendTransactionSmsAsync(model.BeneficiaryMobile, model.AccountNumber, model.Amount.ToString(), "65c4a796d6fc051e5652e402");
                     }
                 }
@@ -262,7 +323,8 @@ namespace InstantPay.Application.Services.MoneyTransfer
                     tx.Status = "FAILED";
                     tx.ApiRes = "API Error";
                     tx.UpdateDate = DateTime.Now;
-                    await _context.SaveChangesAsync(cancellationToken);
+                    await _context.SaveChangesAsync(CancellationToken.None);
+                    await RefundUserAsync(tx);
                 }
 
                 var list = new List<DMTTXN>

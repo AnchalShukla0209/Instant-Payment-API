@@ -26,6 +26,7 @@ namespace InstantPay.Application.Services
         private readonly IEmailService _email;
         private readonly IMemoryCache _cache;
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly IUserRepository _userRepository;
 
         private const int MaxUnlockAttempts = 5;
         private static readonly TimeSpan AccountLockoutDuration = TimeSpan.FromMinutes(15);
@@ -33,7 +34,7 @@ namespace InstantPay.Application.Services
         private const int IpRateLimitMaxRequests = 20;
         private static readonly TimeSpan IpRateLimitWindow = TimeSpan.FromMinutes(15);
 
-        public AuthService(AppDbContext context, IConfiguration config, AesEncryptionService aes, IOtpService otpService, IEmailService email, IMemoryCache cache, IHttpContextAccessor httpContextAccessor)
+        public AuthService(AppDbContext context, IConfiguration config, AesEncryptionService aes, IOtpService otpService, IEmailService email, IMemoryCache cache, IHttpContextAccessor httpContextAccessor, IUserRepository userRepository)
         {
             _context = context;
             _config = config;
@@ -42,6 +43,7 @@ namespace InstantPay.Application.Services
             _email = email;
             _cache = cache;
             _httpContextAccessor = httpContextAccessor;
+            _userRepository = userRepository;
         }
 
         public async Task<UnlockResponseDto?> UnlockAsync(UnlockRequestDto request)
@@ -90,7 +92,6 @@ namespace InstantPay.Application.Services
                 tblUser.FailedUnlockAttempts = 0;
                 tblUser.LockoutEnd = null;
                 tblUser.IsUserLoggedInFromWeb = true;
-                _context.TblUsers.Update(tblUser);
                 await _context.SaveChangesAsync();
 
                 var user = new User
@@ -150,7 +151,6 @@ namespace InstantPay.Application.Services
 
                 tblUser.FailedUnlockAttempts = 0;
                 tblUser.LockoutEnd = null;
-                _context.TblSuperadmins.Update(tblUser);
                 await _context.SaveChangesAsync();
 
                 var user = new User
@@ -204,7 +204,6 @@ namespace InstantPay.Application.Services
             if (user.FailedUnlockAttempts >= MaxUnlockAttempts)
                 user.LockoutEnd = DateTime.UtcNow.Add(AccountLockoutDuration);
 
-            _context.TblUsers.Update(user);
             _context.TblPasswordattmts.Add(new TblPasswordattmt
             {
                 UserId = user.Id.ToString(),
@@ -222,7 +221,6 @@ namespace InstantPay.Application.Services
             if (admin.FailedUnlockAttempts >= MaxUnlockAttempts)
                 admin.LockoutEnd = DateTime.UtcNow.Add(AccountLockoutDuration);
 
-            _context.TblSuperadmins.Update(admin);
             _context.TblPasswordattmts.Add(new TblPasswordattmt
             {
                 UserId = admin.Id.ToString(),
@@ -271,6 +269,18 @@ namespace InstantPay.Application.Services
                 return BuildResponse(false, "Invalid User");
             }
 
+            OtpLoginLogDto otpVerifyrequest = new OtpLoginLogDto();
+
+            otpVerifyrequest.userid = request.UserId.Trim();
+            otpVerifyrequest.usertype = "Retailer";
+            otpVerifyrequest.otp = request?.OTP?.Trim()??"";
+
+            var data = await _userRepository.LogOtpLoginAsync(otpVerifyrequest);
+            if (data == false)
+            {
+                return BuildResponse(false, "Invalid OTP");
+            }
+
             int userId = Convert.ToInt32(request.UserId);
 
             var userData = await _context.TblUsers
@@ -281,7 +291,6 @@ namespace InstantPay.Application.Services
             {   
                 userData.TxnPin = request.TxnPin;
                 userData.MPin = request.MPin;
-                _context.TblUsers.Update(userData);
                 await _context.SaveChangesAsync();
                 return BuildResponse(true, "MPin & TxnPin Updated Successfully !");
             }
@@ -303,7 +312,6 @@ namespace InstantPay.Application.Services
             }
 
             userData.Password = request.ConfirmPassword;
-            _context.TblUsers.Update(userData);
             await _context.SaveChangesAsync();
 
             return BuildResponse(true, "Password Changed Successfully !");
@@ -346,6 +354,17 @@ namespace InstantPay.Application.Services
 
             var otp = Random.Shared.Next(1000, 9999).ToString();
             var encryptedOtp = _aes.Encrypt(otp);
+            // Store new OTP in database
+            var loginOtp = new TblloginOtp
+            {
+                UserId = Convert.ToString(userId),
+                IsUsed = false,
+                OTP = otp,
+                CreatedAt = DateTime.UtcNow,
+                ExpiresAt = DateTime.UtcNow.AddMinutes(10)
+            };
+            _context.TblloginOtps.Add(loginOtp);
+            await _context.SaveChangesAsync();
 
             await _otpService.SendOtpAsync(userData.Phone?.Trim(), otp);
 
@@ -414,7 +433,6 @@ namespace InstantPay.Application.Services
             user.ResetOtpAttempts = 0;
             user.LastOtpSentAt = DateTime.Now;
 
-            _context.TblUsers.Update(user);
             await _context.SaveChangesAsync();
 
             var resetUrl =
@@ -595,7 +613,6 @@ namespace InstantPay.Application.Services
             user.ResetOtpExpiry = null;
             user.ResetOtpAttempts = 0;
             user.LastOtpSentAt = null;
-            _context.TblUsers.Update(user);
             await _context.SaveChangesAsync();
             return BuildResponse(true, "Password reset successfully, Please Login with new Password!");
         }
@@ -624,7 +641,6 @@ namespace InstantPay.Application.Services
             user.LastOtpSentAt = DateTime.Now;
             user.ResetOtpAttempts += 1;
 
-            _context.TblUsers.Update(user);
             await _context.SaveChangesAsync();
 
             await _otpService.SendOtpAsync(

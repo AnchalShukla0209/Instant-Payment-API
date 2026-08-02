@@ -57,5 +57,39 @@ namespace InstantPay.Application.Services.A2Z
                 }
             );
         }
+
+        public async Task<A2ZCreditCardBillFetchResponse> FetchCreditCardBillAsync(A2ZCreditCardBillFetchRequest request)
+        {
+            var apiToken = _configuration["A2ZRecharge:ApiToken"];
+            var userId = _configuration["A2ZRecharge:UserId"];
+            var secretKey = _configuration["A2ZRecharge:SecretKey"];
+
+            var payload = new Dictionary<string, object>
+            {
+                { "api_token", apiToken },
+                { "provider", request.provider },
+                { "number", request.number },
+                { "userId", userId },
+                { "secretKey", secretKey },
+                { "customerMobileNumber", request.customerMobileNumber },
+                { "field_one", request.customerMobileNumber }
+            };
+
+            var requestJson = JsonSerializer.Serialize(payload);
+            using var content = new StringContent(requestJson, Encoding.UTF8, "application/json");
+
+            var response = await _httpClient.PostAsync("fetch/bill-details", content);
+            response.EnsureSuccessStatusCode();
+
+            var responseJson = await response.Content.ReadAsStringAsync();
+
+            return JsonSerializer.Deserialize<A2ZCreditCardBillFetchResponse>(
+                responseJson,
+                new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                }
+            );
+        }
     }
 }

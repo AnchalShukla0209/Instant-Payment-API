@@ -22,7 +22,6 @@ public class PPIMoneyTransferService : IPPIMoneyTransferService
     private const decimal MinAmount = 100m;
     private const decimal MaxAmount = 100000m;
     private const int ServiceId = 6;
-    private static readonly object _txnLock = new();
 
     public PPIMoneyTransferService(
         IHttpClientFactory httpClientFactory,
@@ -43,14 +42,18 @@ public class PPIMoneyTransferService : IPPIMoneyTransferService
         _httpClient.Timeout = TimeSpan.FromSeconds(30);
     }
 
-    private static string GenerateClientId()
+    private static string GenerateClientId() =>
+        "DMT" + DateTime.UtcNow.ToString("yyyyMMddHHmmssfff") + Guid.NewGuid().ToString("N")[..6];
+
+    private HttpRequestMessage CreatePpiRequest(string endpoint, HttpContent content, string bearerToken)
     {
-        lock (_txnLock)
-        {
-            return "DMT"
-                + DateTime.UtcNow.ToString("yyyyMMddHHmmssfff")
-                + Guid.NewGuid().ToString("N").Substring(0, 6);
-        }
+        var req = new HttpRequestMessage(HttpMethod.Post, $"{_baseUrl}{endpoint}") { Content = content };
+        req.Headers.Add("AppID",    _appId);
+        req.Headers.Add("AuthKey",  _authKey);
+        req.Headers.Add("SecretKey", _secretKey);
+        if (!string.IsNullOrEmpty(bearerToken))
+            req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", bearerToken);
+        return req;
     }
 
     public async Task<PPIMoneyTransferResponse> MoneyTransferAsync(PPIMoneyTransferRequest request)
@@ -73,66 +76,95 @@ public class PPIMoneyTransferService : IPPIMoneyTransferService
             if (user == null)
                 return Fail("User not found");
 
-            // Duplicate transaction check
-            var duplicate = await _context.TransactionDetails.AnyAsync(
-                x => x.UserId == userId.ToString()
-                  && x.Amount.ToString() == request.Amount
-                  && x.AccountNo == request.AccountNo
-                  && x.ServiceName == "DMT"
-                  && x.OperatorName == "PPI"
-                  && x.ReqDate >= DateTime.Now.AddSeconds(-150));
+            string clientId;
+            TransactionDetail tx;
 
-            if (duplicate)
-                return Fail("Duplicate Transaction");
-
-            string clientId = GenerateClientId();
-
-            // Insert transaction record (Pending)
-            var tx = new TransactionDetail
+            await using var dbTx = await _context.Database.BeginTransactionAsync(CancellationToken.None);
+            try
             {
-                UserId = userId.ToString(),
-                UserName = user.Name + "-" + user.Phone,
-                WlId = user.Wlid,
-                MdId = user.Mdid,
-                AdId = user.Adid,
-                TxnId = clientId,
-                ServiceName = "DMT",
-                OperatorName = "PPI",
-                OpId = null,
-                Mobileno = request.Sendermobile,
-                OldBal = 0,
-                Amount = Convert.ToDecimal(request.Amount),
-                Comm = 0,
-                Charge = 0,
-                Cost = amount,
-                NewBal = "0",
-                Status = "Pending",
-                Brid = null,
-                TxnType = "Debit",
-                ApiTxnId = clientId,
-                ApiName = "PPI",
-                AdminRemarks = null,
-                ApiMsg = null,
-                ApiRes = null,
-                ApiReq = JsonSerializer.Serialize(new { request.Sendermobile, request.AccountNo, request.BeneId, request.Amount, request.TXNMode }),
-                ReqDate = DateTime.Now,
-                UpdateDate = DateTime.Now,
-                CustomerName = request.BeneName,
-                AccountNo = request.AccountNo,
-                ComingFrom = request.ComingFrom,
-                IfscCode = request.IfscCode,
-                BankName = request.BankName,
-                Tds = 0,
-                TxnMode = request.TXNMode,
-                MdComm = 0,
-                AdComm = 0,
-                WlComm = 0,
-                ServiceId = ServiceId,
-                SuperAdminShare = 0
-            };
+                string appLockName = $"PPI_{userId}_{request.AccountNo}_{request.Amount}";
+                int lockResult = (await _context.Database
+                    .SqlQueryRaw<int>(
+                        "DECLARE @r INT; EXEC @r = sp_getapplock @Resource = {0}, @LockMode = 'Exclusive', @LockOwner = 'Transaction', @LockTimeout = 5000; SELECT @r",
+                        appLockName)
+                    .ToListAsync()).First();
 
-            await _context.TransactionDetails.AddAsync(tx);
-            await _context.SaveChangesAsync();
+                if (lockResult < 0)
+                {
+                    await dbTx.RollbackAsync(CancellationToken.None);
+                    return Fail("Transaction already in progress, please try again");
+                }
+
+                // Duplicate transaction check
+                var duplicate = await _context.TransactionDetails.AnyAsync(
+                    x => x.UserId == userId.ToString()
+                      && x.Amount.ToString() == request.Amount
+                      && x.AccountNo == request.AccountNo
+                      && x.ServiceName == "DMT"
+                      && x.OperatorName == "PPI"
+                      && x.ReqDate >= DateTime.Now.AddSeconds(-150));
+
+                if (duplicate)
+                {
+                    await dbTx.RollbackAsync(CancellationToken.None);
+                    return Fail("Duplicate Transaction");
+                }
+
+                clientId = GenerateClientId();
+
+                // Insert transaction record (Pending)
+                tx = new TransactionDetail
+                {
+                    UserId = userId.ToString(),
+                    UserName = user.Name + "-" + user.Phone,
+                    WlId = user.Wlid,
+                    MdId = user.Mdid,
+                    AdId = user.Adid,
+                    TxnId = clientId,
+                    ServiceName = "DMT",
+                    OperatorName = "PPI",
+                    OpId = null,
+                    Mobileno = request.Sendermobile,
+                    OldBal = 0,
+                    Amount = Convert.ToDecimal(request.Amount),
+                    Comm = 0,
+                    Charge = 0,
+                    Cost = amount,
+                    NewBal = "0",
+                    Status = "Pending",
+                    Brid = null,
+                    TxnType = "Debit",
+                    ApiTxnId = clientId,
+                    ApiName = "PPI",
+                    AdminRemarks = null,
+                    ApiMsg = null,
+                    ApiRes = null,
+                    ApiReq = JsonSerializer.Serialize(new { request.Sendermobile, request.AccountNo, request.BeneId, request.Amount, request.TXNMode }),
+                    ReqDate = DateTime.Now,
+                    UpdateDate = DateTime.Now,
+                    CustomerName = request.BeneName,
+                    AccountNo = request.AccountNo,
+                    ComingFrom = request.ComingFrom,
+                    IfscCode = request.IfscCode,
+                    BankName = request.BankName,
+                    Tds = 0,
+                    TxnMode = request.TXNMode,
+                    MdComm = 0,
+                    AdComm = 0,
+                    WlComm = 0,
+                    ServiceId = ServiceId,
+                    SuperAdminShare = 0
+                };
+
+                await _context.TransactionDetails.AddAsync(tx);
+                await _context.SaveChangesAsync();
+                await dbTx.CommitAsync(CancellationToken.None);
+            }
+            catch
+            {
+                await dbTx.RollbackAsync(CancellationToken.None);
+                throw;
+            }
 
             // Call PPI fund transfer API
             var payload = new
@@ -151,16 +183,11 @@ public class PPIMoneyTransferService : IPPIMoneyTransferService
                 Encoding.UTF8,
                 "application/json");
 
-            _httpClient.DefaultRequestHeaders.Clear();
-            _httpClient.DefaultRequestHeaders.Add("AppID", _appId);
-            _httpClient.DefaultRequestHeaders.Add("AuthKey", _authKey);
-            _httpClient.DefaultRequestHeaders.Add("SecretKey", _secretKey);
-            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {request.TokeyKey}");
-
             _logger.LogInformation("PPI MoneyTransfer | ClientId: {ClientId} Mobile: {Mobile} AccountNo: {AccountNo} Amount: {Amount}",
                 clientId, request.Sendermobile, request.AccountNo, request.Amount);
 
-            var response = await _httpClient.PostAsync($"{_baseUrl}v2/fundtransfer/validateotpanddofundtranfer", content);
+            using var httpReq = CreatePpiRequest("v2/fundtransfer/validateotpanddofundtranfer", content, request.TokeyKey);
+            var response = await _httpClient.SendAsync(httpReq);
             var responseContent = await response.Content.ReadAsStringAsync();
 
             _logger.LogInformation("PPI MoneyTransfer Response | ClientId: {ClientId} Response: {Response}", clientId, responseContent);
@@ -170,11 +197,31 @@ public class PPIMoneyTransferService : IPPIMoneyTransferService
 
             if (!response.IsSuccessStatusCode)
             {
+                var log = new Apilog
+                {
+                    Apiname = "PPI-FundTransfer",
+                    Reqdatae = DateTime.Now,
+                    Request = JsonSerializer.Serialize(payload),
+                    Response = responseContent + "||" + response.StatusCode
+                };
+                _context.Apilogs.Add(log);
+                await _context.SaveChangesAsync();
+
                 tx.Status = "Failed";
                 await _context.SaveChangesAsync();
                 _logger.LogError("PPI MoneyTransfer HTTP error {StatusCode} | ClientId: {ClientId}", response.StatusCode, clientId);
                 return Fail("Fund transfer failed. Please try again later.");
             }
+
+            var logs = new Apilog
+            {
+                Apiname = "PPI-FundTransfer",
+                Reqdatae = DateTime.Now,
+                Request = JsonSerializer.Serialize(payload),
+                Response = responseContent + "||" + response.StatusCode
+            };
+            _context.Apilogs.Add(logs);
+            await _context.SaveChangesAsync();
 
             using var jsonDoc = JsonDocument.Parse(responseContent);
             var root = jsonDoc.RootElement;
@@ -188,7 +235,7 @@ public class PPIMoneyTransferService : IPPIMoneyTransferService
                 return Fail("Unexpected response from fund transfer service");
             }
 
-            if (resultCode.GetString() == "2000" && root.TryGetProperty("result", out var result))
+            if (resultCode.GetRawText().Trim('"') == "2000" && root.TryGetProperty("result", out var result))
             {
                 string txnStatus = result.TryGetProperty("txnstatus", out var ts) ? ts.GetString()?.ToUpper() ?? "" : "";
                 string txnRefId = result.TryGetProperty("txnreferenceid", out var tr) ? tr.GetString() ?? "" : "";
@@ -244,5 +291,5 @@ public class PPIMoneyTransferService : IPPIMoneyTransferService
     }
 
     private static PPIMoneyTransferResponse Fail(string message) =>
-        new() { Status_Code = "0", Message = message, Data = message };
+        new() { Status_Code = "0", Message = message, Data = string.Empty };
 }

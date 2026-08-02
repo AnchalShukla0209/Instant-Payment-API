@@ -14,6 +14,7 @@ public class GeneratePPIOtpRequest
     public string APIKey { get; set; } = string.Empty;
 
     [Required]
+    [RegularExpression(@"^\d{6}$", ErrorMessage = "Pincode must be exactly 6 digits")]
     public string Pincode { get; set; } = string.Empty;
 
     [Required]
@@ -522,7 +523,10 @@ public class PPILoadWalletRequest
 
     [Required]
     public string TokeyKey { get; set; } = string.Empty;
+    [Required]
     public string ComingFrom { get; set; } = string.Empty;
+    [Required]
+    public string TxnPin { get; set; } = string.Empty;
 }
 
 public class PPILoadWalletTransaction
@@ -543,4 +547,61 @@ public class PPILoadWalletResponse
     public string Status_Code { get; set; } = string.Empty;
     public string Message { get; set; } = string.Empty;
     public List<PPILoadWalletTransaction> Data { get; set; } = new();
+}
+
+public class PPICreateWalletRequest
+{
+    [Required]
+    public string UserId { get; set; } = string.Empty;
+
+    [Required]
+    public string APIKey { get; set; } = string.Empty;
+
+    [Required]
+    public string TokeyKey { get; set; } = string.Empty;
+
+    [Required]
+    public string WalletAcCreatorCode { get; set; } = string.Empty;
+
+    [Required]
+    public string WalletAcCreatorName { get; set; } = string.Empty;
+
+    [Required]
+    [RegularExpression(@"^\d{6}$", ErrorMessage = "Pincode must be exactly 6 digits")]
+    public string WalletAcCreatorPinCode { get; set; } = string.Empty;
+
+    [Required]
+    [RegularExpression(@"^\d{10}$", ErrorMessage = "Mobile number must be exactly 10 digits")]
+    public string MobileNumber { get; set; } = string.Empty;
+
+    [Required]
+    [RegularExpression(@"^\d+$", ErrorMessage = "Application number must be a positive integer")]
+    public string WalletAcApplicationNumber { get; set; } = string.Empty;
+
+    [Required]
+    [RegularExpression(@"^[A-Z0-9]{10}$", ErrorMessage = "PAN card number must be exactly 10 alphanumeric characters")]
+    public string PancardNumber { get; set; } = string.Empty;
+
+    [Required]
+    public string PartnerTxnRefId { get; set; } = string.Empty;
+}
+
+public class PPICreateWalletResult
+{
+    public bool PancardVerified { get; set; }
+    public bool PancardPhotoRequired { get; set; }
+    public bool WalletCreated { get; set; }
+    public string WalletHolderName { get; set; } = string.Empty;
+    public string KycType { get; set; } = string.Empty;
+    public string AccountStatus { get; set; } = string.Empty;
+    public string CashTopUpLimitAvailable { get; set; } = string.Empty;
+    public string CashTopUpLimitConsumed { get; set; } = string.Empty;
+}
+
+public class PPICreateWalletResponse
+{
+    public string ResultCode { get; set; } = string.Empty;
+    public string ResultStatus { get; set; } = string.Empty;
+    public string ResultMessage { get; set; } = string.Empty;
+    public PPICreateWalletResult? Result { get; set; }
 }

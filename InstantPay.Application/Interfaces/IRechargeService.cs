@@ -11,6 +11,8 @@ namespace InstantPay.Application.Interfaces
     public interface IRechargeService
     {
         Task<ResponseSuccess> SubmitRechargeAsync(RechargeRequestDto request);
+
+        Task<ResponseSuccess> CheckStatusAsync(string txnId);
     }
 
 }

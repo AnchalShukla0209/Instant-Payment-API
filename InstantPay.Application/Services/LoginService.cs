@@ -142,10 +142,64 @@ public class LoginService : ILoginService
         };
     }
 
+    public async Task<LoginResponseDto?> VerifyOTPExternal(OtpLoginLogDto request, string platform)
+    {
+        var data = await _userRepository.LogOtpLoginAsync(request);
+        if (data == false)
+        {
+            return null;
+        }
+
+        string username = "";
+        string usertype = "";
+        string mobileno = "";
+        int userId = 0;
+
+        if (request.usertype == "SuperAdmin")
+        {
+            var superAdmin = await _userRepository.GetSuperAdminByIdAsync(Convert.ToInt32(request.userid));
+            if (superAdmin == null)
+            {
+                return null;
+            }
+            username = superAdmin.Username ?? "";
+            usertype = "SuperAdmin";
+            mobileno = superAdmin.Mobileno ?? "";
+            userId = superAdmin.Id;
+        }
+        else if (request.usertype == "Retailer")
+        {
+            var tblUser = await _userRepository.GetUserByIdAsync(Convert.ToInt32(request.userid));
+            if (tblUser == null)
+            {
+                return null;
+            }
+            username = tblUser.Username ?? "";
+            usertype = tblUser.Usertype ?? "";
+            mobileno = tblUser.Phone ?? "";
+            userId = tblUser.Id;
+        }
+        else
+        {
+            return null;
+        }
+
+        return new LoginResponseDto
+        {
+            Username = username,
+            Usertype = usertype,
+            IsOtpRequired = false,
+            Token = "",
+            messaege = "OTP Verified Successfully",
+            Phoneno = mobileno,
+            userid = Convert.ToString(userId)
+        };
+    }
+
     public async Task<LoginResponseDto?> ResendOTP(OtpLoginLogDto request)
     {
         var data = await _userRepository.ResendOTPAsyncn(request);
-        if (data != "")
+        if (data == "success")
         {
             return new LoginResponseDto
             {

@@ -135,9 +135,11 @@ namespace InstantPay.Application.Services.FinoAeps
         // ── MERCHANT EKYC POST ───────────────────────────────────────────
         public async Task<FinoApiCallResult> PostMerchantEkycAsync(string bodyJson, CancellationToken ct = default)
         {
+
+            
             string encKey   = await GetProdEncKeyAsync(ct);
-            string encAuth  = InstantPay.Infrastructure.Security.AesEncryptionService.OpenSSLEncrypt($"{{\"ClientId\": 225,\"AuthKey\": \"{_prodAuthKey}\"}}", _prodMasterKey);
-            string encBody  = InstantPay.Infrastructure.Security.AesEncryptionService.OpenSSLEncrypt(bodyJson, encKey);
+            string encAuth = OpenSSLEncrypt($"{{\"ClientId\": 225,\"AuthKey\": \"{_prodAuthKey}\"}}", _prodMasterKey);
+            string encBody  = OpenSSLEncrypt(bodyJson, encKey);
 
             var client = _httpFactory.CreateClient("FINO");
             using var hr = new HttpRequestMessage(HttpMethod.Post, _prodEkycUrl);

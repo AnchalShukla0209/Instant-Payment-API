@@ -48,9 +48,17 @@ using InstantPay.SharedKernel.Entity;
 
 using InstantPay.SharedKernel.Entity.CastlerConfigDTO;
 
+using InstantPay.SharedKernel.Entity.AeronpayConfigDTO;
+
 using InstantPay.SharedKernel.Entity.FinzepConfigDTO;
 
+using InstantPay.SharedKernel.Entity.RechargeKitConfigDTO;
+
+using InstantPay.Application.Interfaces.MoneyTransfer.RechargeKit;
+
 using InstantPay.SharedKernel.Entity.NIFIConfigDTO;
+
+using InstantPay.Application.Interfaces.MoneyTransfer.AeronPay;
 
 using InstantPay.Application.Interfaces.MoneyTransfer.Finzep;
 
@@ -107,10 +115,16 @@ else
 
     builder.Services.AddDbContext<AppDbContext>(options =>
 
-        options.UseSqlServer(configuration.GetConnectionString("Sql")));
+        options.UseSqlServer(configuration.GetConnectionString("Sql"),
+            sqlOptions => sqlOptions.CommandTimeout(120)));
 
     builder.Services.AddDbContext<BeneficiaryDbContext>(options =>
-        options.UseSqlServer(configuration.GetConnectionString("BeneficiaryDb")));
+        options.UseSqlServer(configuration.GetConnectionString("BeneficiaryDb"),
+            sqlOptions => sqlOptions.CommandTimeout(120)));
+
+    builder.Services.AddDbContext<SenderDbContext>(options =>
+        options.UseSqlServer(configuration.GetConnectionString("SenderDb"),
+            sqlOptions => sqlOptions.CommandTimeout(120)));
 
 
 
@@ -311,7 +325,7 @@ builder.Services.AddHttpClient("iQore", client =>
 
 {
 
-    client.Timeout = TimeSpan.FromSeconds(20);
+    client.Timeout = TimeSpan.FromSeconds(60);
 
     client.DefaultRequestHeaders.ExpectContinue = false;
 
@@ -404,6 +418,18 @@ builder.Services.Configure<NIFIConfig>(
 builder.Services.Configure<FinzepConfig>(
 
     builder.Configuration.GetSection("FinzepConfig"));
+
+
+
+builder.Services.Configure<AeronpayConfig>(
+
+    builder.Configuration.GetSection("AeronpayConfig"));
+
+
+
+builder.Services.Configure<RechargeKitConfig>(
+
+    builder.Configuration.GetSection("RechargeKitConfig"));
 
 
 
@@ -530,10 +556,10 @@ builder.Services.AddScoped<IPlanDetailService, PlanDetailService>();
 builder.Services.AddScoped<ICommissionPlanService, CommissionPlanService>();
 builder.Services.AddScoped<IAPICodeService, APICodeService>();
 builder.Services.AddScoped<IBeneficiaryService, BeneficiaryService>();
+builder.Services.AddScoped<ISenderService, SenderService>();
 builder.Services.AddScoped<InstantPay.Application.Interfaces.PPI.IPPIOtpService, InstantPay.Application.Services.PPI.PPIOtpService>();
 builder.Services.AddScoped<InstantPay.Application.Interfaces.PPI.IPPIBeneficiaryService, InstantPay.Application.Services.PPI.PPIBeneficiaryService>();
 builder.Services.AddScoped<InstantPay.Application.Interfaces.PPI.IPPIAadharService, InstantPay.Application.Services.PPI.PPIAadharService>();
-builder.Services.AddScoped<InstantPay.Application.Interfaces.PPI.IPPIPaymentService, InstantPay.Application.Services.PPI.PPIPaymentService>();
 builder.Services.AddScoped<InstantPay.Application.Interfaces.PPI.IPPIWalletService, InstantPay.Application.Services.PPI.PPIWalletService>();
 builder.Services.AddScoped<InstantPay.Application.Interfaces.PPI.IPPIFundTransferService, InstantPay.Application.Services.PPI.PPIFundTransferService>();
 builder.Services.AddScoped<InstantPay.Application.Interfaces.PPI.IPPIMoneyTransferService, InstantPay.Application.Services.PPI.PPIMoneyTransferService>();
@@ -586,6 +612,10 @@ builder.Services.AddScoped<INifiDmtService, NifiDmtService>();
 
 builder.Services.AddScoped<IFinzepDmtService, FinzepDmtService>();
 
+builder.Services.AddScoped<IAeronpayDmtService, AeronpayDmtService>();
+
+builder.Services.AddScoped<IRechargeKitDmtService, RechargeKitDmtService>();
+
 
 builder.Services.AddHttpClient<IPanService, PanService>();
 
@@ -602,6 +632,8 @@ builder.Services.AddScoped<AmbikaRechargeRepository>();
 builder.Services.AddScoped<CyrusRechargeRepository>();
 
 builder.Services.AddScoped<ApiTransactionRecoveryService>();
+
+builder.Services.AddScoped<IAccountVerifyService, InstantPay.Application.Services.AccountVerifyService>();
 
 //builder.Services.AddHostedService<BackgroundTransactionReconciliationService>();
 

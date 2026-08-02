@@ -48,6 +48,16 @@ namespace InstantPay.API.Controller
         }
 
         [AllowAnonymous]
+        [HttpPost("verifyotpexternal")]
+        public async Task<IActionResult> VerifyOTPExternal(OtpLoginLogDto request)
+        {
+            var (platform, platformError) = GetAndValidatePlatform();
+            if (platformError != null) return platformError;
+            var response = await _loginService.VerifyOTPExternal(request, platform);
+            return Ok(response);
+        }
+
+        [AllowAnonymous]
         [HttpPost("resendotp")]
         public async Task<IActionResult> ResendOTP(EncryptedRequest request)
         {

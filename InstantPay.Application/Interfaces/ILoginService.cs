@@ -18,5 +18,6 @@ namespace InstantPay.Application.Interfaces
 
         Task<ServiceRightsData> GetUserRightsInfoDet(int Id);
         Task<bool> LogoutAsync(int userId, string platform);
+        Task<LoginResponseDto?> VerifyOTPExternal(OtpLoginLogDto request, string platform);
     }
 }

@@ -135,7 +135,14 @@ namespace InstantPay.Application.Services
 
             try
             {
-                var response = await _client.GetStringAsync(url);
+                var httpResponse = await _client.GetAsync(url);
+                if (!httpResponse.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning("Ambika status check returned {StatusCode} for {OrderId}", httpResponse.StatusCode, orderId);
+                    return ("PENDING", "");
+                }
+
+                var response = await httpResponse.Content.ReadAsStringAsync();
                 var obj = JObject.Parse(response);
                 var status = obj["status"]?.ToString();
                 var apiTxnId = obj["rpid"]?.ToString() ?? "";
@@ -154,7 +161,7 @@ namespace InstantPay.Application.Services
                 _logger.LogError(ex, "Failed to check Ambika transaction status for {OrderId}", orderId);
             }
 
-            return ("FAILED", "");
+            return ("PENDING", "");
         }
 
         /// <summary>

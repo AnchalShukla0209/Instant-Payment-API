@@ -27,14 +27,18 @@ namespace InstantPay.Application.Services
         private readonly ApiTransactionRecoveryService _recoveryService;
         private readonly ILogger<RechargeService> _logger;
         private readonly IWalletService _walletService;
+        private readonly ICommissionService _commissionService;
 
-        public RechargeService(AppDbContext context, IRechargeApiProviderService provider, ApiTransactionRecoveryService recoveryService, ILogger<RechargeService> logger, IWalletService walletService)
+        public RechargeService(AppDbContext context, IRechargeApiProviderService provider, ApiTransactionRecoveryService recoveryService, ILogger<RechargeService> logger, IWalletService walletService, ICommissionService commissionService, IConfiguration config, IHttpClientFactory httpClientFactory)
         {
             _context = context;
             _provider = provider;
             _recoveryService = recoveryService;
             _logger = logger;
             _walletService = walletService;
+            _commissionService = commissionService;
+            _config = config;
+            _httpClientFactory = httpClientFactory;
         }
 
         public async Task<ResponseSuccess> SubmitRechargeAsync(RechargeRequestDto request)
@@ -203,7 +207,11 @@ namespace InstantPay.Application.Services
                             {
                                 "200" => "SUCCESS",
                                 "201" => "PENDING",
-                                _ => "FAILED"
+                                "202" => "FAILED",
+                                "403" => "FAILED",
+                                "404" => "FAILED",
+                                "503" => "FAILED",
+                                _ => "PENDING"
                             };
                         }
                         else
@@ -221,8 +229,14 @@ namespace InstantPay.Application.Services
                         break;
 
                     case "ambika":
+                        if (string.IsNullOrWhiteSpace(apiResponse) || !apiResponse.TrimStart().StartsWith("{"))
+                        {
+                            finalStatus = "PENDING";
+                            rechargeStatus = apiResponse;
+                            break;
+                        }
                         var aObj = JObject.Parse(apiResponse);
-                        var aStatus = aObj["status"].ToString();
+                        var aStatus = aObj["status"]?.ToString() ?? "";
                         finalStatus = (aStatus == "1" || aStatus == "2") ? "SUCCESS" : "FAILED";
                         apiTxnId = aObj["rpid"]?.ToString() ?? "";
                         rechargeStatus = aObj["msg"]?.ToString() ?? "";
@@ -402,10 +416,6 @@ namespace InstantPay.Application.Services
                 var slabId = GetSlabId(opId);
                 var data = await (
                     from u in _context.TblUsers
-                    join s in _context.Tblcommissionslabs
-                        on new { u.PlanId, SlabId = slabId } equals new { s.PlanId, s.SlabId }
-                        into slabJoin
-                    from s in slabJoin.DefaultIfEmpty()
                     where u.Id == userKey
                     select new
                     {
@@ -414,54 +424,44 @@ namespace InstantPay.Application.Services
                         u.Phone,
                         u.Usertype,
                         u.PlanId,
+                        u.CommissionPlanId,
                         u.Adid,
                         u.Mdid,
-                        u.Wlid,
-                        Slab = s
+                        u.Wlid
                     }).FirstOrDefaultAsync();
 
                 if (data == null) return "Invalid User";
 
+                // Detect whether this is a new-commission provider (ICORE / AMBK)
+                bool isNewCommission = apiName?.ToLower() == "iqore" || apiName?.ToLower() == "ambika";
+                string commApiCode = apiName?.ToLower() == "iqore" ? "ICORE"
+                                   : apiName?.ToLower() == "ambika" ? "AMBK"
+                                   : null;
+                int commServiceId = serviceName == "RECHARGE" ? 1 : serviceName == "DTH" ? 2 : 3;
+                int? opIdInt = int.TryParse(opId, out int parsedOpId) ? parsedOpId : (int?)null;
+                int planIdForComm = data.CommissionPlanId ?? (int.TryParse(data.PlanId, out int p) ? p : 1);
+
                 decimal retailerComm = 0, adComm = 0, mdComm = 0, wlComm = 0;
+                decimal tds = 0;
+                decimal cost;
 
-                if (data.Usertype == "RT" && data.Slab != null)
+                if (isNewCommission && commApiCode != null)
                 {
-                    retailerComm = (decimal)(data.Slab.CommissionType == "RS" ? data.Slab.Rtshare : amount * data.Slab.Rtshare / 100);
-                    adComm = (decimal)(data.Slab.CommissionType == "RS" ? data.Slab.Adshare : amount * data.Slab.Adshare / 100);
-                    mdComm = (decimal)(data.Slab.CommissionType == "RS" ? data.Slab.Mdshare : amount * data.Slab.Mdshare / 100);
-                    wlComm = (decimal)(data.Slab.CommissionType == "RS" ? data.Slab.WlShare : amount * data.Slab.WlShare / 100);
-
-                    if (data.Adid == "0" && data.Mdid == "0")
-                    {
-                        wlComm -= retailerComm;
-                        adComm = 0;
-                        mdComm = 0;
-                    }
-                    else if (data.Adid == "0" && data.Mdid != "0")
-                    {
-                        mdComm -= retailerComm;
-                        adComm = 0;
-                        wlComm -= (decimal)data.Slab.Mdshare;
-                    }
-                    else if (data.Adid != "0" && data.Mdid != "0")
-                    {
-                        adComm -= retailerComm;
-                        mdComm -= (decimal)data.Slab.Adshare;
-                        wlComm -= (decimal)data.Slab.Mdshare;
-                    }
-                    else if (data.Adid != "0" && data.Mdid == "0")
-                    {
-                        adComm -= retailerComm;
-                        mdComm = 0;
-                        wlComm -= (decimal)data.Slab.Adshare;
-                    }
+                    retailerComm = await _commissionService.GetCommissionFromPlanAsync(
+                        planIdForComm, amount, commServiceId, commApiCode, "RT", opIdInt);
+                    tds  = 0;
+                    cost = amount;
+                }
+                else
+                {
+                    tds  = 0;
+                    cost = amount;
                 }
 
-                decimal tds = retailerComm * 0.05m;
-                decimal cost = amount - retailerComm + tds;
-
                 decimal balBefore = await _walletService.GetBalanceAsync(userKey);
-                decimal newBal = balBefore - cost;
+                // Wallet was already debited when the pending record was inserted;
+                // do not subtract the cost again on update.
+                decimal newBal = balBefore;
 
                 var txn = await _context.TransactionDetails
                     .FirstOrDefaultAsync(t => t.TxnId == transactionId && t.AccountNo == accountNo && t.UserId == Convert.ToString(userKey));
@@ -486,7 +486,7 @@ namespace InstantPay.Application.Services
                         TxnId = transactionId,
                         ServiceName = serviceName,
                         OperatorName = operatorName,
-                        OpId = data.PlanId,
+                        OpId = opId,
                         Mobileno = customerNumber,
                         OldBal = balBefore,
                         Amount = amount,
@@ -498,6 +498,7 @@ namespace InstantPay.Application.Services
                         Brid = "",
                         TxnType = "Debit",
                         ApiName = apiName,
+                        ServiceId = commServiceId,
                         ReqDate = DateTime.Now
                     };
 
@@ -517,13 +518,15 @@ namespace InstantPay.Application.Services
                 else
                 {
                     // Update existing transaction
-                    txn.Status = newStatus.ToUpper() == "PENDING" ? "SUCCESS" : newStatus ?? txn.Status;
+                    txn.Status = newStatus ?? txn.Status;
                     txn.Brid = rrn ?? txn.Brid;
                     txn.ApiTxnId = apiReferenceId ?? txn.ApiTxnId;
                     txn.ApiMsg = apiMsg ?? txn.ApiMsg;
                     txn.ApiRes = apiResponse ?? txn.ApiRes;
                     txn.ApiReq = apiReq ?? txn.ApiReq;
-                    txn.NewBal = newStatus.ToUpper() == "PENDING" || newStatus.ToUpper() == "SUCCESS" ? Convert.ToString(newBal) : Convert.ToString(txn.OldBal);
+                    txn.NewBal = newStatus?.ToUpper() == "FAILED"
+                        ? Convert.ToString(txn.OldBal)
+                        : Convert.ToString(newBal);
                     txn.UpdateDate = DateTime.Now;
                 }
 
@@ -532,53 +535,84 @@ namespace InstantPay.Application.Services
                 // Credit commissions if SUCCESS
                 if ((newStatus ?? txn.Status).ToUpper() == "SUCCESS")
                 {
-                    var commissionUsers = new[]
+                    if (isNewCommission && commApiCode != null)
                     {
-                         new { Id = txn.UserId, Comm = txn.Comm },
-                         new { Id = txn.MdId, Comm = txn.MdComm },
-                         new { Id = txn.AdId, Comm = txn.AdComm },
-                         new { Id = txn.WlId, Comm = txn.WlComm }
-                    }
-                    .Where(u => !string.IsNullOrEmpty(u.Id) && u.Id != "0")
-                    .Select(u => Convert.ToInt32(u.Id))
-                    .ToList();
-
-                    var userInfos = await _context.TblUsers
-                        .Where(u => commissionUsers.Contains(u.Id))
-                        .Select(u => new { u.Id, Username = u.Name + "-" + u.Phone + "", u.Wlid })
-                        .ToListAsync();
-
-                    foreach (var u in commissionUsers)
-                    {
-                        var info = userInfos.FirstOrDefault(x => x.Id == u);
-                        if (info == null) continue;
-
-                        decimal commAmt = u switch
+                        // New-commission path: use ICommissionService for full hierarchy distribution
+                        var rtUser = await _context.TblUsers.FindAsync(userKey);
+                        if (rtUser != null)
                         {
-                            var x when x == Convert.ToInt32(txn.UserId) => Convert.ToDecimal(txn.Comm),
-                            var x when x == Convert.ToInt32(txn.MdId) => Convert.ToDecimal(txn.MdComm),
-                            var x when x == Convert.ToInt32(txn.AdId) => Convert.ToDecimal(txn.AdComm),
-                            var x when x == Convert.ToInt32(txn.WlId) => Convert.ToDecimal(txn.WlComm),
-                            _ => 0
-                        };
+                            // Credit retailer's commission first
+                            if (retailerComm > 0)
+                            {
+                                await _walletService.CreditAsync(
+                                    userKey, $"{data.Name}-{data.Phone}",
+                                    txn.Amount ?? 0, retailerComm, 0, 0,
+                                    "Commission",
+                                    $"{serviceName} Commission For Mobile Recharge {accountNo}",
+                                    data.Wlid);
+                                txn.Comm = retailerComm;
+                            }
 
-                        decimal tdsAmt = commAmt * 0.05m;
-                        decimal netAmount = Math.Abs(commAmt - tdsAmt);
+                            // Distribute upline (AD → MD → WL → Admin) differentials
+                            await _commissionService.DistributeCommissionAsync(
+                                txn, rtUser, amount, planIdForComm,
+                                commServiceId, commApiCode,
+                                $"Commission Credit {serviceName} For Account {accountNo}",
+                                opIdInt);
+                        }
+                    }
+                    else
+                    {
+                        // Legacy path: distribute manually using stored comm values on txn
+                        var commissionUsers = new[]
+                        {
+                             new { Id = txn.UserId, Comm = txn.Comm },
+                             new { Id = txn.MdId,   Comm = txn.MdComm },
+                             new { Id = txn.AdId,   Comm = txn.AdComm },
+                             new { Id = txn.WlId,   Comm = txn.WlComm }
+                        }
+                        .Where(u => !string.IsNullOrEmpty(u.Id) && u.Id != "0")
+                        .Select(u => Convert.ToInt32(u.Id))
+                        .ToList();
 
-                        await _walletService.CreditAsync(
-                            info.Id, info.Username,
-                            txn.Amount ?? 0, netAmount, commAmt, tdsAmt,
-                            "Commission",
-                            $"{serviceName} Commission Received For Account no {accountNo}",
-                            info.Wlid);
+                        var userInfos = await _context.TblUsers
+                            .Where(u => commissionUsers.Contains(u.Id))
+                            .Select(u => new { u.Id, Username = u.Name + "-" + u.Phone, u.Wlid })
+                            .ToListAsync();
+
+                        foreach (var u in commissionUsers)
+                        {
+                            var info = userInfos.FirstOrDefault(x => x.Id == u);
+                            if (info == null) continue;
+
+                            decimal commAmt = u switch
+                            {
+                                var x when x == Convert.ToInt32(txn.UserId) => Convert.ToDecimal(txn.Comm),
+                                var x when x == Convert.ToInt32(txn.MdId)   => Convert.ToDecimal(txn.MdComm),
+                                var x when x == Convert.ToInt32(txn.AdId)   => Convert.ToDecimal(txn.AdComm),
+                                var x when x == Convert.ToInt32(txn.WlId)   => Convert.ToDecimal(txn.WlComm),
+                                _ => 0
+                            };
+
+                            decimal tdsAmt    = commAmt * 0.05m;
+                            decimal netAmount = Math.Abs(commAmt - tdsAmt);
+
+                            await _walletService.CreditAsync(
+                                info.Id, info.Username,
+                                txn.Amount ?? 0, netAmount, commAmt, tdsAmt,
+                                "Commission",
+                                $"{serviceName} Commission Received For Account no {accountNo}",
+                                info.Wlid);
+                        }
                     }
 
-                    txn.NewBal = Convert.ToString(balBefore - amount);
+                    txn.NewBal = Convert.ToString(balBefore);
                     _context.TransactionDetails.Update(txn);
                     await _context.SaveChangesAsync();
                 }
-                else if (newStatus.ToUpper() == "FAILED" && txn != null && flagforUpdate == true)
+                else if (newStatus?.ToUpper() == "FAILED" && txn != null && flagforUpdate == true)
                 {
+                    // Refund full face-value amount (works for both commission paths)
                     decimal refundAmount = Convert.ToDecimal(txn.Amount);
 
                     await _walletService.CreditAsync(
@@ -600,6 +634,162 @@ namespace InstantPay.Application.Services
             {
 
                 return ex.ToString();
+            }
+        }
+
+        /// <summary>
+        /// iQore iSPI status check. Queries the indicore live endpoint with the transaction date.
+        /// Response format: code|status|customer_ref_no|operator_refno|indicore_refno
+        /// </summary>
+        public async Task<ResponseSuccess> CheckStatusAsync(string txnId)
+        {
+            try
+            {
+                var txn = await _context.TransactionDetails
+                    .FirstOrDefaultAsync(t => t.TxnId == txnId || t.ApiTxnId == txnId);
+
+                if (txn == null)
+                    return new ResponseSuccess { success = false, message = "Transaction not found" };
+
+                string dbStatus = txn.Status?.ToUpper() ?? "PENDING";
+                if (dbStatus == "SUCCESS" || dbStatus == "FAILED" || dbStatus == "REFUNDED")
+                    return new ResponseSuccess
+                    {
+                        success = dbStatus == "SUCCESS",
+                        message = $"Transaction already {dbStatus}",
+                        txnid = txn.TxnId,
+                        apitxnid = txn.ApiTxnId
+                    };
+
+                // Only ICORE supports this iSPI status check
+                if (!string.Equals(txn.ApiName, "iqore", StringComparison.OrdinalIgnoreCase))
+                    return new ResponseSuccess { success = false, message = "Status check not supported for this provider" };
+
+                var baseUrl  = _config["RechargeApis:iCore:BaseUrl"];
+                var signature = _config["RechargeApis:iCore:Signature"];
+                string txnDate = (txn.ReqDate ?? DateTime.Now).ToString("yyyy-MM-dd");
+                string url = $"{baseUrl}/live?signature={signature}&cack={txn.TxnId}&date={txnDate}";
+
+                string apiResponse;
+                try
+                {
+                    using var client = _httpClientFactory.CreateClient();
+                    var resp = await client.GetAsync(url);
+                    apiResponse = await resp.Content.ReadAsStringAsync();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "iQore status check HTTP call failed for {TxnId}", txnId);
+                    return new ResponseSuccess { success = false, message = "Status check API call failed: " + ex.Message };
+                }
+
+                // Log the status check
+                _context.Apilogs.Add(new Apilog { Apiname = "iCore-StatusCheck", Reqdatae = DateTime.Now, Request = url, Response = apiResponse });
+                await _context.SaveChangesAsync();
+
+                var parts = apiResponse.Split('|');
+                if (parts.Length < 5)
+                    return new ResponseSuccess { success = false, message = "Unexpected status response: " + apiResponse };
+
+                string code        = parts[0].Trim();
+                string statusText  = parts[1].Trim().ToUpper();
+                string operatorRef = parts[3].Trim();
+                string indicoreRef = parts[4].Trim();
+
+                string mappedStatus = (code, statusText) switch
+                {
+                    ("200", "SUCCESS")   => "SUCCESS",
+                    ("202", "FAILED")    => "FAILED",
+                    ("200", "SUSPENSE")  => "PENDING",
+                    ("200", "PROCESSED") => "PENDING",
+                    ("200", "PENDING")   => "PENDING",
+                    ("404", _)           => "NOT_FOUND",
+                    _                    => "PENDING"
+                };
+
+                if (mappedStatus == "NOT_FOUND")
+                    return new ResponseSuccess { success = false, message = $"Transaction not found on provider: {statusText}" };
+
+                if (mappedStatus == dbStatus)
+                    return new ResponseSuccess
+                    {
+                        success = mappedStatus == "SUCCESS",
+                        message = $"Status unchanged: {mappedStatus}",
+                        txnid = txn.TxnId, apitxnid = txn.ApiTxnId
+                    };
+
+                txn.Status     = mappedStatus;
+                txn.Brid       = operatorRef != "0" ? operatorRef : txn.Brid;
+                txn.ApiTxnId   = indicoreRef != "0" ? indicoreRef : txn.ApiTxnId;
+                txn.ApiMsg     = statusText;
+                txn.UpdateDate = DateTime.Now;
+                _context.TransactionDetails.Update(txn);
+                await _context.SaveChangesAsync();
+
+                if (mappedStatus == "SUCCESS")
+                {
+                    var user = await _context.TblUsers.FindAsync(Convert.ToInt32(txn.UserId));
+                    if (user != null)
+                    {
+                        int planIdForComm  = user.CommissionPlanId ?? (int.TryParse(user.PlanId, out int p) ? p : 1);
+                        int commServiceId  = txn.ServiceId ?? 1;
+                        int? opIdInt       = int.TryParse(txn.OpId, out int oid) ? oid : (int?)null;
+                        string commApiCode = "ICORE";
+
+                        decimal rtComm = await _commissionService.GetCommissionFromPlanAsync(
+                            planIdForComm, txn.Amount ?? 0, commServiceId, commApiCode, "RT", opIdInt);
+
+                        if (rtComm > 0)
+                        {
+                            await _walletService.CreditAsync(
+                                user.Id, $"{user.Name}-{user.Phone}",
+                                txn.Amount ?? 0, rtComm, 0, 0,
+                                "Commission",
+                                $"Status-Check Commission For TXN {txn.TxnId}",
+                                user.Wlid);
+                            txn.Comm = rtComm;
+                        }
+
+                        await _commissionService.DistributeCommissionAsync(
+                            txn, user, txn.Amount ?? 0, planIdForComm,
+                            commServiceId, commApiCode,
+                            $"Status-Check Commission Recharge For Account {txn.AccountNo}",
+                            opIdInt);
+
+                        _context.TransactionDetails.Update(txn);
+                        await _context.SaveChangesAsync();
+                    }
+                }
+                else if (mappedStatus == "FAILED")
+                {
+                    var user = await _context.TblUsers.FindAsync(Convert.ToInt32(txn.UserId));
+                    if (user != null)
+                    {
+                        await _walletService.CreditAsync(
+                            user.Id, $"{user.Name}-{user.Phone}",
+                            txn.Amount ?? 0, txn.Amount ?? 0, 0, 0,
+                            "Recharge Refund",
+                            $"Failed Refund For TXN {txn.TxnId}",
+                            user.Wlid);
+                    }
+                    txn.NewBal = Convert.ToString(txn.OldBal);
+                    _context.TransactionDetails.Update(txn);
+                    await _context.SaveChangesAsync();
+                }
+
+                return new ResponseSuccess
+                {
+                    success = mappedStatus == "SUCCESS",
+                    message = $"Status: {mappedStatus}",
+                    txnid = txn.TxnId,
+                    apitxnid = txn.ApiTxnId,
+                    transactiondatetime = DateTime.UtcNow.ToLocalTime().ToString("dd-MM-yyyy hh:mm:ss tt")
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "CheckStatusAsync failed for {TxnId}", txnId);
+                return new ResponseSuccess { success = false, message = "ERR:500 " + ex.Message };
             }
         }
 

@@ -38,6 +38,8 @@ public partial class SettlementWithdrawal
     public string? PayoutReferenceId { get; set; }
     public string? PayoutStatus { get; set; } // SUCCESS, FAILED, PENDING
     public string? PayoutResponse { get; set; } // Raw response from payout API
+    public string? ApiRequest { get; set; } // Request payload sent to payout API
+    public string? ApiMsg { get; set; } // Short API status message
 
     public DateTime CreatedAt { get; set; } = DateTime.Now;
     public string? RRN { get; set; }

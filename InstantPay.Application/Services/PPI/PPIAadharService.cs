@@ -1,18 +1,19 @@
+using InstantPay.Application.DTOs;
+using InstantPay.Application.Interfaces;
+using InstantPay.Application.Interfaces.PPI;
+using InstantPay.Infrastructure.Sql.Entities;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using InstantPay.Application.DTOs;
-using InstantPay.Application.Interfaces.PPI;
-using InstantPay.Application.Interfaces;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
+using static Microsoft.AspNetCore.Hosting.Internal.HostingApplication;
 
 namespace InstantPay.Application.Services.PPI;
 
 public class PPIAadharService : IPPIAadharService
 {
     private readonly HttpClient _httpClient;
-    private readonly IConfiguration _configuration;
     private readonly ILogger<PPIAadharService> _logger;
     private readonly IWalletService _walletService;
     private readonly string _baseUrl;
@@ -20,15 +21,16 @@ public class PPIAadharService : IPPIAadharService
     private readonly string _authKey;
     private readonly string _secretKey;
     private const string EncryptionKey = "nh03T17a23n99sh5";
+    private readonly AppDbContext _context;
 
     public PPIAadharService(
         IHttpClientFactory httpClientFactory,
         IConfiguration configuration,
         ILogger<PPIAadharService> logger,
-        IWalletService walletService)
+        IWalletService walletService,
+        AppDbContext context)
     {
         _httpClient = httpClientFactory.CreateClient();
-        _configuration = configuration;
         _logger = logger;
         _walletService = walletService;
 
@@ -40,78 +42,55 @@ public class PPIAadharService : IPPIAadharService
         _secretKey = ppiConfig["SecretKey"] ?? string.Empty;
 
         _httpClient.Timeout = TimeSpan.FromSeconds(30);
+        _context = context;
     }
 
     private static byte[] AesEncrypt(string plainText, byte[] key, byte[] iv)
     {
-        if (plainText == null || plainText.Length <= 0)
-            throw new ArgumentNullException("plainText");
-        if (key == null || key.Length <= 0)
-            throw new ArgumentNullException("key");
-        if (iv == null || iv.Length <= 0)
-            throw new ArgumentNullException("iv");
+        if (string.IsNullOrEmpty(plainText)) throw new ArgumentNullException(nameof(plainText));
+        if (key == null || key.Length == 0)  throw new ArgumentNullException(nameof(key));
+        if (iv  == null || iv.Length  == 0)  throw new ArgumentNullException(nameof(iv));
 
-        byte[] cipherBytes;
+        using var aes = Aes.Create();
+        aes.Mode    = CipherMode.CBC;
+        aes.Padding = PaddingMode.PKCS7;
+        aes.Key = key;
+        aes.IV  = iv;
 
-        using (var rijAlg = new RijndaelManaged())
-        {
-            rijAlg.Mode = CipherMode.CBC;
-            rijAlg.Padding = PaddingMode.PKCS7;
-            rijAlg.FeedbackSize = 128;
-            rijAlg.Key = key;
-            rijAlg.IV = iv;
-
-            ICryptoTransform encryptor = rijAlg.CreateEncryptor(rijAlg.Key, rijAlg.IV);
-
-            using (var msEncrypt = new MemoryStream())
-            {
-                using (var csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write))
-                {
-                    using (var swEncrypt = new StreamWriter(csEncrypt))
-                    {
-                        swEncrypt.Write(plainText);
-                    }
-                }
-                cipherBytes = msEncrypt.ToArray();
-            }
-        }
-        return cipherBytes;
+        using var ms = new MemoryStream();
+        using (var cs = new CryptoStream(ms, aes.CreateEncryptor(), CryptoStreamMode.Write))
+        using (var sw = new StreamWriter(cs))
+            sw.Write(plainText);
+        return ms.ToArray();
     }
 
     private static string AesDecrypt(byte[] cipherBytes, byte[] key, byte[] iv)
     {
-        if (cipherBytes == null || cipherBytes.Length <= 0)
-            throw new ArgumentNullException("cipherBytes");
-        if (key == null || key.Length <= 0)
-            throw new ArgumentNullException("key");
-        if (iv == null || iv.Length <= 0)
-            throw new ArgumentNullException("iv");
+        if (cipherBytes == null || cipherBytes.Length == 0) throw new ArgumentNullException(nameof(cipherBytes));
+        if (key == null || key.Length == 0)                 throw new ArgumentNullException(nameof(key));
+        if (iv  == null || iv.Length  == 0)                 throw new ArgumentNullException(nameof(iv));
 
-        string plaintext = null;
+        using var aes = Aes.Create();
+        aes.Mode    = CipherMode.CBC;
+        aes.Padding = PaddingMode.PKCS7;
+        aes.Key = key;
+        aes.IV  = iv;
 
-        using (var rijAlg = new RijndaelManaged())
-        {
-            rijAlg.Mode = CipherMode.CBC;
-            rijAlg.Padding = PaddingMode.PKCS7;
-            rijAlg.FeedbackSize = 128;
-            rijAlg.Key = key;
-            rijAlg.IV = iv;
+        using var ms = new MemoryStream(cipherBytes);
+        using var cs = new CryptoStream(ms, aes.CreateDecryptor(), CryptoStreamMode.Read);
+        using var sr = new StreamReader(cs);
+        return sr.ReadToEnd();
+    }
 
-            ICryptoTransform decryptor = rijAlg.CreateDecryptor(rijAlg.Key, rijAlg.IV);
-
-            using (var msDecrypt = new MemoryStream(cipherBytes))
-            {
-                using (var csDecrypt = new CryptoStream(msDecrypt, decryptor, CryptoStreamMode.Read))
-                {
-                    using (var srDecrypt = new StreamReader(csDecrypt))
-                    {
-                        plaintext = srDecrypt.ReadToEnd();
-                    }
-                }
-            }
-        }
-
-        return plaintext;
+    private HttpRequestMessage CreatePpiRequest(string endpoint, HttpContent content, string bearerToken)
+    {
+        var req = new HttpRequestMessage(HttpMethod.Post, $"{_baseUrl}{endpoint}") { Content = content };
+        req.Headers.Add("AppID",    _appId);
+        req.Headers.Add("AuthKey",  _authKey);
+        req.Headers.Add("SecretKey", _secretKey);
+        if (!string.IsNullOrEmpty(bearerToken))
+            req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", bearerToken);
+        return req;
     }
 
     public async Task<PPIAadharOtpResponse> GenerateAadharOtpAsync(PPIAadharOtpRequest request)
@@ -146,15 +125,9 @@ public class PPIAadharService : IPPIAadharService
 
             _logger.LogInformation("Sending PPI Aadhar OTP request for AadharNo: {AadharNo}", request.AadharNo);
 
-            // Add headers
-            _httpClient.DefaultRequestHeaders.Clear();
-            _httpClient.DefaultRequestHeaders.Add("AppID", _appId);
-            _httpClient.DefaultRequestHeaders.Add("AuthKey", _authKey);
-            _httpClient.DefaultRequestHeaders.Add("SecretKey", _secretKey);
-            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {request.TokeyKey}");
-
             // Make the API call
-            var response = await _httpClient.PostAsync($"{_baseUrl}v1/kyc/aadhaargenerateotp", content);
+            using var httpReq = CreatePpiRequest("v1/kyc/aadhaargenerateotp", content, request.TokeyKey);
+            var response = await _httpClient.SendAsync(httpReq);
             
             var responseContent = await response.Content.ReadAsStringAsync();
             _logger.LogInformation("PPI Aadhar OTP API Response: {Response}", responseContent);
@@ -180,7 +153,7 @@ public class PPIAadharService : IPPIAadharService
             if (root.TryGetProperty("resultCode", out var resultCode) && 
                 root.TryGetProperty("resultMessage", out var resultMessage))
             {
-                if (resultCode.GetString() == "2000" && root.TryGetProperty("result", out var result))
+                if (resultCode.GetRawText().Trim('"') == "2000" && root.TryGetProperty("result", out var result))
                 {
                     string otpToken = result.TryGetProperty("otpToken", out var oToken) ? oToken.GetString() ?? "" : "";
 
@@ -306,23 +279,24 @@ public class PPIAadharService : IPPIAadharService
             _logger.LogInformation("Sending PPI Validate Aadhar OTP request for ApplicationNumber: {ApplicationNumber}, SenderMobile: {SenderMobile}", 
                 request.ApplicationNumber, request.SenderMobile);
 
-            // Add headers
-            _httpClient.DefaultRequestHeaders.Clear();
-            _httpClient.DefaultRequestHeaders.Add("AppID", _appId);
-            _httpClient.DefaultRequestHeaders.Add("AuthKey", _authKey);
-            _httpClient.DefaultRequestHeaders.Add("SecretKey", _secretKey);
-            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {request.TokeyKey}");
-
             // Make the API call
-            var response = await _httpClient.PostAsync($"{_baseUrl}v1/kyc/aadhaarvalidateotp", content);
+            using var httpReq = CreatePpiRequest("v1/kyc/aadhaarvalidateotp", content, request.TokeyKey);
+            var response = await _httpClient.SendAsync(httpReq);
             
             var responseContent = await response.Content.ReadAsStringAsync();
             _logger.LogInformation("PPI Validate Aadhar OTP API Response: {Response}", responseContent);
 
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogError("PPI Validate Aadhar OTP API returned error status: {StatusCode}, Response: {Response}", 
-                    response.StatusCode, responseContent);
+                var log = new Apilog
+                {
+                    Apiname = "PPI-AdharOTPVerify",
+                    Reqdatae = DateTime.Now,
+                    Request = jsonPayload,
+                    Response = responseContent + "||" + response.StatusCode
+                };
+                _context.Apilogs.Add(log);
+                await _context.SaveChangesAsync();
                 
                 return new PPIValidateAadharOtpResponse
                 {
@@ -332,6 +306,16 @@ public class PPIAadharService : IPPIAadharService
                 };
             }
 
+            var logs = new Apilog
+            {
+                Apiname = "PPI-AdharOTPVerify",
+                Reqdatae = DateTime.Now,
+                Request = jsonPayload,
+                Response = responseContent + "||" + response.StatusCode
+            };
+            _context.Apilogs.Add(logs);
+            await _context.SaveChangesAsync();
+
             // Parse the response
             using var jsonDoc = JsonDocument.Parse(responseContent);
             var root = jsonDoc.RootElement;
@@ -340,7 +324,7 @@ public class PPIAadharService : IPPIAadharService
             if (root.TryGetProperty("resultCode", out var resultCode) && 
                 root.TryGetProperty("resultMessage", out var resultMessage))
             {
-                if (resultCode.GetString() == "2000")
+                if (resultCode.GetRawText().Trim('"') == "2000")
                 {
                     string message = resultMessage.GetString() ?? "Sender Created";
 
@@ -455,7 +439,7 @@ public class PPIAadharService : IPPIAadharService
             }
 
             // Generate client transaction ID
-            string clienttxnid = "TXN" + DateTime.Now.Ticks.ToString();
+            string clienttxnid = "TXN" + Guid.NewGuid().ToString("N").ToUpper();
 
             // Prepare the request payload for PPI API
             var payload = new
@@ -493,23 +477,24 @@ public class PPIAadharService : IPPIAadharService
             _logger.LogInformation("Sending PPI Aadhar Biometric request for ApplicationNumber: {ApplicationNumber}, SenderMobile: {SenderMobile}", 
                 request.ApplicationNumber, request.SenderMobile);
 
-            // Add headers
-            _httpClient.DefaultRequestHeaders.Clear();
-            _httpClient.DefaultRequestHeaders.Add("AppID", _appId);
-            _httpClient.DefaultRequestHeaders.Add("AuthKey", _authKey);
-            _httpClient.DefaultRequestHeaders.Add("SecretKey", _secretKey);
-            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {request.TokeyKey}");
-
             // Make the API call
-            var response = await _httpClient.PostAsync($"{_baseUrl}v2/kyc/dobiometricekyc", content);
+            using var httpReq = CreatePpiRequest("v2/kyc/dobiometricekyc", content, request.TokeyKey);
+            var response = await _httpClient.SendAsync(httpReq);
             
             var responseContent = await response.Content.ReadAsStringAsync();
             _logger.LogInformation("PPI Aadhar Biometric API Response: {Response}", responseContent);
 
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogError("PPI Aadhar Biometric API returned error status: {StatusCode}, Response: {Response}", 
-                    response.StatusCode, responseContent);
+                var log = new Apilog
+                {
+                    Apiname = "PPI-biometricekyc",
+                    Reqdatae = DateTime.Now,
+                    Request = jsonPayload,
+                    Response = responseContent + "||" + response.StatusCode
+                };
+                _context.Apilogs.Add(log);
+                await _context.SaveChangesAsync();
                 
                 return new PPIAadharBiometricResponse
                 {
@@ -519,6 +504,16 @@ public class PPIAadharService : IPPIAadharService
                 };
             }
 
+            var logs = new Apilog
+            {
+                Apiname = "PPI-biometricekyc",
+                Reqdatae = DateTime.Now,
+                Request = jsonPayload,
+                Response = responseContent + "||" + response.StatusCode
+            };
+            _context.Apilogs.Add(logs);
+            await _context.SaveChangesAsync();
+
             // Parse the response
             using var jsonDoc = JsonDocument.Parse(responseContent);
             var root = jsonDoc.RootElement;
@@ -527,7 +522,7 @@ public class PPIAadharService : IPPIAadharService
             if (root.TryGetProperty("resultCode", out var resultCode) && 
                 root.TryGetProperty("resultMessage", out var resultMessage))
             {
-                if (resultCode.GetString() == "2000")
+                if (resultCode.GetRawText().Trim('"') == "2000")
                 {
                     string message = resultMessage.GetString() ?? "Sender Created";
 
@@ -642,7 +637,7 @@ public class PPIAadharService : IPPIAadharService
             }
 
             // Generate partner transaction reference ID
-            string partnertxnrefid = "TXN" + DateTime.Now.Ticks.ToString();
+            string partnertxnrefid = "TXN" + Guid.NewGuid().ToString("N").ToUpper();
 
             // Prepare the request payload for PPI API
             var payload = new
@@ -661,24 +656,24 @@ public class PPIAadharService : IPPIAadharService
             _logger.LogInformation("Sending PPI Pan validation request for ApplicationNumber: {ApplicationNumber}, PancardNo: {PancardNo}", 
                 request.ApplicationNumber, request.PancardNo);
 
-            // Add headers
-            _httpClient.DefaultRequestHeaders.Clear();
-            _httpClient.DefaultRequestHeaders.Add("AppID", _appId);
-            _httpClient.DefaultRequestHeaders.Add("AuthKey", _authKey);
-            _httpClient.DefaultRequestHeaders.Add("SecretKey", _secretKey);
-            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {request.TokeyKey}");
-
             // Make the API call
-            var response = await _httpClient.PostAsync($"{_baseUrl}v1/kyc/pancard", content);
+            using var httpReq = CreatePpiRequest("v1/kyc/pancard", content, request.TokeyKey);
+            var response = await _httpClient.SendAsync(httpReq);
             
             var responseContent = await response.Content.ReadAsStringAsync();
             _logger.LogInformation("PPI Pan validation API Response: {Response}", responseContent);
 
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogError("PPI Pan validation API returned error status: {StatusCode}, Response: {Response}", 
-                    response.StatusCode, responseContent);
-                
+                var logs = new Apilog
+                {
+                    Apiname = "PPI-panvalidate",
+                    Reqdatae = DateTime.Now,
+                    Request = jsonPayload,
+                    Response = responseContent + "||" + response.StatusCode
+                };
+                _context.Apilogs.Add(logs);
+
                 return new PPIPanResponse
                 {
                     Status_Code = "0",
@@ -686,6 +681,15 @@ public class PPIAadharService : IPPIAadharService
                     Data = ""
                 };
             }
+
+            var log = new Apilog
+            {
+                Apiname = "PPI-panvalidate",
+                Reqdatae = DateTime.Now,
+                Request = jsonPayload,
+                Response = responseContent + "||" + response.StatusCode
+            };
+            _context.Apilogs.Add(log);
 
             // Parse the response
             using var jsonDoc = JsonDocument.Parse(responseContent);
@@ -695,7 +699,7 @@ public class PPIAadharService : IPPIAadharService
             if (root.TryGetProperty("resultCode", out var resultCode) && 
                 root.TryGetProperty("resultMessage", out var resultMessage))
             {
-                if (resultCode.GetString() == "2000")
+                if (resultCode.GetRawText().Trim('"') == "2000")
                 {
                     string message = resultMessage.GetString() ?? "PAN card validated successfully";
 
@@ -711,8 +715,8 @@ public class PPIAadharService : IPPIAadharService
                                 10,
                                 0,
                                 0,
-                                "PPI KYC",
-                                "Amount Debit For PPI KYC",
+                                "PPI PAN Validation",
+                                "Amount Debit For PPI PAN Validate",
                                 request.RTName);
                             _logger.LogInformation("Debited 10 Rs from user {UserId} for PPI Pan Validation", userId);
                         }
@@ -789,6 +793,152 @@ public class PPIAadharService : IPPIAadharService
                 Status_Code = "0",
                 Message = "An unexpected error occurred.",
                 Data = ""
+            };
+        }
+    }
+
+    public async Task<PPICreateWalletResponse> CreateWalletAsync(PPICreateWalletRequest request)
+    {
+        try
+        {
+            // Validate API Key
+            if (request.APIKey != "PPI01")
+            {
+                _logger.LogWarning("Invalid API Key provided for PPI Create Wallet");
+                return new PPICreateWalletResponse
+                {
+                    ResultCode = "0",
+                    ResultStatus = "Failure",
+                    ResultMessage = "Invalid API Key",
+                    Result = new PPICreateWalletResult()
+                };
+            }
+
+            // Prepare the request payload for PPI API
+            var payload = new
+            {
+                walletaccreatorcode = request.WalletAcCreatorCode,
+                walletaccreatorname = request.WalletAcCreatorName,
+                walletaccreatorpincode = request.WalletAcCreatorPinCode,
+                mobilenumber = request.MobileNumber,
+                walletAcApplicationNumber = request.WalletAcApplicationNumber,
+                pancardnumber = request.PancardNumber,
+                partnertxnrefId = request.PartnerTxnRefId
+            };
+
+            var jsonPayload = JsonSerializer.Serialize(payload);
+            var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+
+            _logger.LogInformation("Sending PPI Create Wallet request for Mobile: {Mobile}, ApplicationNumber: {ApplicationNumber}",
+                request.MobileNumber, request.WalletAcApplicationNumber);
+
+            // Make the API call
+            using var httpReq = CreatePpiRequest("v2/kyc/createwallet", content, request.TokeyKey);
+            var response = await _httpClient.SendAsync(httpReq);
+
+            var responseContent = await response.Content.ReadAsStringAsync();
+            _logger.LogInformation("PPI Create Wallet API Response: {Response}", responseContent);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var logs = new Apilog
+                {
+                    Apiname = "PPI-CreateWallet",
+                    Reqdatae = DateTime.Now,
+                    Request = jsonPayload,
+                    Response = responseContent + "||" + response.StatusCode
+                };
+                _context.Apilogs.Add(logs);
+
+                return new PPICreateWalletResponse
+                {
+                    ResultCode = "0",
+                    ResultStatus = "Failure",
+                    ResultMessage = "Failed to create wallet. Please try again later.",
+                    Result = new PPICreateWalletResult()
+                };
+            }
+
+            var log = new Apilog
+            {
+                Apiname = "PPI-CreateWallet",
+                Reqdatae = DateTime.Now,
+                Request = jsonPayload,
+                Response = responseContent + "||" + response.StatusCode
+            };
+            _context.Apilogs.Add(log);
+
+            // Parse the response
+            using var jsonDoc = JsonDocument.Parse(responseContent);
+            var root = jsonDoc.RootElement;
+
+            var result = new PPICreateWalletResponse
+            {
+                ResultCode = root.TryGetProperty("resultCode", out var resultCode) ? resultCode.GetRawText().Trim('"') : "0",
+                ResultStatus = root.TryGetProperty("resultStatus", out var resultStatus) ? resultStatus.GetString() ?? "" : "",
+                ResultMessage = root.TryGetProperty("resultMessage", out var resultMessage) ? resultMessage.GetString() ?? "" : "",
+                Result = new PPICreateWalletResult()
+            };
+
+            if (root.TryGetProperty("result", out var resultObj) && resultObj.ValueKind == JsonValueKind.Object)
+            {
+                result.Result = new PPICreateWalletResult
+                {
+                    PancardVerified = resultObj.TryGetProperty("pancardVerified", out var pancardVerified) && pancardVerified.ValueKind == JsonValueKind.True,
+                    PancardPhotoRequired = resultObj.TryGetProperty("pancardPhotoRequired", out var pancardPhotoRequired) && pancardPhotoRequired.ValueKind == JsonValueKind.True,
+                    WalletCreated = resultObj.TryGetProperty("walletCreated", out var walletCreated) && walletCreated.ValueKind == JsonValueKind.True,
+                    WalletHolderName = resultObj.TryGetProperty("walletHolderName", out var walletHolderName) ? walletHolderName.GetString() ?? "" : "",
+                    KycType = resultObj.TryGetProperty("kycType", out var kycType) ? kycType.GetString() ?? "" : "",
+                    AccountStatus = resultObj.TryGetProperty("accountStatus", out var accountStatus) ? accountStatus.GetString() ?? "" : "",
+                    CashTopUpLimitAvailable = resultObj.TryGetProperty("cashTopUpLimitAvailable", out var cashTopUpLimitAvailable) ? cashTopUpLimitAvailable.GetRawText() : "",
+                    CashTopUpLimitConsumed = resultObj.TryGetProperty("cashTopUpLimitConsumed", out var cashTopUpLimitConsumed) ? cashTopUpLimitConsumed.GetRawText() : ""
+                };
+            }
+
+            return result;
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "HTTP error occurred while calling PPI Create Wallet API");
+            return new PPICreateWalletResponse
+            {
+                ResultCode = "0",
+                ResultStatus = "Failure",
+                ResultMessage = "Network error. Please check your connection.",
+                Result = new PPICreateWalletResult()
+            };
+        }
+        catch (TaskCanceledException ex)
+        {
+            _logger.LogError(ex, "Request timeout while calling PPI Create Wallet API");
+            return new PPICreateWalletResponse
+            {
+                ResultCode = "0",
+                ResultStatus = "Failure",
+                ResultMessage = "Request timeout. Please try again.",
+                Result = new PPICreateWalletResult()
+            };
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogError(ex, "Error parsing PPI Create Wallet API response");
+            return new PPICreateWalletResponse
+            {
+                ResultCode = "0",
+                ResultStatus = "Failure",
+                ResultMessage = "Error processing response.",
+                Result = new PPICreateWalletResult()
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error in PPI Create Wallet");
+            return new PPICreateWalletResponse
+            {
+                ResultCode = "0",
+                ResultStatus = "Failure",
+                ResultMessage = "An unexpected error occurred.",
+                Result = new PPICreateWalletResult()
             };
         }
     }

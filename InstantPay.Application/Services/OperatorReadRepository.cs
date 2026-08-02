@@ -39,17 +39,34 @@ namespace InstantPay.Application.Services
 
         public async Task<List<OperatorDropdownDto>> GetOperatorsByServiceIdAsync(int serviceId)
         {
-            return await _context.Tbloperators
-                .Where(o => o.ServiceId == serviceId.ToString() && o.Status == "Active")
-                .OrderBy(o => o.OperatorName)
-                .Select(o => new OperatorDropdownDto
-                {
-                    Id = o.Id,
-                    OperatorName = o.OperatorName,
-                    Spkey = o.Spkey,
-                    Picture = o.Picture
-                })
-                .ToListAsync();
+            if (serviceId == 1)
+            {
+                return await _context.Tbloperators
+                    .Where(o => (o.ServiceId == serviceId.ToString() || o.ServiceId == "2") && o.Status == "Active")
+                    .OrderBy(o => o.OperatorName)
+                    .Select(o => new OperatorDropdownDto
+                    {
+                        Id = o.Id,
+                        OperatorName = o.OperatorName,
+                        Spkey = o.Spkey,
+                        Picture = o.Picture
+                    })
+                    .ToListAsync();
+            }
+            else
+            {
+                return await _context.Tbloperators
+                    .Where(o => o.ServiceId == serviceId.ToString() && o.Status == "Active")
+                    .OrderBy(o => o.OperatorName)
+                    .Select(o => new OperatorDropdownDto
+                    {
+                        Id = o.Id,
+                        OperatorName = o.OperatorName,
+                        Spkey = o.Spkey,
+                        Picture = o.Picture
+                    })
+                    .ToListAsync();
+            }
         }
     }
 

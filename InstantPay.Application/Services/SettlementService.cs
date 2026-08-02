@@ -1,20 +1,27 @@
 using InstantPay.Application.DTOs;
 using InstantPay.Application.Interfaces;
 using InstantPay.Infrastructure.Sql.Entities;
+using InstantPay.SharedKernel.Entity.RechargeKitConfigDTO;
+using InstantPay.SharedKernel.Results.MoneyTransfer.RechargeKit;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using Newtonsoft.Json;
+using System.Net;
+using System.Net.Sockets;
+using System.Text;
 
 namespace InstantPay.Application.Services
 {
     public class SettlementService : ISettlementService
     {
         private readonly AppDbContext _context;
-        private readonly IAeronpayPayoutService _payoutService;
+        private readonly RechargeKitConfig _config;
         private readonly IWalletService _walletService;
 
-        public SettlementService(AppDbContext context, IAeronpayPayoutService payoutService, IWalletService walletService)
+        public SettlementService(AppDbContext context, IOptions<RechargeKitConfig> config, IWalletService walletService)
         {
             _context = context;
-            _payoutService = payoutService;
+            _config = config.Value;
             _walletService = walletService;
         }
 
@@ -363,112 +370,166 @@ namespace InstantPay.Application.Services
                     };
                 }
 
-                // Check 1: 5-minute check for same amount with same account
-                var fiveMinutesAgo = DateTime.Now.AddMinutes(-5);
-                var recentDuplicate = await _context.SettlementWithdrawals
-                    .Where(w => w.UserId == request.UserId &&
-                                w.BankAccount == request.BankAccount &&
-                                w.Amount == request.Amount &&
-                                w.WithdrawalDate >= fiveMinutesAgo)
-                    .FirstOrDefaultAsync();
+                string clientReferenceId = string.Empty;
+                SettlementWithdrawal withdrawal = null!;
+                string Username = userData.Name + "-" + userData.Phone;
+                var recordToDate = request.WithdrawalType.ToUpper() == "RAZORPAY" ? razorpayToDate : toDate;
 
-                if (recentDuplicate != null)
-                {
-                    return new WithdrawalResponseDto
-                    {
-                        Success = false,
-                        Message = $"A withdrawal of {request.Amount} to the same bank account was processed within the last 5 minutes. Please wait before trying again.",
-                        RemainingAmount = availableAmount,
-                        NewWalletBalance = currentWalletBalance,
-                        Charge = charge
-                    };
-                }
-
-                var clientReferenceId = $"SETT_{userIdInt}_{DateTime.Now:yyyyMMddHHmmss}";
-
-                // Check 2: Exact duplicate transaction check
-                var exactDuplicate = await _context.SettlementWithdrawals
-                    .Where(w => w.UserId == request.UserId &&
-                                w.BankAccount == request.BankAccount &&
-                                w.Ifsc == request.Ifsc &&
-                                w.Amount == request.Amount &&
-                                w.WithdrawalType.ToUpper() == request.WithdrawalType.ToUpper() &&
-                                w.BeneName == request.BeneName && w.PayoutTransactionId== clientReferenceId)
-                    .FirstOrDefaultAsync();
-
-                if (exactDuplicate != null)
-                {
-                    return new WithdrawalResponseDto
-                    {
-                        Success = false,
-                        Message = $"A duplicate transaction with the same details already exists. Transaction ID: {exactDuplicate.Id}, Date: {exactDuplicate.WithdrawalDate}",
-                        RemainingAmount = availableAmount,
-                        NewWalletBalance = currentWalletBalance,
-                        Charge = charge
-                    };
-                }
-
-                // Process withdrawal with payout using transaction
-                using var transaction = await _context.Database.BeginTransactionAsync();
+                await using var settlementDbTx = await _context.Database.BeginTransactionAsync(CancellationToken.None);
                 try
                 {
-                    // Call Aeronpay payout API
-                    var payoutRequest = new AeronpayPayoutRequest
-                    {
-                        AccountNumber = "99760187733",
-                        Amount = request.WithdrawalType.ToUpper() == "AEPS" || request.WithdrawalType.ToUpper() == "MATM"? request.Amount - charge : request.Amount,
-                        ClientReferenceId = clientReferenceId,
-                        Latitude = userData.Lat ?? "76.7887",
-                        Longitude = userData.Longitute ?? "78.7654",
-                        BankAccount = request.BankAccount,
-                        Ifsc = request.Ifsc,
-                        BeneName = request.BeneName,
-                        BeneEmail = userData.EmailId ?? "",
-                        BenePhone = userData.Phone ?? "",
-                        BeneAddress = userData.AddressLine1 + " " + userData.AddressLine2
-                    };
+                    string appLockName = $"SETT_{request.UserId}_{request.BankAccount}_{request.Amount}_{request.WithdrawalType}";
+                    int lockResult = (await _context.Database
+                        .SqlQueryRaw<int>(
+                            "DECLARE @r INT; EXEC @r = sp_getapplock @Resource = {0}, @LockMode = 'Exclusive', @LockOwner = 'Transaction', @LockTimeout = 5000; SELECT @r",
+                            appLockName)
+                        .ToListAsync()).First();
 
-                    var payoutResponse = await _payoutService.ProcessPayoutAsync(payoutRequest);
-                    decimal newWalletBalance = currentWalletBalance - totalDebit;
-                    payoutResponse.Status = payoutResponse?.Status?.ToUpper() == "BAD_REQUEST_ERROR" ? "FAILED" : payoutResponse?.Status;
-                    if (payoutResponse?.Status?.ToUpper() != "FALSE" && payoutResponse?.Status?.ToUpper() != "FAILED")
+                    if (lockResult < 0)
                     {
-                        // Atomically debit withdrawal amount from user wallet (race-condition-safe via WalletService)
-                        (_, newWalletBalance, _) = await _walletService.DebitAsync(
-                            userIdInt,
-                            userData.Name + "-" + userData.Phone,
-                            request.Amount, totalDebit, charge, 0,
-                            "SETTLEMENT_WITHDRAWAL",
-                            $"{request.WithdrawalType} Settlement Withdrawal || {payoutRequest.ClientReferenceId}",
-                            "1");
+                        await settlementDbTx.RollbackAsync(CancellationToken.None);
+                        return new WithdrawalResponseDto
+                        {
+                            Success = false,
+                            Message = "Transaction already in progress, please try again",
+                            RemainingAmount = availableAmount,
+                            NewWalletBalance = currentWalletBalance,
+                            Charge = charge
+                        };
                     }
-                    // Record settlement withdrawal with payout details
-                    string Username = userData.Name + "-" + userData.Phone;
-                    var recordToDate = request.WithdrawalType.ToUpper() == "RAZORPAY" ? razorpayToDate : toDate;
-                    await RecordWithdrawalAsync(request, fromDate, recordToDate, charge, payoutResponse, clientReferenceId, Username);
 
-                    await _context.SaveChangesAsync();
-                    await transaction.CommitAsync();
+                    // Check 1: 5-minute check for same amount with same account
+                    var fiveMinutesAgo = DateTime.Now.AddMinutes(-5);
+                    var recentDuplicate = await _context.SettlementWithdrawals
+                        .Where(w => w.UserId == request.UserId &&
+                                    w.BankAccount == request.BankAccount &&
+                                    w.Amount == request.Amount &&
+                                    w.WithdrawalDate >= fiveMinutesAgo)
+                        .FirstOrDefaultAsync();
 
-                    return new WithdrawalResponseDto
+                    if (recentDuplicate != null)
                     {
-                        Success = payoutResponse.Success,
-                        Message = payoutResponse.Success 
-                            ? $"Withdrawal of {request.Amount} from {request.WithdrawalType} successful. Charge: {charge}"
-                            : $"Withdrawal recorded but payout failed: {payoutResponse.Message}",
-                        RemainingAmount = remainingAmount,
-                        NewWalletBalance = newWalletBalance,
-                        Charge = charge,
-                        PayoutTransactionId = payoutResponse.TransactionId,
-                        PayoutStatus = payoutResponse.Status
-                    };
+                        await settlementDbTx.RollbackAsync(CancellationToken.None);
+                        return new WithdrawalResponseDto
+                        {
+                            Success = false,
+                            Message = $"A withdrawal of {request.Amount} to the same bank account was processed within the last 5 minutes. Please wait before trying again.",
+                            RemainingAmount = availableAmount,
+                            NewWalletBalance = currentWalletBalance,
+                            Charge = charge
+                        };
+                    }
+
+                    clientReferenceId = $"SETT_{userIdInt}_{DateTime.Now:yyyyMMddHHmmss}";
+
+                    // Check 2: Exact duplicate transaction check
+                    var exactDuplicate = await _context.SettlementWithdrawals
+                        .Where(w => w.UserId == request.UserId &&
+                                    w.BankAccount == request.BankAccount &&
+                                    w.Ifsc == request.Ifsc &&
+                                    w.Amount == request.Amount &&
+                                    w.WithdrawalType.ToUpper() == request.WithdrawalType.ToUpper() &&
+                                    w.BeneName == request.BeneName && w.PayoutTransactionId == clientReferenceId)
+                        .FirstOrDefaultAsync();
+
+                    if (exactDuplicate != null)
+                    {
+                        await settlementDbTx.RollbackAsync(CancellationToken.None);
+                        return new WithdrawalResponseDto
+                        {
+                            Success = false,
+                            Message = $"A duplicate transaction with the same details already exists. Transaction ID: {exactDuplicate.Id}, Date: {exactDuplicate.WithdrawalDate}",
+                            RemainingAmount = availableAmount,
+                            NewWalletBalance = currentWalletBalance,
+                            Charge = charge
+                        };
+                    }
+
+                    // Insert a pending settlement withdrawal record before calling the payout API
+                    withdrawal = await CreatePendingSettlementWithdrawalAsync(request, fromDate, recordToDate, charge, clientReferenceId, Username);
+                    await settlementDbTx.CommitAsync(CancellationToken.None);
+                }
+                catch
+                {
+                    await settlementDbTx.RollbackAsync(CancellationToken.None);
+                    throw;
+                }
+
+                // Debit user wallet before calling the payout API (same process as RechargeKitDmtService)
+                int debitEntryId = 0;
+                decimal newWalletBalance = currentWalletBalance;
+                try
+                {
+                    (_, newWalletBalance, debitEntryId) = await _walletService.DebitAsync(
+                        userIdInt,
+                        Username,
+                        request.Amount, totalDebit, charge, 0,
+                        "SETTLEMENT_WITHDRAWAL",
+                        $"{request.WithdrawalType} Settlement Withdrawal || {clientReferenceId}",
+                        userData.Wlid);
                 }
                 catch (Exception ex)
                 {
-                    await transaction.RollbackAsync();
-                    Console.WriteLine($"Transaction failed: {ex.Message}");
-                    throw;
+                    withdrawal.PayoutStatus = "FAILED";
+                    withdrawal.ApiMsg = "Wallet debit failed before API call: " + ex.Message;
+                    withdrawal.WithdrawalDate = DateTime.Now;
+                    await _context.SaveChangesAsync();
+                    return new WithdrawalResponseDto
+                    {
+                        Success = false,
+                        Message = "Please try again later, there is an issue with your wallet",
+                        RemainingAmount = availableAmount,
+                        NewWalletBalance = currentWalletBalance,
+                        Charge = charge
+                    };
                 }
+
+                bool debitVerified = debitEntryId > 0
+                    && await _context.Tbluserbalances.AnyAsync(b => b.Id == debitEntryId && b.UserId == userIdInt);
+
+                if (!debitVerified)
+                {
+                    withdrawal.PayoutStatus = "FAILED";
+                    withdrawal.ApiMsg = "Debit entry not found in tbluserbalance after insert";
+                    withdrawal.WithdrawalDate = DateTime.Now;
+                    await _context.SaveChangesAsync();
+                    return new WithdrawalResponseDto
+                    {
+                        Success = false,
+                        Message = "Debit entry not found in tbluserbalance after insert",
+                        RemainingAmount = availableAmount,
+                        NewWalletBalance = currentWalletBalance,
+                        Charge = charge
+                    };
+                }
+
+                // Call RechargeKit payout API
+                var payoutResponse = await CallRechargeKitPayoutApi(request, clientReferenceId);
+
+                // Update withdrawal with API response (brid, request, response, message, status)
+                UpdateSettlementWithdrawalWithApiResponse(withdrawal, payoutResponse);
+
+                // Refund wallet on payout failure
+                if (payoutResponse.Status == "FAILED")
+                {
+                    await RefundSettlementAsync(withdrawal, userData, request, charge);
+                }
+
+                await _context.SaveChangesAsync();
+
+                bool isSuccessOrPending = payoutResponse.Status != "FAILED";
+                return new WithdrawalResponseDto
+                {
+                    Success = isSuccessOrPending,
+                    Message = isSuccessOrPending
+                        ? $"Withdrawal of {request.Amount} from {request.WithdrawalType} initiated. Charge: {charge}"
+                        : $"Payout failed: {payoutResponse.Message}",
+                    RemainingAmount = remainingAmount,
+                    NewWalletBalance = newWalletBalance,
+                    Charge = charge,
+                    PayoutTransactionId = payoutResponse.TransactionId,
+                    PayoutStatus = payoutResponse.Status
+                };
             }
             catch (Exception ex)
             {
@@ -483,7 +544,7 @@ namespace InstantPay.Application.Services
                 };
             }
         }
-
+      
         private async Task<Dictionary<string, (decimal AEPSWithdrawn, decimal MATMWithdrawn, decimal RazorpayWithdrawn)>> GetWithdrawalsAsync(
             DateTime fromDate, DateTime toDate, DateTime razorpayToDate, string? userId = null)
         {
@@ -566,48 +627,194 @@ namespace InstantPay.Application.Services
             }
         }
 
-        private async Task RecordWithdrawalAsync(WithdrawalRequestDto request, DateTime fromDate, DateTime toDate, decimal charge, AeronpayPayoutResponse payoutResponse, string txnid, string Username)
+        private async Task<SettlementWithdrawal> CreatePendingSettlementWithdrawalAsync(WithdrawalRequestDto request, DateTime fromDate, DateTime toDate, decimal charge, string clientReferenceId, string Username)
+        {
+            var withdrawal = new SettlementWithdrawal
+            {
+                UserId = request.UserId,
+                Amount = request.Amount,
+                Charge = charge,
+                WithdrawalType = request.WithdrawalType ?? "",
+                WithdrawalDate = DateTime.Now,
+                SettlementFromDate = fromDate,
+                SettlementToDate = toDate,
+                Remarks = $"Withdrawal of {request.Amount} from {request.WithdrawalType}. Charge: {charge}",
+                BankAccount = request.BankAccount ?? "",
+                Ifsc = request.Ifsc ?? "",
+                BeneName = request.BeneName ?? "",
+                BeneEmail = request.BeneEmail ?? "",
+                BenePhone = request.BenePhone ?? "",
+                BeneAddress = request.BeneAddress ?? "",
+                Latitude = request.Latitude ?? "",
+                Longitude = request.Longitude ?? "",
+                PayoutTransactionId = clientReferenceId,
+                PayoutReferenceId = "",
+                PayoutStatus = "PENDING",
+                PayoutResponse = "",
+                ApiRequest = "",
+                ApiMsg = "",
+                CreatedAt = DateTime.Now,
+                UserName = Username,
+                RRN = "",
+                BankName = request.BankName ?? "",
+                ComingFrom = request.ComingFrom ?? ""
+            };
+
+            _context.SettlementWithdrawals.Add(withdrawal);
+            await _context.SaveChangesAsync();
+            return withdrawal;
+        }
+
+        private static void UpdateSettlementWithdrawalWithApiResponse(SettlementWithdrawal withdrawal, RechargeKitPayoutResult payoutResponse)
+        {
+            withdrawal.PayoutReferenceId = payoutResponse.TransactionId ?? "";
+            withdrawal.RRN = payoutResponse.ReferenceId ?? "";
+            withdrawal.PayoutResponse = payoutResponse.RawResponse ?? "";
+            withdrawal.ApiRequest = payoutResponse.RequestJson ?? "";
+            withdrawal.ApiMsg = payoutResponse.Message ?? "";
+            withdrawal.PayoutStatus = payoutResponse.Status;
+            withdrawal.WithdrawalDate = DateTime.Now;
+        }
+
+        private async Task RefundSettlementAsync(SettlementWithdrawal withdrawal, TblUser user, WithdrawalRequestDto request, decimal charge)
         {
             try
             {
-                var withdrawal = new SettlementWithdrawal
-                {
-                    UserId = request.UserId,
-                    Amount = request.Amount,
-                    Charge = charge,
-                    WithdrawalType = request.WithdrawalType??"",
-                    WithdrawalDate = DateTime.Now,
-                    SettlementFromDate = fromDate,
-                    SettlementToDate = toDate,
-                    Remarks = $"Withdrawal of {request.Amount} from {request.WithdrawalType}. Charge: {charge}",
-                    BankAccount = request.BankAccount??"",
-                    Ifsc = request.Ifsc??"",
-                    BeneName = request.BeneName??"",
-                    BeneEmail = request.BeneEmail??"",
-                    BenePhone = request.BenePhone??"",
-                    BeneAddress = request.BeneAddress??"",
-                    Latitude = request.Latitude ??"",
-                    Longitude = request.Longitude??"",
-                    PayoutTransactionId = txnid??"",
-                    PayoutReferenceId = payoutResponse.TransactionId??"",
-                    PayoutStatus = payoutResponse.Status =="False"?"FAILED": payoutResponse.Status ?? "",
-                    PayoutResponse = payoutResponse.RawResponse??"",
-                    CreatedAt = DateTime.Now,
-                    UserName = Username,
-                    RRN = "",
-                    BankName= request.BankName ?? "",
-                    ComingFrom = request.ComingFrom ?? ""
-                };
+                decimal totalRefund = request.Amount + charge;
+                var (_, _, creditEntryId) = await _walletService.CreditAsync(
+                    user.Id, user.Name + "-" + user.Phone,
+                    request.Amount, totalRefund, charge, 0,
+                    "SettlementWithdrawal_Refund",
+                    $"Settlement Withdrawal Refunded | Account No {request.BankAccount} | Refund Credit TXN:{withdrawal.PayoutTransactionId}",
+                    user.Wlid);
 
-                _context.SettlementWithdrawals.Add(withdrawal);
-                await _context.SaveChangesAsync();
+                bool creditVerified = creditEntryId > 0
+                    && await _context.Tbluserbalances.AnyAsync(b => b.Id == creditEntryId && b.UserId == user.Id);
+
+                if (!creditVerified)
+                {
+                    withdrawal.PayoutStatus = "PENDING";
+                    withdrawal.ApiMsg = "Refund credit not verified — kept as PENDING for retry";
+                    withdrawal.WithdrawalDate = DateTime.Now;
+                }
             }
             catch (Exception ex)
             {
-                // Log error here
-                Console.WriteLine($"Error recording withdrawal: {ex.Message}");
-                throw;
+                withdrawal.PayoutStatus = "PENDING";
+                withdrawal.ApiMsg = $"Refund failed: {ex.Message} — kept as PENDING for retry";
+                withdrawal.WithdrawalDate = DateTime.Now;
             }
+        }
+
+        private static string MapPayoutStatus(int status, string optransid)
+        {
+            return status switch
+            {
+                1 => string.IsNullOrWhiteSpace(optransid) ? "PENDING" : "SUCCESS",
+                2 => "PENDING",
+                3 => "FAILED",
+                _ => "PENDING"
+            };
+        }
+
+        private async Task<RechargeKitPayoutResult> CallRechargeKitPayoutApi(WithdrawalRequestDto request, string partnerRequestId, CancellationToken cancellationToken = default)
+        {
+            var bodyObj = new
+            {
+                mobile_no = !string.IsNullOrWhiteSpace(request.BenePhone) ? request.BenePhone : "8684020633",
+                account_no = request.BankAccount,
+                ifsc = request.Ifsc,
+                bank_name = request.BankName,
+                beneficiary_name = request.BeneName,
+                amount = request.Amount,
+                transfer_type = _config.TransferType ?? "5",
+                partner_request_id = partnerRequestId
+            };
+
+            string json = JsonConvert.SerializeObject(bodyObj);
+            byte[] jsonBytes = Encoding.UTF8.GetBytes(json);
+
+            try
+            {
+                ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+
+                var handler = new SocketsHttpHandler
+                {
+                    UseProxy = false,
+                    AutomaticDecompression = DecompressionMethods.None,
+                    ConnectCallback = async (context, ct) =>
+                    {
+                        var addresses = await Dns.GetHostAddressesAsync(context.DnsEndPoint.Host, ct);
+                        var ipv4 = addresses.First(a => a.AddressFamily == AddressFamily.InterNetwork);
+                        var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                        await socket.ConnectAsync(ipv4, context.DnsEndPoint.Port, ct);
+                        return new NetworkStream(socket, ownsSocket: true);
+                    }
+                };
+
+                using var client = new HttpClient(handler);
+                var httpRequest = new HttpRequestMessage(HttpMethod.Post, _config.PayoutUrl);
+                httpRequest.Content = new ByteArrayContent(jsonBytes);
+                httpRequest.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
+                httpRequest.Headers.Add("Authorization", $"Bearer {_config.BearerToken}");
+
+                var response = await client.SendAsync(httpRequest, cancellationToken);
+                string resp = await response.Content.ReadAsStringAsync(cancellationToken);
+
+                var log = new Apilog
+                {
+                    Apiname = "Settlement-RKIT",
+                    Reqdatae = DateTime.Now,
+                    Request = json,
+                    Response = resp
+                };
+                _context.Apilogs.Add(log);
+                await _context.SaveChangesAsync(cancellationToken);
+
+                var apiResponse = JsonConvert.DeserializeObject<RechargeKitPayoutApiResponse>(resp);
+
+                if (apiResponse == null)
+                {
+                    return new RechargeKitPayoutResult
+                    {
+                        Status = "FAILED",
+                        Message = "Invalid or empty API response",
+                        RawResponse = resp,
+                        RequestJson = json
+                    };
+                }
+
+                string mappedStatus = MapPayoutStatus(apiResponse.status, apiResponse.optransid ?? "");
+
+                return new RechargeKitPayoutResult
+                {
+                    Status = mappedStatus,
+                    Message = apiResponse.msg,
+                    TransactionId = apiResponse.orderid ?? "",
+                    ReferenceId = apiResponse.optransid ?? "",
+                    RawResponse = resp,
+                    RequestJson = json
+                };
+            }
+            catch (Exception ex)
+            {
+                return new RechargeKitPayoutResult
+                {
+                    Status = "FAILED",
+                    Message = $"API call failed: {ex.Message}",
+                    RequestJson = json
+                };
+            }
+        }
+
+        private class RechargeKitPayoutResult
+        {
+            public string Status { get; set; } = "FAILED";
+            public string Message { get; set; } = "API call failed";
+            public string TransactionId { get; set; } = string.Empty;
+            public string ReferenceId { get; set; } = string.Empty;
+            public string RawResponse { get; set; } = string.Empty;
+            public string RequestJson { get; set; } = string.Empty;
         }
     }
 }

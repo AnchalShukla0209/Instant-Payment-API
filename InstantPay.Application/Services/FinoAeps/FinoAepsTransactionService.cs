@@ -160,7 +160,7 @@ namespace InstantPay.Application.Services.FinoAeps
             }
         }
 
-        public async Task UpdateWithCommissionAsync(string txnId, string status, string? apiRes, FinoAepsCommission commission, decimal newBal, string RRN, CancellationToken ct = default)
+        public async Task UpdateWithCommissionAsync(string txnId, string status, string? apiRes, FinoAepsCommission commission, decimal newBal, string RRN, bool onUs = false, decimal requestedamount=0 , CancellationToken ct = default)
         {
             try
             {
@@ -172,12 +172,12 @@ namespace InstantPay.Application.Services.FinoAeps
                 txn.Status = status;
                 txn.UpdateDate = DateTime.Now;
                 if (apiRes != null) txn.ApiRes = Truncate(apiRes, 4000);
-                txn.Comm = commission?.RetailerCommission ?? 0;
-                txn.MdComm = commission?.MdCommission ?? 0;
-                txn.AdComm = commission?.AdCommission ?? 0;
-                txn.WlComm = commission?.WlCommission ?? 0;
-                txn.Tds = commission?.Tds ?? 0;
-                txn.Cost = commission?.Cost ?? 0;
+                txn.Comm = onUs ? 0: commission?.RetailerCommission ?? 0;
+                txn.MdComm = onUs ? 0: commission?.MdCommission ?? 0;
+                txn.AdComm = onUs ? 0 : commission?.AdCommission ?? 0;
+                txn.WlComm = onUs ? 0 : commission?.WlCommission ?? 0;
+                txn.Tds = onUs ? 0 : commission?.Tds ?? 0;
+                txn.Cost = onUs ? requestedamount : commission?.Cost ?? 0;
                 if (status.ToUpper() != "FAILED")
                 {
                     txn.NewBal = Convert.ToString(newBal);

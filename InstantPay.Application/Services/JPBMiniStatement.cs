@@ -156,7 +156,7 @@ namespace InstantPay.Application.Services
                 {
                     APIURL = Truncate(url, 200),
                     Method = Truncate(method, 100),
-                    SuccessCode = successCode,
+                    SuccessCode = Truncate(successCode, 10),
                     APIError = apiError,
                     APIHeaders = headersJson,
                     APIPayload = payloadJson,

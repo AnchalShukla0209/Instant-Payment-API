@@ -58,7 +58,7 @@ namespace InstantPay.Application.Services.FinoAeps
             }
         }
 
-        public async Task<decimal> CreditAsync(int userId, decimal amount, string txnType, string bankName, string txnId, CancellationToken ct = default)
+        public async Task<decimal> CreditAsync(int userId, decimal amount, string txnType, string bankName, string txnId, bool isFINOBank = false, CancellationToken ct = default)
         {
             try
             {
@@ -79,7 +79,7 @@ namespace InstantPay.Application.Services.FinoAeps
                     $"AEPS {txnType}",
                     $"FINO AEPS {txnType} | Bank: {bankName} | TxnId: {txnId}",
                     user.Wlid?.ToString(), ct);
-                if (txnType.ToUpper() != "AP")
+                if (txnType.ToUpper() != "AP" && !isFINOBank)
                 {
                     await DistributeCommissionAsync(userId, amount, txnType, bankName, user.Wlid, user.Mdid, user.Adid, ct);
                 }

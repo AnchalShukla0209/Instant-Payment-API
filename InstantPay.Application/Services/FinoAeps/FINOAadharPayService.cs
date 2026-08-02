@@ -1,6 +1,9 @@
+using InstantPay.Application.Interfaces;
 using InstantPay.Application.Interfaces.FinoAeps;
+using InstantPay.Infrastructure.Sql.Entities;
 using InstantPay.SharedKernel.RequestPayload.FinoAEPS;
 using InstantPay.SharedKernel.Results;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 
@@ -10,22 +13,22 @@ namespace InstantPay.Application.Services.FinoAeps
     {
         private readonly IFinoAepsApiClient _api;
         private readonly IFinoAepsTransactionService _txnService;
-        private readonly IFinoAepsWalletService _walletService;
-        private readonly IFinoAepsCommissionService _commissionService;
+        private readonly IWalletService _walletService;
         private readonly ILogger<FINOAadharPayService> _logger;
+        private readonly AppDbContext _context;
 
         public FINOAadharPayService(
             IFinoAepsApiClient api,
             IFinoAepsTransactionService txnService,
-            IFinoAepsWalletService walletService,
-            IFinoAepsCommissionService commissionService,
-            ILogger<FINOAadharPayService> logger)
+            IWalletService walletService,
+            ILogger<FINOAadharPayService> logger,
+            AppDbContext context)
         {
             _api                = api;
             _txnService         = txnService;
             _walletService      = walletService;
-            _commissionService  = commissionService;
             _logger             = logger;
+            _context            = context;
         }
 
         public async Task<FinoAepsResponse> ProcessAsync(
@@ -61,26 +64,31 @@ namespace InstantPay.Application.Services.FinoAeps
 
             decimal charge;
             if (txnAmount >= 100 && txnAmount <= 1000)
-            {
                 charge = 3;
-            }
             else if (txnAmount >= 1001 && txnAmount <= 10000)
-            {
                 charge = txnAmount * 0.35m / 100;
-            }
             else
-            {
                 charge = 0;
-            }
 
-            decimal userbalance = await _walletService.GetLatestWalletBalanceAsync(Convert.ToInt32(userId));
-            if (userbalance < charge)
-            {
-                return Err("Insuficient Balance, to made this transaction you should have minimum balance in wallet: "+ charge+ ".");
-            }
+            if (!int.TryParse(userId, out int uid) || uid <= 0)
+                return Err("Invalid user");
+
+            var user = await _context.TblUsers
+                .Where(u => u.Id == uid)
+                .Select(u => new { u.Name, u.Phone, u.Wlid })
+                .FirstOrDefaultAsync(ct);
+
+            if (user == null)
+                return Err("User not found");
+
+            decimal currentBalance = await _walletService.GetBalanceAsync(uid, ct);
+            if (currentBalance < charge)
+                return Err("Insuficient Balance, to made this transaction you should have minimum balance in wallet: " + charge + ".");
+
+            decimal preNewBal = currentBalance - charge;
 
             var pendingRec = new FinoAepsTxnRecord(
-                UserId      : int.Parse(userId),
+                UserId      : uid,
                 TxnId       : txnId,
                 Mobile      : request.customermobileno ?? request.mobileno,
                 Amount      : txnAmount,
@@ -98,33 +106,135 @@ namespace InstantPay.Application.Services.FinoAeps
                 AdComm      : 0,
                 WlComm      : 0,
                 Tds         : 0,
-                Cost        : txnAmount+charge,
-                NewBal      : 0,
+                Cost        : txnAmount + charge,
+                NewBal      : preNewBal,
                 IfscCode    : null,
                 CustomerName: request.customermobileno ?? request.mobileno,
                 OpId        : null,
                 OperatorName: "FINO_AEPS_AADHAR_PAY",
-                ComingFrom: request.comingFrom,
-                charge: charge
+                ComingFrom  : request.comingFrom,
+                charge      : charge
             );
 
             bool pendingInserted = await _txnService.InsertPendingAsync(pendingRec, ct);
             if (!pendingInserted)
                 return Err("Failed to insert pending transaction");
 
-            var result = await _api.PostAadharPayProdAsync(bodyJson, ct);
-
-            string status = result.IsSuccess ? (result.DecryptedData?["Status"]?.ToString() ?? "SUCCESS") : "FAILED";
-            string rrn    = result.DecryptedData?["RRN"]?.ToString() ?? "NA";
-
-            decimal newBal = 0;
-            if (result.IsSuccess && (status.Equals("Success", StringComparison.OrdinalIgnoreCase) || status.Equals("SUCCESS", StringComparison.OrdinalIgnoreCase) || status.Equals("Pending", StringComparison.OrdinalIgnoreCase) || status.Equals("PENDING", StringComparison.OrdinalIgnoreCase)))
+            decimal debitNewBal  = 0;
+            int     debitEntryId = 0;
+            try
             {
-                await _walletService.DebitAsync(int.Parse(userId), charge, charge,charge, "AP Charge Debit", request.BankName ?? "", txnId, ct);
-                newBal = await _walletService.CreditAsync(int.Parse(userId), txnAmount, "AP", request.BankName ?? "", txnId, ct);
+                (_, debitNewBal, debitEntryId) = await _walletService.DebitAsync(
+                    uid, $"{user.Name}-{user.Phone}",
+                    charge, charge, charge, 0,
+                    "AEPS AP Charge",
+                    $"AEPS AadharPay Charge | Bank: {request.BankName} | TxnId: {txnId}",
+                    user.Wlid, CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "AP wallet debit failed for UserId={UserId} TxnId={TxnId}", uid, txnId);
+                return Err("Error, please try again");
             }
 
-            await _txnService.UpdateWithCommissionAsync(txnId, status, result.RawResponse, null, newBal, rrn, ct);
+            bool debitVerified = debitEntryId > 0
+                && await _context.Tbluserbalances.AnyAsync(
+                       b => b.Id == debitEntryId && b.UserId == uid, CancellationToken.None);
+
+            if (!debitVerified)
+            {
+                await UpdateTxnAsync(txnId, "FAILED", null, "Wallet debit failed before API call",
+                                     currentBalance, "", CancellationToken.None);
+                return Err("Wallet debit failed before API call");
+            }
+
+            var result = await _api.PostAadharPayProdAsync(bodyJson, ct);
+
+            string status = result.IsSuccess
+                ? (result.DecryptedData?["Status"]?.ToString() ?? "SUCCESS")
+                : "FAILED";
+            string rrn    = result.DecryptedData?["RRN"]?.ToString() ?? "NA";
+            string apiMsg = result.IsSuccess
+                ? (result.DecryptedData?["MessageString"]?.ToString() ?? result.MessageString)
+                : result.MessageString;
+
+            bool isSuccessOrPending = IsSuccessOrPending(status);
+            decimal finalNewBal = debitNewBal;
+
+            if (!result.IsSuccess || !isSuccessOrPending)
+            {
+                status = "FAILED";
+
+                try
+                {
+                    var (_, refundNewBal, refundEntryId) = await _walletService.CreditAsync(
+                        uid, $"{user.Name}-{user.Phone}",
+                        txnAmount, charge, charge, 0,
+                        "AEPS AP Refund",
+                        $"AEPS AadharPay Refund | Bank: {request.BankName} | TxnId: {txnId}",
+                        user.Wlid, CancellationToken.None);
+
+                    bool refundVerified = refundEntryId > 0
+                        && await _context.Tbluserbalances.AnyAsync(
+                               b => b.Id == refundEntryId && b.UserId == uid, CancellationToken.None);
+
+                    if (!refundVerified)
+                    {
+                        await UpdateTxnAsync(txnId, "PENDING", result.RawResponse,
+                            "Refund credit not verified — kept as PENDING for retry",
+                            debitNewBal, rrn, CancellationToken.None);
+                        return Err("Refund credit not verified");
+                    }
+
+                    finalNewBal = refundNewBal;
+                    await UpdateTxnAsync(txnId, "FAILED", result.RawResponse, apiMsg,
+                                         finalNewBal, rrn, CancellationToken.None);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "AP refund failed for UserId={UserId} TxnId={TxnId}", uid, txnId);
+                    await UpdateTxnAsync(txnId, "PENDING", result.RawResponse,
+                        "Refund credit failed — kept as PENDING for retry",
+                        debitNewBal, rrn, CancellationToken.None);
+                    return Err("Refund failed");
+                }
+            }
+            else
+            {
+                try
+                {
+                    var (_, creditNewBal, creditEntryId) = await _walletService.CreditAsync(
+                        uid, $"{user.Name}-{user.Phone}",
+                        txnAmount, txnAmount, 0, 0,
+                        "AEPS AP",
+                        $"AEPS AadharPay | Bank: {request.BankName} | TxnId: {txnId}",
+                        user.Wlid, CancellationToken.None);
+
+                    bool creditVerified = creditEntryId > 0
+                        && await _context.Tbluserbalances.AnyAsync(
+                               b => b.Id == creditEntryId && b.UserId == uid, CancellationToken.None);
+
+                    if (!creditVerified)
+                    {
+                        await UpdateTxnAsync(txnId, "PENDING", result.RawResponse,
+                            "Wallet credit not verified — kept as PENDING for retry",
+                            debitNewBal, rrn, ct);
+                        return Err("Wallet credit not verified");
+                    }
+
+                    finalNewBal = creditNewBal;
+                    await UpdateTxnAsync(txnId, status, result.RawResponse, apiMsg,
+                                         finalNewBal, rrn, ct);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "AP wallet credit failed for UserId={UserId} TxnId={TxnId}", uid, txnId);
+                    await UpdateTxnAsync(txnId, "PENDING", result.RawResponse,
+                        "Wallet credit failed — kept as PENDING for retry",
+                        debitNewBal, rrn, ct);
+                    return Err("Wallet credit failed");
+                }
+            }
 
             if (!result.IsSuccess)
                 return Err(result.MessageString);
@@ -145,6 +255,36 @@ namespace InstantPay.Application.Services.FinoAeps
                 }
             });
         }
+
+        private async Task UpdateTxnAsync(
+            string txnId, string status, string? rawResponse, string? apiMsg,
+            decimal newBal, string rrn, CancellationToken ct)
+        {
+            var txn = await _context.TransactionDetails
+                .FirstOrDefaultAsync(t => t.TxnId == txnId, ct);
+
+            if (txn == null) return;
+
+            txn.Status     = status;
+            txn.UpdateDate = DateTime.Now;
+            if (rawResponse != null) txn.ApiRes = Truncate(rawResponse, 4000);
+            if (apiMsg != null)      txn.ApiMsg = Truncate(apiMsg, 500);
+            txn.NewBal     = Convert.ToString(newBal);
+            txn.Brid       = rrn;
+
+            await _context.SaveChangesAsync(ct);
+        }
+
+        private static bool IsSuccessOrPending(string status)
+        {
+            return status.Equals("Success", StringComparison.OrdinalIgnoreCase)
+                || status.Equals("SUCCESS", StringComparison.OrdinalIgnoreCase)
+                || status.Equals("Pending", StringComparison.OrdinalIgnoreCase)
+                || status.Equals("PENDING", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static string? Truncate(string? s, int max)
+            => s == null ? null : s.Length <= max ? s : s[..max];
 
         private static FinoAepsResponse Err(string msg) => new() { Status_Code = "0", Message = msg, Data = msg };
         private static FinoAepsResponse Ok(string msg, object data) => new() { Status_Code = "1", Message = msg, Data = data };

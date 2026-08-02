@@ -10,7 +10,6 @@ namespace InstantPay.Application.Services.PPI;
 public class PPIBeneficiaryService : IPPIBeneficiaryService
 {
     private readonly HttpClient _httpClient;
-    private readonly IConfiguration _configuration;
     private readonly ILogger<PPIBeneficiaryService> _logger;
     private readonly string _baseUrl;
     private readonly string _appId;
@@ -23,7 +22,6 @@ public class PPIBeneficiaryService : IPPIBeneficiaryService
         ILogger<PPIBeneficiaryService> logger)
     {
         _httpClient = httpClientFactory.CreateClient();
-        _configuration = configuration;
         _logger = logger;
 
         // Load PPI configuration from appsettings
@@ -34,6 +32,17 @@ public class PPIBeneficiaryService : IPPIBeneficiaryService
         _secretKey = ppiConfig["SecretKey"] ?? string.Empty;
 
         _httpClient.Timeout = TimeSpan.FromSeconds(30);
+    }
+
+    private HttpRequestMessage CreatePpiRequest(string endpoint, HttpContent content, string bearerToken)
+    {
+        var req = new HttpRequestMessage(HttpMethod.Post, $"{_baseUrl}{endpoint}") { Content = content };
+        req.Headers.Add("AppID",    _appId);
+        req.Headers.Add("AuthKey",  _authKey);
+        req.Headers.Add("SecretKey", _secretKey);
+        if (!string.IsNullOrEmpty(bearerToken))
+            req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", bearerToken);
+        return req;
     }
 
     public async Task<PPIBeneListResponse> GetBeneficiaryListAsync(PPIBeneListRequest request)
@@ -63,15 +72,9 @@ public class PPIBeneficiaryService : IPPIBeneficiaryService
 
             _logger.LogInformation("Sending PPI Beneficiary List request for Mobile: {Mobile}", request.SenderMobile);
 
-            // Add headers
-            _httpClient.DefaultRequestHeaders.Clear();
-            _httpClient.DefaultRequestHeaders.Add("AppID", _appId);
-            _httpClient.DefaultRequestHeaders.Add("AuthKey", _authKey);
-            _httpClient.DefaultRequestHeaders.Add("SecretKey", _secretKey);
-            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {request.TokeyKey}");
-
             // Make the API call
-            var response = await _httpClient.PostAsync($"{_baseUrl}v1/beneficiary/list", content);
+            using var httpReq = CreatePpiRequest("v1/beneficiary/list", content, request.TokeyKey);
+            var response = await _httpClient.SendAsync(httpReq);
             
             var responseContent = await response.Content.ReadAsStringAsync();
             _logger.LogInformation("PPI Beneficiary List API Response: {Response}", responseContent);
@@ -97,7 +100,7 @@ public class PPIBeneficiaryService : IPPIBeneficiaryService
             if (root.TryGetProperty("resultCode", out var resultCode) && 
                 root.TryGetProperty("resultMessage", out var resultMessage))
             {
-                if (resultCode.GetString() == "2000" && root.TryGetProperty("result", out var result))
+                if (resultCode.GetRawText().Trim('"') == "2000" && root.TryGetProperty("result", out var result))
                 {
                     var beneficiaries = new List<PPIBeneficiary>();
 
@@ -210,7 +213,7 @@ public class PPIBeneficiaryService : IPPIBeneficiaryService
             }
 
             // Generate partner transaction reference ID
-            string partnertxnrefid = "TXN" + DateTime.Now.Ticks.ToString();
+            string partnertxnrefid = "TXN" + Guid.NewGuid().ToString("N").ToUpper();
 
             // Prepare the request payload for PPI API
             var payload = new
@@ -223,7 +226,7 @@ public class PPIBeneficiaryService : IPPIBeneficiaryService
                 bankaccountnumber = request.AccountNo,
                 ifsccode = request.IfscCode,
                 bankName = request.BankName,
-                verifybeneficiary = 0
+                verifybeneficiary = false
             };
 
             var jsonPayload = JsonSerializer.Serialize(payload);
@@ -232,15 +235,9 @@ public class PPIBeneficiaryService : IPPIBeneficiaryService
             _logger.LogInformation("Sending PPI Add Beneficiary request for Mobile: {Mobile}, Account: {Account}", 
                 request.SenderMobile, request.AccountNo);
 
-            // Add headers
-            _httpClient.DefaultRequestHeaders.Clear();
-            _httpClient.DefaultRequestHeaders.Add("AppID", _appId);
-            _httpClient.DefaultRequestHeaders.Add("AuthKey", _authKey);
-            _httpClient.DefaultRequestHeaders.Add("SecretKey", _secretKey);
-            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {request.TokeyKey}");
-
             // Make the API call
-            var response = await _httpClient.PostAsync($"{_baseUrl}v2/beneficiary/add", content);
+            using var httpReq = CreatePpiRequest("v2/beneficiary/add", content, request.TokeyKey);
+            var response = await _httpClient.SendAsync(httpReq);
             
             var responseContent = await response.Content.ReadAsStringAsync();
             _logger.LogInformation("PPI Add Beneficiary API Response: {Response}", responseContent);
@@ -266,16 +263,9 @@ public class PPIBeneficiaryService : IPPIBeneficiaryService
             if (root.TryGetProperty("resultCode", out var resultCode) && 
                 root.TryGetProperty("resultMessage", out var resultMessage))
             {
-                if (resultCode.GetString() == "2000" && root.TryGetProperty("result", out var result))
+                if (resultCode.GetRawText().Trim('"') == "2000" && root.TryGetProperty("result", out var result))
                 {
-                    // Extract beneficiary details for Data field
-                    string beneficiaryMobile = result.TryGetProperty("beneficiaryMobile", out var beneMobile) ? beneMobile.GetString() ?? "" : "";
-                    string mobileNumber = result.TryGetProperty("mobileNumber", out var mobNum) ? mobNum.GetString() ?? "" : "";
-                    string channel = result.TryGetProperty("channel", out var chan) ? chan.GetString() ?? "" : "";
-                    string beneId = result.TryGetProperty("beneId", out var bId) ? bId.GetString() ?? "" : "";
-                    string walletId = result.TryGetProperty("walletId", out var wId) ? wId.GetString() ?? "" : "";
-
-                    string data = $"{beneficiaryMobile}~{mobileNumber}~{channel}~{beneId}~{walletId}";
+                    string data = result.TryGetProperty("otpToken", out var otpToken) ? otpToken.GetString() ?? "" : "";
 
                     return new PPIAddBeneResponse
                     {
@@ -373,15 +363,9 @@ public class PPIBeneficiaryService : IPPIBeneficiaryService
 
             _logger.LogInformation("Sending PPI Resend OTP request for UserId: {UserId}", request.UserId);
 
-            // Add headers
-            _httpClient.DefaultRequestHeaders.Clear();
-            _httpClient.DefaultRequestHeaders.Add("AppID", _appId);
-            _httpClient.DefaultRequestHeaders.Add("AuthKey", _authKey);
-            _httpClient.DefaultRequestHeaders.Add("SecretKey", _secretKey);
-            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {request.tokenkey}");
-
             // Make the API call
-            var response = await _httpClient.PostAsync($"{_baseUrl}v2/beneficiary/generateotp", content);
+            using var httpReq = CreatePpiRequest("v2/beneficiary/generateotp", content, request.tokenkey);
+            var response = await _httpClient.SendAsync(httpReq);
             
             var responseContent = await response.Content.ReadAsStringAsync();
             _logger.LogInformation("PPI Resend OTP API Response: {Response}", responseContent);
@@ -407,15 +391,15 @@ public class PPIBeneficiaryService : IPPIBeneficiaryService
             if (root.TryGetProperty("resultCode", out var resultCode) && 
                 root.TryGetProperty("resultMessage", out var resultMessage))
             {
-                if (resultCode.GetString() == "2000" && root.TryGetProperty("result", out var result))
+                if (resultCode.GetRawText().Trim('"') == "2000")
                 {
-                    string otpToken = result.TryGetProperty("otpToken", out var oToken) ? oToken.GetString() ?? "" : "";
+                    
 
                     return new PPIResendOtpResponse
                     {
                         Status_Code = "1",
                         Message = resultMessage.GetString() ?? "OTP sent successfully",
-                        Data = otpToken
+                        Data = request.otptoken
                     };
                 }
                 else
@@ -424,7 +408,7 @@ public class PPIBeneficiaryService : IPPIBeneficiaryService
                     {
                         Status_Code = "0",
                         Message = resultMessage.GetString() ?? "Failed to resend OTP",
-                        Data = ""
+                        Data = request.otptoken
                     };
                 }
             }
@@ -435,7 +419,7 @@ public class PPIBeneficiaryService : IPPIBeneficiaryService
             {
                 Status_Code = "0",
                 Message = "Unexpected response from resend OTP service",
-                Data = ""
+                Data = request.otptoken
             };
         }
         catch (HttpRequestException ex)
@@ -445,7 +429,7 @@ public class PPIBeneficiaryService : IPPIBeneficiaryService
             {
                 Status_Code = "0",
                 Message = "Network error. Please check your connection.",
-                Data = ""
+                Data = request.otptoken
             };
         }
         catch (TaskCanceledException ex)
@@ -455,7 +439,7 @@ public class PPIBeneficiaryService : IPPIBeneficiaryService
             {
                 Status_Code = "0",
                 Message = "Request timeout. Please try again.",
-                Data = ""
+                Data = request.otptoken
             };
         }
         catch (JsonException ex)
@@ -465,7 +449,7 @@ public class PPIBeneficiaryService : IPPIBeneficiaryService
             {
                 Status_Code = "0",
                 Message = "Error processing response.",
-                Data = ""
+                Data = request.otptoken
             };
         }
         catch (Exception ex)
@@ -475,7 +459,7 @@ public class PPIBeneficiaryService : IPPIBeneficiaryService
             {
                 Status_Code = "0",
                 Message = "An unexpected error occurred.",
-                Data = ""
+                Data = request.otptoken
             };
         }
     }
@@ -508,15 +492,9 @@ public class PPIBeneficiaryService : IPPIBeneficiaryService
 
             _logger.LogInformation("Sending PPI Validate OTP request for UserId: {UserId}", request.UserId);
 
-            // Add headers
-            _httpClient.DefaultRequestHeaders.Clear();
-            _httpClient.DefaultRequestHeaders.Add("AppID", _appId);
-            _httpClient.DefaultRequestHeaders.Add("AuthKey", _authKey);
-            _httpClient.DefaultRequestHeaders.Add("SecretKey", _secretKey);
-            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {request.tokenkey}");
-
             // Make the API call
-            var response = await _httpClient.PostAsync($"{_baseUrl}v2/beneficiary/validateotp", content);
+            using var httpReq = CreatePpiRequest("v2/beneficiary/validateotp", content, request.tokenkey);
+            var response = await _httpClient.SendAsync(httpReq);
             
             var responseContent = await response.Content.ReadAsStringAsync();
             _logger.LogInformation("PPI Validate OTP API Response: {Response}", responseContent);
@@ -542,21 +520,13 @@ public class PPIBeneficiaryService : IPPIBeneficiaryService
             if (root.TryGetProperty("resultCode", out var resultCode) && 
                 root.TryGetProperty("resultMessage", out var resultMessage))
             {
-                if (resultCode.GetString() == "2000" && root.TryGetProperty("result", out var result))
+                if (resultCode.GetRawText().Trim('"') == "2000")
                 {
-                    string beneId = result.TryGetProperty("beneId", out var bId) ? bId.GetString() ?? "" : "";
-                    string beneficiaryMobile = result.TryGetProperty("beneficiaryMobile", out var beneMobile) ? beneMobile.GetString() ?? "" : "";
-                    string mobileNumber = result.TryGetProperty("mobileNumber", out var mobNum) ? mobNum.GetString() ?? "" : "";
-                    string channel = result.TryGetProperty("channel", out var chan) ? chan.GetString() ?? "" : "";
-                    string walletId = result.TryGetProperty("walletId", out var wId) ? wId.GetString() ?? "" : "";
-
-                    string data = $"{beneId}~{beneficiaryMobile}~{mobileNumber}~{channel}~{walletId}";
-
                     return new PPIValidateOtpResponse
                     {
                         Status_Code = "1",
                         Message = resultMessage.GetString() ?? "OTP validated successfully",
-                        Data = data
+                        Data = ""
                     };
                 }
                 else
@@ -650,15 +620,9 @@ public class PPIBeneficiaryService : IPPIBeneficiaryService
             _logger.LogInformation("Sending PPI Delete Get OTP request for Mobile: {Mobile}, BeneficiaryId: {BeneficiaryId}", 
                 request.mobilenumber, request.beneficiaryid);
 
-            // Add headers
-            _httpClient.DefaultRequestHeaders.Clear();
-            _httpClient.DefaultRequestHeaders.Add("AppID", _appId);
-            _httpClient.DefaultRequestHeaders.Add("AuthKey", _authKey);
-            _httpClient.DefaultRequestHeaders.Add("SecretKey", _secretKey);
-            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {request.tokenkey}");
-
             // Make the API call
-            var response = await _httpClient.PostAsync($"{_baseUrl}v1/beneficiary/delete/getotp", content);
+            using var httpReq = CreatePpiRequest("v1/beneficiary/delete/getotp", content, request.tokenkey);
+            var response = await _httpClient.SendAsync(httpReq);
             
             var responseContent = await response.Content.ReadAsStringAsync();
             _logger.LogInformation("PPI Delete Get OTP API Response: {Response}", responseContent);
@@ -684,7 +648,7 @@ public class PPIBeneficiaryService : IPPIBeneficiaryService
             if (root.TryGetProperty("resultCode", out var resultCode) && 
                 root.TryGetProperty("resultMessage", out var resultMessage))
             {
-                if (resultCode.GetString() == "2000" && root.TryGetProperty("result", out var result))
+                if (resultCode.GetRawText().Trim('"') == "2000" && root.TryGetProperty("result", out var result))
                 {
                     string otpToken = result.TryGetProperty("otpToken", out var oToken) ? oToken.GetString() ?? "" : "";
 
@@ -786,15 +750,9 @@ public class PPIBeneficiaryService : IPPIBeneficiaryService
 
             _logger.LogInformation("Sending PPI Delete Verify OTP request for Mobile: {Mobile}", request.mobilenumber);
 
-            // Add headers
-            _httpClient.DefaultRequestHeaders.Clear();
-            _httpClient.DefaultRequestHeaders.Add("AppID", _appId);
-            _httpClient.DefaultRequestHeaders.Add("AuthKey", _authKey);
-            _httpClient.DefaultRequestHeaders.Add("SecretKey", _secretKey);
-            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {request.tokenkey}");
-
             // Make the API call
-            var response = await _httpClient.PostAsync($"{_baseUrl}v1/beneficiary/delete/verifyotpanddelete", content);
+            using var httpReq = CreatePpiRequest("v1/beneficiary/delete/verifyotpanddelete", content, request.tokenkey);
+            var response = await _httpClient.SendAsync(httpReq);
             
             var responseContent = await response.Content.ReadAsStringAsync();
             _logger.LogInformation("PPI Delete Verify OTP API Response: {Response}", responseContent);
@@ -820,7 +778,7 @@ public class PPIBeneficiaryService : IPPIBeneficiaryService
             if (root.TryGetProperty("resultCode", out var resultCode) && 
                 root.TryGetProperty("resultMessage", out var resultMessage))
             {
-                if (resultCode.GetString() == "2000")
+                if (resultCode.GetRawText().Trim('"') == "2000")
                 {
                     string message = resultMessage.GetString() ?? "OTP Verified.Beneficiary Deleted Successfully.";
 

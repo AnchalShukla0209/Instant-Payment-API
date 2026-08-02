@@ -1,8 +1,10 @@
 using InstantPay.Application.DTOs;
 using InstantPay.Application.Interfaces.PPI;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace InstantPay.API.Controller.PPI;
+
 
 [ApiController]
 [Route("api/PPI/[controller]")]
@@ -200,6 +202,56 @@ public class PPIAadharController : ControllerBase
                 Status_Code = "0",
                 Message = "Internal server error",
                 Data = ""
+            });
+        }
+    }
+
+    [HttpPost("CreateWallet")]
+    public async Task<IActionResult> CreateWallet([FromBody] PPICreateWalletRequest request)
+    {
+        try
+        {
+            if (request == null)
+            {
+                _logger.LogWarning("CreateWallet called with null request");
+                return BadRequest(new PPICreateWalletResponse
+                {
+                    ResultCode = "0",
+                    ResultStatus = "Failure",
+                    ResultMessage = "Invalid request payload",
+                    Result = new PPICreateWalletResult()
+                });
+            }
+
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage);
+                _logger.LogWarning("CreateWallet validation failed: {Errors}", string.Join(", ", errors));
+                return BadRequest(new PPICreateWalletResponse
+                {
+                    ResultCode = "0",
+                    ResultStatus = "Failure",
+                    ResultMessage = "Validation failed: " + string.Join(", ", errors),
+                    Result = new PPICreateWalletResult()
+                });
+            }
+
+            _logger.LogInformation("CreateWallet called for Mobile: {Mobile}, ApplicationNumber: {ApplicationNumber}",
+                request.MobileNumber, request.WalletAcApplicationNumber);
+
+            var result = await _ppiAadharService.CreateWalletAsync(request);
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in CreateWallet endpoint");
+            return StatusCode(500, new PPICreateWalletResponse
+            {
+                ResultCode = "0",
+                ResultStatus = "Failure",
+                ResultMessage = "Internal server error",
+                Result = new PPICreateWalletResult()
             });
         }
     }

@@ -11,5 +11,6 @@ namespace InstantPay.Application.Interfaces.A2Z
     public interface IA2ZClient
     {
         Task<A2ZRechargePlanResponse> GetRechargePlansAsync(A2ZRechargePlanRequest payload);
+        Task<A2ZCreditCardBillFetchResponse> FetchCreditCardBillAsync(A2ZCreditCardBillFetchRequest request);
     }
 }

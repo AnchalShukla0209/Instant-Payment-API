@@ -306,7 +306,7 @@ namespace InstantPay.Application.Services
                 {
                     APIURL = Truncate(url, 200),
                     Method = Truncate(method, 100),
-                    SuccessCode = successCode,
+                    SuccessCode = Truncate(successCode, 10),
                     APIError = apiError,
                     APIHeaders = headersJson,
                     APIPayload = payloadJson,
@@ -781,21 +781,9 @@ namespace InstantPay.Application.Services
                 string traceId = Guid.NewGuid().ToString();
                 requestBody = JsonConvert.SerializeObject(BuildRequestBody(model, pidBase64, channelId, timestamp, uid, deviceInfoJson));
                 var response = await SendJioRequest(apiUrl, requestBody, deviceInfoJson, accessToken, appIdToken, channelId, client, cancellationToken, traceId);
-                _ = Task.Run(() => LogApiAsync(
-                    apiUrl,
-                    "POST",
-                    response.StatusCode,
-                    response.ErrorMessage,
-                    deviceInfoJson + $", attempt={attempt}, accessToken={accessToken}, appToken={appIdToken}, x-traceid={traceId}",
-                    requestBody,
-                    response.Raw,
-                    "AEPS",
-                    "BalanceInquiry"
-                ));
-
-                //await LogApiAsync(apiUrl, "POST", response.StatusCode, response.ErrorMessage,
-                //                    deviceInfoJson + $", attempt={attempt}, accessToken={accessToken}, appToken={appIdToken}, x-traceid={traceId}",
-                //                    requestBody, response.Raw, "AEPS", "BalanceInquiry");
+                await LogApiAsync(apiUrl, "POST", response.StatusCode, response.ErrorMessage,
+                                    deviceInfoJson + $", attempt={attempt}, accessToken={accessToken}, appToken={appIdToken}, x-traceid={traceId}",
+                                    requestBody, response.Raw, "AEPS", "BalanceInquiry");
                 bool sessionExpired = IsSessionExpired(response.Raw);
 
                 if (sessionExpired)

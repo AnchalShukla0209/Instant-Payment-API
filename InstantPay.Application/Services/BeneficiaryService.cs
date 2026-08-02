@@ -26,15 +26,14 @@ public class BeneficiaryService : IBeneficiaryService
         // Check for duplicate beneficiary
         var duplicate = await _context.Beneficiaries
             .AnyAsync(b => b.CustomerNumber == request.CustomerNumber 
-                        && b.AccountNumber == request.AccountNumber 
-                        && b.Ifsc == request.Ifsc);
+                        && b.AccountNumber == request.AccountNumber );
 
         if (duplicate)
         {
             return new SaveBeneficiaryResponse
             {
                 Success = false,
-                Message = "Beneficiary already exists with same account number and IFSC"
+                Message = "Beneficiary already exists with same account number"
             };
         }
 
@@ -163,7 +162,7 @@ public class BeneficiaryService : IBeneficiaryService
     public async Task<GetBeneficiaryListResponse> GetBeneficiaryListAsync(GetBeneficiaryListRequest request)
     {
         var beneficiaries = await _context.Beneficiaries
-            .Where(b => b.CustomerNumber == request.CustomerNumber)
+            .Where(b => b.CustomerNumber == request.CustomerNumber).OrderByDescending(id=> id.Id)
             .Select(b => new BeneficiaryDto
             {
                 Id = b.Id,

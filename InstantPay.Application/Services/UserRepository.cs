@@ -246,7 +246,7 @@ namespace InstantPay.Application.Services
                 _context.TblloginOtps.Add(loginOtp);
                 await _context.SaveChangesAsync();
 
-                return ""; // Return empty string as OTP should not be exposed
+                return "success"; // Return empty string as OTP should not be exposed
             }
             catch (Exception ex)
             {

@@ -16,13 +16,18 @@ namespace InstantPay.Application.Services
         }
 
         public async Task<decimal> GetCommissionFromPlanAsync(
-            int planId, decimal amount, int serviceId, string apiCode, string shareColumn)
+            int planId, decimal amount, int serviceId, string apiCode, string shareColumn, int? operatorId = null)
         {
             var allCommissionPlans = await _context.CommissionPlans
                 .Where(x => x.PlanId == planId
                     && x.ServiceId == serviceId
-                    && x.APICode == apiCode)
+                    && x.APICode == apiCode
+                    && (operatorId == null || x.OperatorId == null || x.OperatorId == operatorId))
                 .ToListAsync();
+
+            // When operatorId supplied, prefer operator-specific rows over generic ones
+            if (operatorId.HasValue && allCommissionPlans.Any(x => x.OperatorId == operatorId))
+                allCommissionPlans = allCommissionPlans.Where(x => x.OperatorId == operatorId).ToList();
 
             if (allCommissionPlans == null || !allCommissionPlans.Any()) return 0m;
 
@@ -64,13 +69,13 @@ namespace InstantPay.Application.Services
 
         public async Task DistributeCommissionAsync(
             TransactionDetail tx, TblUser user, decimal amount, int planId,
-            int serviceId, string apiCode, string remarksPrefix)
+            int serviceId, string apiCode, string remarksPrefix, int? operatorId = null)
         {
-            decimal rtComm    = await GetCommissionFromPlanAsync(planId, amount, serviceId, apiCode, "RT");
-            decimal adComm    = await GetCommissionFromPlanAsync(planId, amount, serviceId, apiCode, "AD");
-            decimal mdComm    = await GetCommissionFromPlanAsync(planId, amount, serviceId, apiCode, "MD");
-            decimal wlComm    = await GetCommissionFromPlanAsync(planId, amount, serviceId, apiCode, "WL");
-            decimal adminComm = await GetCommissionFromPlanAsync(planId, amount, serviceId, apiCode, "ADMIN");
+            decimal rtComm    = await GetCommissionFromPlanAsync(planId, amount, serviceId, apiCode, "RT",    operatorId);
+            decimal adComm    = await GetCommissionFromPlanAsync(planId, amount, serviceId, apiCode, "AD",    operatorId);
+            decimal mdComm    = await GetCommissionFromPlanAsync(planId, amount, serviceId, apiCode, "MD",    operatorId);
+            decimal wlComm    = await GetCommissionFromPlanAsync(planId, amount, serviceId, apiCode, "WL",    operatorId);
+            decimal adminComm = await GetCommissionFromPlanAsync(planId, amount, serviceId, apiCode, "ADMIN", operatorId);
 
             string remarks = $"{remarksPrefix} TXN:{tx.TxnId}";
 

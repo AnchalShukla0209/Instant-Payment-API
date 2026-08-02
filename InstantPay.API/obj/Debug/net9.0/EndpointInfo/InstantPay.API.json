@@ -5,6 +5,42 @@
     "version": "v1"
   },
   "paths": {
+    "/api/AccountVerify/verify": {
+      "post": {
+        "tags": [
+          "AccountVerify"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountVerifyRequest"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountVerifyRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountVerifyRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountVerifyRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/AEPS/agentstatus": {
       "get": {
         "tags": [
@@ -2083,6 +2119,54 @@
         }
       }
     },
+    "/api/CreditCardBillPayment/operators": {
+      "get": {
+        "tags": [
+          "CreditCardBillPayment"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/CreditCardBillPayment/pay": {
+      "post": {
+        "tags": [
+          "CreditCardBillPayment"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreditCardBillPaymentRequest"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreditCardBillPaymentRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreditCardBillPaymentRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreditCardBillPaymentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/Dashboard": {
       "get": {
         "tags": [
@@ -2304,6 +2388,41 @@
         }
       }
     },
+    "/api/IQoreCallback": {
+      "get": {
+        "tags": [
+          "IQoreCallback"
+        ],
+        "parameters": [
+          {
+            "name": "tid",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "opid",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/Login": {
       "post": {
         "tags": [
@@ -2365,6 +2484,42 @@
             "application/*+json": {
               "schema": {
                 "$ref": "#/components/schemas/EncryptedRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Login/verifyotpexternal": {
+      "post": {
+        "tags": [
+          "Login"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/OtpLoginLogDto"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OtpLoginLogDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OtpLoginLogDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/OtpLoginLogDto"
               }
             }
           }
@@ -3011,6 +3166,122 @@
         }
       }
     },
+    "/api/MoneyTransfer/arp/transfer": {
+      "post": {
+        "tags": [
+          "MoneyTransfer"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/AeronpayDmtRequest"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AeronpayDmtRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AeronpayDmtRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/AeronpayDmtRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/MoneyTransfer/arp/status/{txnId}": {
+      "get": {
+        "tags": [
+          "MoneyTransfer"
+        ],
+        "parameters": [
+          {
+            "name": "txnId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/MoneyTransfer/rkit/transfer": {
+      "post": {
+        "tags": [
+          "MoneyTransfer"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/AeronpayDmtRequest"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AeronpayDmtRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AeronpayDmtRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/AeronpayDmtRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/MoneyTransfer/rkit/status/{txnId}": {
+      "get": {
+        "tags": [
+          "MoneyTransfer"
+        ],
+        "parameters": [
+          {
+            "name": "txnId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/Notification/GetAllNotification": {
       "get": {
         "tags": [
@@ -3599,6 +3870,42 @@
         }
       }
     },
+    "/api/PPI/PPIAadhar/CreateWallet": {
+      "post": {
+        "tags": [
+          "PPIAadhar"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPICreateWalletRequest"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPICreateWalletRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPICreateWalletRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PPICreateWalletRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/PPI/PPIBeneficiary/GetBeneficiaryList": {
       "post": {
         "tags": [
@@ -3959,42 +4266,6 @@
         }
       }
     },
-    "/api/PPI/PPIPayment/SendPaymentOtp": {
-      "post": {
-        "tags": [
-          "PPIPayment"
-        ],
-        "requestBody": {
-          "content": {
-            "application/json-patch+json": {
-              "schema": {
-                "$ref": "#/components/schemas/PPISendPaymentOtpRequest"
-              }
-            },
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PPISendPaymentOtpRequest"
-              }
-            },
-            "text/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PPISendPaymentOtpRequest"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/PPISendPaymentOtpRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      }
-    },
     "/api/PPI/PPIWallet/LoadWallet": {
       "post": {
         "tags": [
@@ -4151,6 +4422,27 @@
         }
       }
     },
+    "/api/Recharge/checkstatus": {
+      "get": {
+        "tags": [
+          "Recharge"
+        ],
+        "parameters": [
+          {
+            "name": "txnId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/Report/Txn-Report": {
       "post": {
         "tags": [
@@ -4284,6 +4576,114 @@
             "application/*+json": {
               "schema": {
                 "$ref": "#/components/schemas/EncryptedRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Sender/login": {
+      "post": {
+        "tags": [
+          "Sender"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SenderLoginRequestDto"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SenderLoginRequestDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SenderLoginRequestDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SenderLoginRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Sender/registration": {
+      "post": {
+        "tags": [
+          "Sender"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SenderRegistrationRequestDto"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SenderRegistrationRequestDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SenderRegistrationRequestDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SenderRegistrationRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Sender/ekyc": {
+      "post": {
+        "tags": [
+          "Sender"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SenderEkycRequestDto"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SenderEkycRequestDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SenderEkycRequestDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SenderEkycRequestDto"
               }
             }
           }
@@ -4659,6 +5059,42 @@
         }
       }
     },
+    "/api/WebhookforAeronPayPayoutController": {
+      "post": {
+        "tags": [
+          "WebhookforAeronPayPayout"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/AeronpayWebhookPayload"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AeronpayWebhookPayload"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AeronpayWebhookPayload"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/AeronpayWebhookPayload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/WebhookforFinzepPayout": {
       "post": {
         "tags": [
@@ -4731,6 +5167,42 @@
         }
       }
     },
+    "/api/WebhookforRechargeKitPayPayout": {
+      "post": {
+        "tags": [
+          "WebhookforRechargeKitPayPayout"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/RechargeKitWebhookPayload"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RechargeKitWebhookPayload"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RechargeKitWebhookPayload"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/RechargeKitWebhookPayload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/WebsiteInfo/get-info": {
       "get": {
         "tags": [
@@ -4782,6 +5254,122 @@
   },
   "components": {
     "schemas": {
+      "AccountVerifyRequest": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "nullable": true
+          },
+          "senderMobile": {
+            "type": "string",
+            "nullable": true
+          },
+          "beneName": {
+            "type": "string",
+            "nullable": true
+          },
+          "accountNo": {
+            "type": "string",
+            "nullable": true
+          },
+          "ifscCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "bankName": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "AeronpayDmtRequest": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "nullable": true
+          },
+          "transactionPin": {
+            "type": "string",
+            "nullable": true
+          },
+          "amount": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "accountNumber": {
+            "type": "string",
+            "nullable": true
+          },
+          "beneficiaryName": {
+            "type": "string",
+            "nullable": true
+          },
+          "beneficiaryMobile": {
+            "type": "string",
+            "nullable": true
+          },
+          "bankName": {
+            "type": "string",
+            "nullable": true
+          },
+          "ifsc": {
+            "type": "string",
+            "nullable": true
+          },
+          "remark": {
+            "type": "string",
+            "nullable": true
+          },
+          "comingFrom": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "AeronpayWebhookPayload": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "nullable": true
+          },
+          "statusCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "transactionId": {
+            "type": "string",
+            "nullable": true
+          },
+          "client_referenceId": {
+            "type": "string",
+            "nullable": true
+          },
+          "txn_amount": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "acknowledged": {
+            "type": "string",
+            "nullable": true
+          },
+          "utr": {
+            "type": "string",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "AgentEKYCRequestDto": {
         "type": "object",
         "properties": {
@@ -5264,6 +5852,53 @@
         },
         "additionalProperties": false
       },
+      "CreditCardBillPaymentRequest": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "nullable": true
+          },
+          "transactionPin": {
+            "type": "string",
+            "nullable": true
+          },
+          "mobileNo": {
+            "type": "string",
+            "nullable": true
+          },
+          "accountNo": {
+            "type": "string",
+            "nullable": true
+          },
+          "ifsc": {
+            "type": "string",
+            "nullable": true
+          },
+          "bankName": {
+            "type": "string",
+            "nullable": true
+          },
+          "beneficiaryName": {
+            "type": "string",
+            "nullable": true
+          },
+          "amount": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "operatorCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "comingFrom": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "DeleteBeneficiaryRequest": {
         "required": [
           "beneficiaryId",
@@ -5624,6 +6259,7 @@
           },
           "pincode": {
             "minLength": 1,
+            "pattern": "^\\d{6}$",
             "type": "string"
           },
           "rtName": {
@@ -5824,6 +6460,24 @@
         },
         "additionalProperties": false
       },
+      "OtpLoginLogDto": {
+        "type": "object",
+        "properties": {
+          "usertype": {
+            "type": "string",
+            "nullable": true
+          },
+          "userid": {
+            "type": "string",
+            "nullable": true
+          },
+          "otp": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "PPIAadharBiometricRequest": {
         "required": [
           "aadharNo",
@@ -6016,6 +6670,68 @@
         },
         "additionalProperties": false
       },
+      "PPICreateWalletRequest": {
+        "required": [
+          "apiKey",
+          "mobileNumber",
+          "pancardNumber",
+          "partnerTxnRefId",
+          "tokeyKey",
+          "userId",
+          "walletAcApplicationNumber",
+          "walletAcCreatorCode",
+          "walletAcCreatorName",
+          "walletAcCreatorPinCode"
+        ],
+        "type": "object",
+        "properties": {
+          "userId": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "apiKey": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "tokeyKey": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "walletAcCreatorCode": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "walletAcCreatorName": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "walletAcCreatorPinCode": {
+            "minLength": 1,
+            "pattern": "^\\d{6}$",
+            "type": "string"
+          },
+          "mobileNumber": {
+            "minLength": 1,
+            "pattern": "^\\d{10}$",
+            "type": "string"
+          },
+          "walletAcApplicationNumber": {
+            "minLength": 1,
+            "pattern": "^\\d+$",
+            "type": "string"
+          },
+          "pancardNumber": {
+            "minLength": 1,
+            "pattern": "^[A-Z0-9]{10}$",
+            "type": "string"
+          },
+          "partnerTxnRefId": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "PPIDeleteOtpRequest": {
         "required": [
           "apiKey",
@@ -6139,8 +6855,10 @@
         "required": [
           "amount",
           "apiKey",
+          "comingFrom",
           "sendermobile",
           "tokeyKey",
+          "txnPin",
           "userId"
         ],
         "type": "object",
@@ -6166,8 +6884,12 @@
             "type": "string"
           },
           "comingFrom": {
-            "type": "string",
-            "nullable": true
+            "minLength": 1,
+            "type": "string"
+          },
+          "txnPin": {
+            "minLength": 1,
+            "type": "string"
           }
         },
         "additionalProperties": false
@@ -6320,54 +7042,6 @@
         },
         "additionalProperties": false
       },
-      "PPISendPaymentOtpRequest": {
-        "required": [
-          "accountNo",
-          "amount",
-          "apiKey",
-          "beneId",
-          "ifsccode",
-          "senderMobile",
-          "tokeyKey",
-          "userId"
-        ],
-        "type": "object",
-        "properties": {
-          "userId": {
-            "minLength": 1,
-            "type": "string"
-          },
-          "apiKey": {
-            "minLength": 1,
-            "type": "string"
-          },
-          "tokeyKey": {
-            "minLength": 1,
-            "type": "string"
-          },
-          "senderMobile": {
-            "minLength": 1,
-            "type": "string"
-          },
-          "beneId": {
-            "minLength": 1,
-            "type": "string"
-          },
-          "amount": {
-            "minLength": 1,
-            "type": "string"
-          },
-          "accountNo": {
-            "minLength": 1,
-            "type": "string"
-          },
-          "ifsccode": {
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "additionalProperties": false
-      },
       "PPIValidateAadharOtpRequest": {
         "required": [
           "aadharToken",
@@ -6502,6 +7176,32 @@
         },
         "additionalProperties": false
       },
+      "RechargeKitWebhookPayload": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "orderid": {
+            "type": "string",
+            "nullable": true
+          },
+          "opttranid": {
+            "type": "string",
+            "nullable": true
+          },
+          "pid": {
+            "type": "string",
+            "nullable": true
+          },
+          "commission": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "additionalProperties": false
+      },
       "ResendOtpRequest": {
         "type": "object",
         "properties": {
@@ -6572,6 +7272,84 @@
           "customerNumber": {
             "minLength": 1,
             "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SenderEkycRequestDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "nullable": true
+          },
+          "apiKey": {
+            "type": "string",
+            "nullable": true
+          },
+          "senderMobile": {
+            "type": "string",
+            "nullable": true
+          },
+          "otp": {
+            "type": "string",
+            "nullable": true
+          },
+          "state": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SenderLoginRequestDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "nullable": true
+          },
+          "apiKey": {
+            "type": "string",
+            "nullable": true
+          },
+          "senderMobile": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SenderRegistrationRequestDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "nullable": true
+          },
+          "apiKey": {
+            "type": "string",
+            "nullable": true
+          },
+          "senderMobile": {
+            "type": "string",
+            "nullable": true
+          },
+          "firstName": {
+            "type": "string",
+            "nullable": true
+          },
+          "lastName": {
+            "type": "string",
+            "nullable": true
+          },
+          "address": {
+            "type": "string",
+            "nullable": true
+          },
+          "pincode": {
+            "type": "string",
+            "nullable": true
           }
         },
         "additionalProperties": false

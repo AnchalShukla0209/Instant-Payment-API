@@ -1,9 +1,10 @@
-using System.Text;
-using System.Text.Json;
 using InstantPay.Application.DTOs;
 using InstantPay.Application.Interfaces.PPI;
+using InstantPay.Infrastructure.Sql.Entities;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using System.Text;
+using System.Text.Json;
 
 namespace InstantPay.Application.Services.PPI;
 
@@ -18,11 +19,13 @@ public class PPIFundTransferService : IPPIFundTransferService
 
     private const decimal MinAmount = 100m;
     private const decimal MaxAmount = 100000m;
+    private readonly AppDbContext _context;
 
     public PPIFundTransferService(
         IHttpClientFactory httpClientFactory,
         IConfiguration configuration,
-        ILogger<PPIFundTransferService> logger)
+        ILogger<PPIFundTransferService> logger,
+        AppDbContext context)
     {
         _httpClient = httpClientFactory.CreateClient();
         _logger = logger;
@@ -34,6 +37,18 @@ public class PPIFundTransferService : IPPIFundTransferService
         _secretKey = ppiConfig["SecretKey"] ?? string.Empty;
 
         _httpClient.Timeout = TimeSpan.FromSeconds(30);
+        _context = context;
+    }
+
+    private HttpRequestMessage CreatePpiRequest(string endpoint, HttpContent content, string bearerToken)
+    {
+        var req = new HttpRequestMessage(HttpMethod.Post, $"{_baseUrl}{endpoint}") { Content = content };
+        req.Headers.Add("AppID",    _appId);
+        req.Headers.Add("AuthKey",  _authKey);
+        req.Headers.Add("SecretKey", _secretKey);
+        if (!string.IsNullOrEmpty(bearerToken))
+            req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", bearerToken);
+        return req;
     }
 
     public async Task<PPIFundTransferOtpResponse> GetOtpAsync(PPIFundTransferOtpRequest request)
@@ -63,16 +78,11 @@ public class PPIFundTransferService : IPPIFundTransferService
                 Encoding.UTF8,
                 "application/json");
 
-            _httpClient.DefaultRequestHeaders.Clear();
-            _httpClient.DefaultRequestHeaders.Add("AppID", _appId);
-            _httpClient.DefaultRequestHeaders.Add("AuthKey", _authKey);
-            _httpClient.DefaultRequestHeaders.Add("SecretKey", _secretKey);
-            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {request.TokeyKey}");
-
             _logger.LogInformation("PPI FundTransfer GetOtp | Mobile: {Mobile} BeneId: {BeneId} Amount: {Amount}",
                 request.MobileNumber, request.BeneficiaryId, request.Amount);
 
-            var response = await _httpClient.PostAsync($"{_baseUrl}v2/fundtransfer/getotp", content);
+            using var httpReq = CreatePpiRequest("v2/fundtransfer/getotp", content, request.TokeyKey);
+            var response = await _httpClient.SendAsync(httpReq);
             var responseContent = await response.Content.ReadAsStringAsync();
 
             _logger.LogInformation("PPI FundTransfer GetOtp Response: {Response}", responseContent);
@@ -80,8 +90,28 @@ public class PPIFundTransferService : IPPIFundTransferService
             if (!response.IsSuccessStatusCode)
             {
                 _logger.LogError("PPI FundTransfer GetOtp HTTP error {StatusCode}", response.StatusCode);
+                var log = new Apilog
+                {
+                    Apiname = "PPI-FundTransferOTP",
+                    Reqdatae = DateTime.Now,
+                    Request = JsonSerializer.Serialize(payload),
+                    Response = responseContent + "||" + response.StatusCode
+                };
+                _context.Apilogs.Add(log);
+                await _context.SaveChangesAsync();
                 return Fail("Failed to send OTP. Please try again later.");
             }
+
+            var logs = new Apilog
+            {
+                Apiname = "PPI-FundTransferOTP",
+                Reqdatae = DateTime.Now,
+                Request = JsonSerializer.Serialize(payload),
+                Response = responseContent + "||" + response.StatusCode
+            };
+            _context.Apilogs.Add(logs);
+            await _context.SaveChangesAsync();
+
 
             using var jsonDoc = JsonDocument.Parse(responseContent);
             var root = jsonDoc.RootElement;
@@ -89,7 +119,7 @@ public class PPIFundTransferService : IPPIFundTransferService
             if (root.TryGetProperty("resultCode", out var resultCode) &&
                 root.TryGetProperty("resultMessage", out var resultMessage))
             {
-                bool success = resultCode.GetString() == "2000";
+                bool success = resultCode.GetRawText().Trim('"') == "2000";
                 string otpToken = string.Empty;
 
                 if (success && root.TryGetProperty("result", out var result))

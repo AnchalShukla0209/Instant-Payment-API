@@ -7,6 +7,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
@@ -112,6 +113,9 @@ namespace InstantPay.Application.Services
             try
             {
                 payload.offer = "roffer";
+                if (string.Equals(payload.operatorName, "vi", StringComparison.OrdinalIgnoreCase))
+                    payload.operatorName = "Vodafone";
+                payload.operatorName = CultureInfo.InvariantCulture.TextInfo.ToTitleCase(payload.operatorName?.ToLower() ?? string.Empty);
                 var mplanSection = _configuration.GetSection("MPlan");
                 var apiKey = mplanSection.Exists() ? mplanSection["ApiKey"] : null;
 

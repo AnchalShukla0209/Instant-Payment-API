@@ -111,8 +111,15 @@ public partial class AppDbContext : DbContext
     }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        if (!optionsBuilder.IsConfigured)
+        {
 #warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
-        => optionsBuilder.UseSqlServer("Data Source=198.38.81.244,1232;Initial Catalog=InstantPayment_Db;User ID=InstantPayment_Db;Password=Chandan@1234;MultipleActiveResultSets=True;TrustServerCertificate=True");
+            optionsBuilder.UseSqlServer(
+                "Data Source=198.38.81.244,1232;Initial Catalog=InstantPayment_Db;User ID=InstantPayment_Db;Password=Chandan@1234;MultipleActiveResultSets=True;TrustServerCertificate=True",
+                sqlOptions => sqlOptions.CommandTimeout(120));
+        }
+    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -1468,6 +1475,12 @@ public partial class AppDbContext : DbContext
                 .HasColumnName("WL_Id");
             entity.Property(e => e.ServiceId).HasColumnType("int");
             entity.Property(e => e.SuperAdminShare).HasColumnType("decimal(18, 2)");
+
+            entity.HasIndex(e => new { e.UserId, e.ServiceName, e.ReqDate })
+                  .HasDatabaseName("IX_TransactionDetails_UserId_ServiceName_ReqDate");
+
+            entity.HasIndex(e => e.TxnId)
+                  .HasDatabaseName("IX_TransactionDetails_TxnId");
         });
 
         modelBuilder.Entity<Notification>()
@@ -1552,6 +1565,10 @@ public partial class AppDbContext : DbContext
                 .HasMaxLength(50)
                 .IsUnicode(false);
             entity.Property(e => e.PayoutResponse)
+                .IsUnicode(false);
+            entity.Property(e => e.ApiRequest)
+                .IsUnicode(false);
+            entity.Property(e => e.ApiMsg)
                 .IsUnicode(false);
 
             entity.HasIndex(e => e.UserId);

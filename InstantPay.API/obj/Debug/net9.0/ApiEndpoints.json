@@ -1,5 +1,21 @@
 [
   {
+    "ContainingType": "InstantPay.API.Controller.AccountVerifyController",
+    "Method": "VerifyAccount",
+    "RelativePath": "api/AccountVerify/verify",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "InstantPay.SharedKernel.RequestPayload.AccountVerifyRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
     "ContainingType": "InstantPay.API.Controller.AEPSController",
     "Method": "ExecuteAsync",
     "RelativePath": "api/AEPS/AgentEKYC",
@@ -1228,6 +1244,32 @@
     "ReturnTypes": []
   },
   {
+    "ContainingType": "InstantPay.API.Controller.CreditCardBillPaymentController",
+    "Method": "GetOperators",
+    "RelativePath": "api/CreditCardBillPayment/operators",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InstantPay.API.Controller.CreditCardBillPaymentController",
+    "Method": "Pay",
+    "RelativePath": "api/CreditCardBillPayment/pay",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "InstantPay.SharedKernel.RequestPayload.MoneyTransfer.RechargeKit.CreditCardBillPaymentRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
     "ContainingType": "InstantPay.API.Controller.DashboardController",
     "Method": "GetDashboard",
     "RelativePath": "api/Dashboard",
@@ -1339,6 +1381,32 @@
     "ReturnTypes": []
   },
   {
+    "ContainingType": "InstantPay.API.Controller.IQoreCallbackController",
+    "Method": "HandleCallback",
+    "RelativePath": "api/IQoreCallback",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "tid",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "status",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "opid",
+        "Type": "System.String",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
     "ContainingType": "InstantPay.API.Controller.LoginController",
     "Method": "Login",
     "RelativePath": "api/Login",
@@ -1407,6 +1475,22 @@
       {
         "Name": "request",
         "Type": "InstantPay.Application.DTOs.EncryptedRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InstantPay.API.Controller.LoginController",
+    "Method": "VerifyOTPExternal",
+    "RelativePath": "api/Login/verifyotpexternal",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "InstantPay.SharedKernel.Entity.OtpLoginLogDto",
         "IsRequired": true
       }
     ],
@@ -1626,6 +1710,38 @@
   },
   {
     "ContainingType": "InstantPay.API.Controller.MoneyTransferController",
+    "Method": "AeronpayCheckStatus",
+    "RelativePath": "api/MoneyTransfer/arp/status/{txnId}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "txnId",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InstantPay.API.Controller.MoneyTransferController",
+    "Method": "AeronpayTransfer",
+    "RelativePath": "api/MoneyTransfer/arp/transfer",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "model",
+        "Type": "InstantPay.SharedKernel.RequestPayload.MoneyTransfer.AeronPay.AeronpayDmtRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InstantPay.API.Controller.MoneyTransferController",
     "Method": "FinzepCheckStatus",
     "RelativePath": "api/MoneyTransfer/fzp/status/{txnId}",
     "HttpMethod": "GET",
@@ -1683,6 +1799,38 @@
       {
         "Name": "model",
         "Type": "InstantPay.SharedKernel.RequestPayload.MoneyTransfer.NIFI.NifiDmtRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InstantPay.API.Controller.MoneyTransferController",
+    "Method": "RechargeKitCheckStatus",
+    "RelativePath": "api/MoneyTransfer/rkit/status/{txnId}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "txnId",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InstantPay.API.Controller.MoneyTransferController",
+    "Method": "RechargeKitTransfer",
+    "RelativePath": "api/MoneyTransfer/rkit/transfer",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "model",
+        "Type": "InstantPay.SharedKernel.RequestPayload.MoneyTransfer.AeronPay.AeronpayDmtRequest",
         "IsRequired": true
       }
     ],
@@ -2005,6 +2153,22 @@
   },
   {
     "ContainingType": "InstantPay.API.Controller.PPI.PPIAadharController",
+    "Method": "CreateWallet",
+    "RelativePath": "api/PPI/PPIAadhar/CreateWallet",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "InstantPay.Application.DTOs.PPICreateWalletRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InstantPay.API.Controller.PPI.PPIAadharController",
     "Method": "GenerateAadharOtp",
     "RelativePath": "api/PPI/PPIAadhar/GenerateAadharOtp",
     "HttpMethod": "POST",
@@ -2212,22 +2376,6 @@
     "ReturnTypes": []
   },
   {
-    "ContainingType": "InstantPay.API.Controller.PPI.PPIPaymentController",
-    "Method": "SendPaymentOtp",
-    "RelativePath": "api/PPI/PPIPayment/SendPaymentOtp",
-    "HttpMethod": "POST",
-    "IsController": true,
-    "Order": 0,
-    "Parameters": [
-      {
-        "Name": "request",
-        "Type": "InstantPay.Application.DTOs.PPISendPaymentOtpRequest",
-        "IsRequired": true
-      }
-    ],
-    "ReturnTypes": []
-  },
-  {
     "ContainingType": "InstantPay.API.Controller.PPI.PPIWalletController",
     "Method": "LoadWallet",
     "RelativePath": "api/PPI/PPIWallet/LoadWallet",
@@ -2283,6 +2431,22 @@
     "IsController": true,
     "Order": 0,
     "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InstantPay.API.Controller.RechargeController",
+    "Method": "CheckStatus",
+    "RelativePath": "api/Recharge/checkstatus",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "txnId",
+        "Type": "System.String",
+        "IsRequired": false
+      }
+    ],
     "ReturnTypes": []
   },
   {
@@ -2360,6 +2524,54 @@
       {
         "Name": "request",
         "Type": "InstantPay.SharedKernel.Entity.TxnUpdateRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InstantPay.API.Controller.SenderController",
+    "Method": "SenderEkyc",
+    "RelativePath": "api/Sender/ekyc",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "InstantPay.Application.DTOs.SenderEkycRequestDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InstantPay.API.Controller.SenderController",
+    "Method": "SenderLogin",
+    "RelativePath": "api/Sender/login",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "InstantPay.Application.DTOs.SenderLoginRequestDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InstantPay.API.Controller.SenderController",
+    "Method": "SenderRegistration",
+    "RelativePath": "api/Sender/registration",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "InstantPay.Application.DTOs.SenderRegistrationRequestDto",
         "IsRequired": true
       }
     ],
@@ -2580,6 +2792,22 @@
     "ReturnTypes": []
   },
   {
+    "ContainingType": "InstantPay.API.Controller.WebhookforAeronPayPayoutController",
+    "Method": "HandleWebhook",
+    "RelativePath": "api/WebhookforAeronPayPayoutController",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "webhookData",
+        "Type": "InstantPay.SharedKernel.Results.MoneyTransfer.AeronPay.AeronpayWebhookPayload",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
     "ContainingType": "InstantPay.API.Controller.WebhookforFinzepPayoutController",
     "Method": "HandleWebhook",
     "RelativePath": "api/WebhookforFinzepPayout",
@@ -2606,6 +2834,22 @@
       {
         "Name": "encryptedResponse",
         "Type": "InstantPay.SharedKernel.Results.MoneyTransfer.NIFI.NifiEncryptedResponse",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "InstantPay.API.Controller.WebhookforRechargeKitPayPayoutController",
+    "Method": "HandleWebhook",
+    "RelativePath": "api/WebhookforRechargeKitPayPayout",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "webhookData",
+        "Type": "InstantPay.SharedKernel.Results.MoneyTransfer.RechargeKit.RechargeKitWebhookPayload",
         "IsRequired": true
       }
     ],

@@ -4,6 +4,7 @@ using InstantPay.SharedKernel.Results;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace InstantPay.Application.Services.FinoAeps
 {
@@ -37,32 +38,38 @@ namespace InstantPay.Application.Services.FinoAeps
             string lat, string lng, CancellationToken ct = default)
         {
             bool   onUs      = request.bankiinno == OnUsNbin;
-            string serviceId = onUs ? "183" : "152";
-            string url       = onUs ? _beOnUsUrl : _beUrl;
-            string amount    = string.IsNullOrWhiteSpace(request.amount) ? "0" : request.amount!;
+            string serviceId  = onUs ? "183" : "152";
+            string url        = onUs ? _beOnUsUrl : _beUrl;
+            string amount     = string.IsNullOrWhiteSpace(request.amount) ? "0" : request.amount!;
+            string bankName   = onUs ? "Fino Payment Bank ltd" : request.BankName; // exact name from FINO on-us example
 
-            string bodyJson = JsonConvert.SerializeObject(new
+            var body = new JObject
             {
-                MerchantID  = request.mobileno,
-                Version     = "1001",
-                ServiceID   = serviceId,
-                ClientRefID = txnId,
-                MobileNo    = request.mobileno,
-                AadharNo    = request.aadharno,
-                TotalAmount = amount,
-                BankName    = request.BankName,
-                PidData     = request.fingerdata,
-                RC          = "Y",
-                NBIN        = request.bankiinno,
-                TerminalId  = request.mobileno,
-                IPAddress   = _api.ProdIPAddress,
-                Latitude    = lat,
-                Longitude   = lng,
-                IMEI_MAC    = _api.GetMacAddress(),
-                DeviceNo    = request.DeviceSrNo,
-                CheckSum    = _api.ComputeChecksum($"{txnId}+{amount}+{request.aadharno}"),
-                IsIris      = request.deviceType
-            });
+                ["MerchantID"]  = request.mobileno,
+                ["Version"]     = "1001",
+                ["ServiceID"]   = serviceId,
+                ["ClientRefID"] = txnId,
+                ["MobileNo"]    = request.mobileno,
+                ["AadharNo"]    = request.aadharno,
+                ["TotalAmount"] = amount,
+                ["BankName"]    = bankName,
+                ["PidData"]     = request.fingerdata,
+                ["RC"]          = "Y",
+                ["NBIN"]        = request.bankiinno,
+                ["TerminalId"]  = request.mobileno,
+                ["IPAddress"]   = _api.ProdIPAddress,
+                ["Latitude"]    = lat,
+                ["Longitude"]   = lng,
+                ["IMEI_MAC"]    = _api.GetMacAddress(),
+                ["DeviceNo"]    = request.DeviceSrNo,
+                ["CheckSum"]    = _api.ComputeChecksum($"{txnId}+{amount}+{request.aadharno}"),
+                ["IsIris"]      = request.deviceType
+            };
+
+            if (onUs)
+                body["txnReferenceNo"] = txnId;
+
+            string bodyJson = body.ToString(Formatting.None);
 
             var pendingRec = new FinoAepsTxnRecord(
                 UserId      : int.Parse(userId),

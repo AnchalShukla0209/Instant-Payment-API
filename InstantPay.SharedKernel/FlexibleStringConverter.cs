@@ -15,7 +15,8 @@ namespace InstantPay.SharedKernel
             return reader.TokenType switch
             {
                 JsonTokenType.String => reader.GetString(),
-                JsonTokenType.Number => reader.GetInt32().ToString(),
+                JsonTokenType.Number => reader.GetDecimal().ToString(System.Globalization.CultureInfo.InvariantCulture),
+                JsonTokenType.Null => null,
                 _ => throw new JsonException($"Unexpected token type {reader.TokenType}")
             };
         }

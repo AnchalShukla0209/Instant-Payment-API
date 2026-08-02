@@ -10,7 +10,6 @@ namespace InstantPay.Application.Services.PPI;
 public class PPIOtpService : IPPIOtpService
 {
     private readonly HttpClient _httpClient;
-    private readonly IConfiguration _configuration;
     private readonly ILogger<PPIOtpService> _logger;
     private readonly string _baseUrl;
     private readonly string _appId;
@@ -23,17 +22,25 @@ public class PPIOtpService : IPPIOtpService
         ILogger<PPIOtpService> logger)
     {
         _httpClient = httpClientFactory.CreateClient();
-        _configuration = configuration;
         _logger = logger;
 
         // Load PPI configuration from appsettings
         var ppiConfig = configuration.GetSection("PPI");
         _baseUrl = ppiConfig["BaseUrl"] ?? "https://api.digikhata.in/p2a/";
-        _appId = ppiConfig["AppId"] ?? "INSTANTPAYMENT";
-        _authKey = ppiConfig["AuthKey"] ?? "b]%oIAL#EEtdb9?}|]t71>u.=Cv=9SM|eBw<xV@2HNIUCdO()j";
-        _secretKey = ppiConfig["SecretKey"] ?? "v&.5zef-4FrbD[;2/aMCe6N|zo{a;s]%DZ8h>!oR1^36K*KVcm";
+        _appId = ppiConfig["AppId"] ?? string.Empty;
+        _authKey = ppiConfig["AuthKey"] ?? string.Empty;
+        _secretKey = ppiConfig["SecretKey"] ?? string.Empty;
 
         _httpClient.Timeout = TimeSpan.FromSeconds(30);
+    }
+
+    private HttpRequestMessage CreatePpiRequest(string endpoint, HttpContent content)
+    {
+        var req = new HttpRequestMessage(HttpMethod.Post, $"{_baseUrl}{endpoint}") { Content = content };
+        req.Headers.Add("AppID",    _appId);
+        req.Headers.Add("AuthKey",  _authKey);
+        req.Headers.Add("SecretKey", _secretKey);
+        return req;
     }
 
     public async Task<GeneratePPIOtpResponse> GenerateOtpAsync(GeneratePPIOtpRequest request)
@@ -67,14 +74,9 @@ public class PPIOtpService : IPPIOtpService
             _logger.LogInformation("Sending PPI OTP generation request for UserId: {UserId}, Mobile: {Mobile}", 
                 request.UserId, request.SenderMobile);
 
-            // Add headers
-            _httpClient.DefaultRequestHeaders.Clear();
-            _httpClient.DefaultRequestHeaders.Add("AppID", _appId);
-            _httpClient.DefaultRequestHeaders.Add("AuthKey", _authKey);
-            _httpClient.DefaultRequestHeaders.Add("SecretKey", _secretKey);
-
             // Make the API call
-            var response = await _httpClient.PostAsync($"{_baseUrl}v1/generateotp", content);
+            using var httpReq = CreatePpiRequest("v1/generateotp", content);
+            var response = await _httpClient.SendAsync(httpReq);
             
             var responseContent = await response.Content.ReadAsStringAsync();
             _logger.LogInformation("PPI API Response: {Response}", responseContent);
@@ -100,7 +102,7 @@ public class PPIOtpService : IPPIOtpService
             if (root.TryGetProperty("resultCode", out var resultCode) && 
                 root.TryGetProperty("resultMessage", out var resultMessage))
             {
-                if (resultCode.GetString() == "2000" && root.TryGetProperty("result", out var result))
+                if (resultCode.GetRawText().Trim('"') == "2000" && root.TryGetProperty("result", out var result))
                 {
                     if (result.TryGetProperty("otpToken", out var otpToken))
                     {
@@ -199,11 +201,8 @@ public class PPIOtpService : IPPIOtpService
 
             var jsonPayload = JsonSerializer.Serialize(payload);
             var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
-            _httpClient.DefaultRequestHeaders.Clear();
-            _httpClient.DefaultRequestHeaders.Add("AppID", _appId);
-            _httpClient.DefaultRequestHeaders.Add("AuthKey", _authKey);
-            _httpClient.DefaultRequestHeaders.Add("SecretKey", _secretKey);
-            var response = await _httpClient.PostAsync($"{_baseUrl}v1/verifyotp", content);
+            using var httpReq = CreatePpiRequest("v1/verifyotp", content);
+            var response = await _httpClient.SendAsync(httpReq);
             var responseContent = await response.Content.ReadAsStringAsync();
             _logger.LogInformation("PPI Verify API Response: {Response}", responseContent);
 
@@ -228,16 +227,16 @@ public class PPIOtpService : IPPIOtpService
             if (root.TryGetProperty("resultCode", out var resultCode) && 
                 root.TryGetProperty("resultMessage", out var resultMessage))
             {
-                if (resultCode.GetString() == "2000" && root.TryGetProperty("result", out var result))
+                if (resultCode.GetRawText().Trim('"') == "2000" && root.TryGetProperty("result", out var result))
                 {
                     var walletDetail = new PPIWalletDetail
                     {
                         SenderName = result.TryGetProperty("walletHolderName", out var holderName) ? holderName.GetString() ?? "" : "",
-                        WalletStatus = result.TryGetProperty("walletAcOpened", out var acOpened) ? acOpened.GetString() ?? "" : "",
+                        WalletStatus = result.TryGetProperty("walletAcOpened", out var acOpened) ? acOpened.GetRawText() : "",
                         TokeyKey = result.TryGetProperty("token", out var token) ? token.GetString() ?? "" : "",
                         ApplicationNumber = result.TryGetProperty("walletAcApplicationNumber", out var appNumber) ? appNumber.GetString() ?? "" : "",
-                        WalletLimit = result.TryGetProperty("walletToBankLimitAvailable", out var limit) ? limit.GetString() ?? "" : "",
-                        walletCurrentBalance = result.TryGetProperty("walletCurrentBalance", out var balance) ? balance.GetString() ?? "" : ""
+                        WalletLimit = result.TryGetProperty("walletToBankLimitAvailable", out var limit) ? limit.GetRawText() : "",
+                        walletCurrentBalance = result.TryGetProperty("walletCurrentBalance", out var balance) ? balance.GetRawText() : ""
                     };
 
                     return new VerifyPPIOtpResponse

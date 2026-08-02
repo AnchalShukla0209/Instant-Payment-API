@@ -146,8 +146,8 @@ namespace InstantPay.Application.Services
 
                 string agentLoginId = json.loginId;
                 string pincode = json.agent.pinCode;
-                double lat = json.agent.latitude;
-                double lon = json.agent.longitude;
+                double lat = (double?)json.agent.latitude ?? 0.0;
+                double lon = (double?)json.agent.longitude ?? 0.0;
                 string agentrefno = json.externalUserId;
 
                 var save = new JPAgentDailyLogin
@@ -652,7 +652,7 @@ namespace InstantPay.Application.Services
                 {
                     APIURL = Truncate(url, 200),
                     Method = Truncate(method, 100),
-                    SuccessCode = successCode,
+                    SuccessCode = Truncate(successCode, 10),
                     APIError = apiError,
                     APIHeaders = headersJson,
                     APIPayload = payloadJson,
