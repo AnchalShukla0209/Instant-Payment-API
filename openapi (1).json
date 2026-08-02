@@ -1,0 +1,716 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "version": "1.0.0-rev10",
+    "title": "Corporate Single Payment API",
+    "description": "This API does a Single Payment transfer to any Bank in India. It also gives you the Status of the Payment Transfer.",
+    "x-ibm-name": "corporate-single-payment-api"
+  },
+  "x-ibm-configuration": {
+    "enforced": true,
+    "phase": "realized",
+    "testable": false,
+    "externalDocs": [],
+    "attachments": [
+      {
+        "title": "API Specification - Do Single Payment Corp",
+        "description": "",
+        "id": "56fbb0dae4b0ed712217929c",
+        "url": "https://10.80.45.168/v1/portal/apis/567011ade4b0ed7121eff8af/documents/56fbb0dae4b0ed712217929c/file"
+      },
+      {
+        "title": "API Specification - Single Payment Corp Status",
+        "description": "",
+        "id": "56fbb0f2e4b0ed71221792a9",
+        "url": "https://10.80.45.168/v1/portal/apis/567011ade4b0ed7121eff8af/documents/56fbb0f2e4b0ed71221792a9/file"
+      }
+    ]
+  },
+  "tags": [
+    {
+      "description": "This service does all the single payment transactions. Pay modes like NEFT, RTGS, IMPS, and Funds transfer can be used through this service.\n\nIt can be integrated with any system/languages/ERPs for seamless initiation of payments.\n\nThe API is synchronous in nature i.e. the response is received for each transaction with the desired details for NEFT/RTGS as UTR No and for IMPS as RRN no. \n",
+      "name": "introduction",
+      "x-displayName": "Introduction"
+    },
+    {
+      "description": "* API endpoints to be used for consuming  the service as provided above\n* Basic Authorization to be used using the LDAP user id and password\n* Client_id and Client_secret which are generated during Application creation on portal are to use as Parameter as Key and Values (Need to remove spaces before and after the client id and client secret value field) . Do not make any changes in these values.\n* Request type should be application/Json\n",
+      "name": "access requirements",
+      "x-displayName": "Access Requirements"
+    },
+    {
+      "description": "\n\n| Error code | Error description                | comments                                                                                     |\n|-----------|----------------------------|----------------------------------------------------------------------------------------------   |\n| ER001       | Improper JSON Format             | This error is due to JSON request not being in standard format|\n| ER002       |Schema Validation Failure| This error due to mandatory tags or values missing in field or by unwanted spaces in field or by not allowed values in fields etc. please refers the samples provided above.     |\n| ER003       | Invalid CorpId                | Generally this error comes when API consumer enters CorpID which is not on boarded at RBL side.   |\n| ER004       | Technical Failure | This error will occur when system exception occurs  |\n| ER006      | Timeout Exception Occurred         | This error will occur when sender is initiating request and the response is not in expected set time. This could be the network issue or service response failure.    |\n| ER008       | Invalid Corporate Hierarchy              | While corporate on boarding process, corporate hierarchy will be set at RBL side. When sender is initiating the request with incorrect corporate hierarchy then this error will occur.    |\n| ER012       | Transaction amount greater than Approver Amount Limit | While corporate on boarding process, approver transaction amount will be set.This error will occur when sending amount is greater than approver’s transaction amount limit set.|\n| ER013       | Duplicate Transaction ID     | The Error will occur when API consumer is requesting with the transaction id which has been already processed successfully.  |\n| ER017       | Error Occurred While Calling the Provider Service      | The Error will occur when there is no response from digital banking payment services (Finacle/CBS).  |\n| ER018      | Error Occurred While Accessing The ESB Database| The Error will occur when there is no response from ESB database.|\n| ER020       | Request not valid for the given Debit Acct No     | The error will occur when sender has entered Debit account Number which has been Invalid or not mapped. |\n| ER047       | Transaction amount greater than Approver Amount Limit      | The error will occur when sender is initiating payments to beneficiary but amount entered is greater than limit set for Approver amount limit    |\n| ER049      | The amount limits are not set for the entered Mode of Pay      | The error will occurs when DATABASE entries for Daily/Weekly/Monthly limits are not set.    |\n| ER101       | Transaction on hold as cut off time exceeded. Will be processed on next working day      | The will reflect for NEFT transaction getting queued after NEFT cut-off time for the client who  has opted for NEFT queuing facility     |\n",
+      "name": "errors",
+      "x-displayName": "Errors"
+    },
+    {
+      "name": "Single Payment",
+      "x-displayName": "Payment"
+    },
+    {
+      "name": "Single Payment Status",
+      "x-displayName": "Payment Status"
+    }
+  ],
+  "paths": {
+    "/payment/query": {
+      "post": {
+        "description": "",
+        "tags": [
+          "Single Payment Status"
+        ],
+        "summary": "Get Payment Status",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Single-Payment-Status-Request"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Single-Payment-Status-Response"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/payment": {
+      "post": {
+        "description": "",
+        "tags": [
+          "Single Payment"
+        ],
+        "summary": "Initiate payment",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Single-Payment-Request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Single-Payment-Response"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "security": [],
+  "servers": [
+    {
+      "url": "https://apideveloper.rblbank.com/test/qa/rbl/v1/payments/corp"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "Client_ID": {
+        "description": "This the Client Id",
+        "in": "header",
+        "name": "X-IBM-Client-Id",
+        "type": "apiKey"
+      },
+      "Client_Secret": {
+        "type": "apiKey",
+        "name": "X-IBM-Client-Secret",
+        "in": "header",
+        "description": "This is the client secret. The client secret is obtained from the RBL's Advanced Developer Portal"
+      },
+      "Basic_Authentication": {
+        "type": "http",
+        "x-ibm-authentication-registry": "testldap",
+        "scheme": "basic"
+      }
+    },
+    "schemas": {
+      "Single-Payment-Request": {
+        "type": "object",
+        "properties": {
+          "Single_Payment_Corp_Req": {
+            "type": "object",
+            "properties": {
+              "Header": {
+                "type": "object",
+                "properties": {
+                  "TranID": {
+                    "type": "string",
+                    "description": "This ID should be generated by the customers, transaction will be identified using this ID, and for inquiry purpose this ID can be used.This is an ID registered by the corporate with Bank as part of onboarding process, When the request received, bank will check this ID and role before processing the payment.  ",
+                    "maxLength": 20
+                  },
+                  "Corp_ID": {
+                    "type": "string",
+                    "description": "This is a unique ID assigned to each corporate for identification, once customer onboarding process is completed. Bank will provide this ID.",
+                    "maxLength": 20
+                  },
+                  "Maker_ID": {
+                    "type": "string",
+                    "description": "This is an ID registered by the corporate with Bank as part of onboarding process, When the request received, bank will check this ID and role before processing the payment.The value in this Tag is mandatory/Non mandatory basis customer option at the time of onboarding",
+                    "maxLength": 20
+                  },
+                  "Checker_ID": {
+                    "description": "This is an ID registered by the corporate with Bank as part of onboarding process, When the request received bank will check this ID and role before processing the payment. The value in this Tag is mandatory/Non mandatory basis customer option at the time of onboarding",
+                    "type": "string",
+                    "maxLength": 20
+                  },
+                  "Approver_ID": {
+                    "type": "string",
+                    "description": "This is an ID registered by the corporate with Bank as part of onboarding process, When the request received bank will check this ID and role before processing the payment. The value in this Tag is mandatory/Non mandatory basis customer option at the time of onboarding",
+                    "maxLength": 20
+                  }
+                },
+                "required": [
+                  "TranID",
+                  "Corp_ID",
+                  "Maker_ID",
+                  "Checker_ID",
+                  "Approver_ID"
+                ]
+              },
+              "Body": {
+                "type": "object",
+                "properties": {
+                  "Amount": {
+                    "description": "Amount for which payment has to be done from debit account holder’s account.For NEFT/IMPS minimum Amount should be ‘1’.For FT minimum amount should be more than ‘0’.For RTGS Minimum amount should be ‘200000’.Currency :INR.",
+                    "type": "string",
+                    "maxLength": 20
+                  },
+                  "Debit_Acct_No": {
+                    "description": "This would be the Sender account acc no. from where transactions will be initiated and the debit entries will be reflected.",
+                    "type": "string",
+                    "maxLength": 20
+                  },
+                  "Debit_Acct_Name": {
+                    "description": "Sender/Debit Account Holder’s Name as per bank records. ",
+                    "type": "string",
+                    "maxLength": 20
+                  },
+                  "Debit_IFSC": {
+                    "description": "IFSC code is alpha numeric code that uniquely identifies a bank branch participating in any RBI regulated fund transfer. ",
+                    "type": "string",
+                    "maxLength": 20
+                  },
+                  "Debit_Mobile": {
+                    "description": "Sender's mobile number",
+                    "type": "string",
+                    "maxLength": 20
+                  },
+                  "Debit_TrnParticulars": {
+                    "description": "The details entered in this field will be reflecting in the statement",
+                    "type": "string",
+                    "maxLength": 20
+                  },
+                  "Debit_PartTrnRmks": {
+                    "description": "These are the additional remarks for the transaction. ",
+                    "type": "string",
+                    "maxLength": 20
+                  },
+                  "Ben_IFSC": {
+                    "description": "IFSC code is alpha numeric code that uniquely identifies a bank branch participating in any RBI regulated fund transfer.",
+                    "type": "string",
+                    "maxLength": 20
+                  },
+                  "Ben_Acct_No": {
+                    "description": "This would be the Receiver account acc no. Where transactions amount will be reflected with credit.",
+                    "type": "string",
+                    "maxLength": 20
+                  },
+                  "Ben_Name": {
+                    "description": "Name of  the beneficiary to whom the payment is made",
+                    "type": "string",
+                    "maxLength": 20
+                  },
+                  "Ben_Address": {
+                    "description": "Address of the Beneficiary to whom the payment is made.",
+                    "type": "string",
+                    "maxLength": 20
+                  },
+                  "Ben_BankName": {
+                    "description": "Beneficiary bank name where the beneficiary Account operated.",
+                    "type": "string",
+                    "maxLength": 20
+                  },
+                  "Ben_BankCd": {
+                    "description": "Ben bank code should be given RBL Bank Code - default  as ‘176’",
+                    "type": "string",
+                    "maxLength": 20
+                  },
+                  "Ben_BranchCd": {
+                    "description": "Beneficiary branch code should be RBL bank branch 4 digit code, where the payment will be reflected",
+                    "type": "string",
+                    "maxLength": 20
+                  },
+                  "Ben_Email": {
+                    "description": "Valid beneficiary email id",
+                    "type": "string",
+                    "maxLength": 20
+                  },
+                  "Ben_Mobile": {
+                    "description": "Receiver’s mobile number",
+                    "type": "string",
+                    "maxLength": 20
+                  },
+                  "Ben_TrnParticulars": {
+                    "description": "The content in this field will be updated in Beneficiary Account and statements",
+                    "type": "string",
+                    "maxLength": 20
+                  },
+                  "Ben_PartTrnRmks": {
+                    "description": "The content in this field will not be reflected Accont and its statement",
+                    "type": "string",
+                    "maxLength": 20
+                  },
+                  "Issue_BranchCd": {
+                    "description": "SOL ID/Branch Code of the issuing Branch",
+                    "type": "string",
+                    "maxLength": 20
+                  },
+                  "Mode_of_Pay": {
+                    "description": "Specified channel of payment. API consumer can use NEFT/RTGS/DD/FT/IMPS Modes Of Pay for payments",
+                    "type": "string",
+                    "enum": [
+                      "FT",
+                      "NEFT",
+                      "RTGS",
+                      "DD",
+                      "IMPS"
+                    ]
+                  },
+                  "Remarks": {
+                    "description": "The content in this field will be send to beneficiary bank under “sender to receiver information” which is applicable only for NEFT/RTGS. ",
+                    "type": "string",
+                    "maxLength": 20
+                  },
+                  "RptCode": {
+                    "description": "RPT Code",
+                    "type": "string",
+                    "maxLength": 20
+                  }
+                }
+              },
+              "Signature": {
+                "type": "object",
+                "properties": {
+                  "Signature": {
+                    "description": "Any value can be passed , this is not validated as of now",
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "required": [
+              "Header",
+              "Body",
+              "Signature"
+            ]
+          }
+        },
+        "example": {
+          "Single_Payment_Corp_Req": {
+            "Header": {
+              "TranID": "100123",
+              "Corp_ID": "MC001",
+              "Maker_ID": "M001",
+              "Checker_ID": "C001",
+              "Approver_ID": "A001"
+            },
+            "Body": {
+              "Amount": "300",
+              "Debit_Acct_No": "1234567890987654",
+              "Debit_Acct_Name": "John Doe",
+              "Debit_IFSC": "RBLB1212123",
+              "Debit_Mobile": "7123456788",
+              "Debit_TrnParticulars": "John",
+              "Debit_PartTrnRmks": "Pocket Money",
+              "Ben_IFSC": "CBIN00000000",
+              "Ben_Acct_No": "0987654321234567",
+              "Ben_Name": "Jessica",
+              "Ben_Address": "MUMBAI",
+              "Ben_BankName": "Ben_BankName",
+              "Ben_BankCd": 123,
+              "Ben_BranchCd": 0,
+              "Ben_Email": "Ben_Email@email.com",
+              "Ben_Mobile": "712345678",
+              "Ben_TrnParticulars": "Jane",
+              "Ben_PartTrnRmks": "Received",
+              "Issue_BranchCd": "Issue_BranchCd",
+              "Mode_of_Pay": "FT",
+              "Remarks": "DMR",
+              "RptCode": "HSBA"
+            },
+            "Signature": {
+              "Signature": "Signature"
+            }
+          }
+        },
+        "required": [
+          "Single_Payment_Corp_Req"
+        ]
+      },
+      "Single-Payment-Response": {
+        "type": "object",
+        "properties": {
+          "Single_Payment_Corp_Resp": {
+            "type": "object",
+            "properties": {
+              "Header": {
+                "type": "object",
+                "properties": {
+                  "TranID": {
+                    "description": "This is an ID should be generated by the customers, transaction will be identified using this ID, for inquiry purpose this ID can be used. Once transaction received against this number, customer cannot initiate another transaction under this number. For any failures the customer should first initiate the inquiry API before re-initiating the same transaction under same ID or new ID",
+                    "type": "string"
+                  },
+                  "Corp_ID": {
+                    "description": "This is a unique ID assigned to each corporate for identification, once customer onboarding process is completed. Bank will provide this ID",
+                    "type": "string"
+                  },
+                  "Maker_ID": {
+                    "description": "This is an ID registered by the corporate with Bank as part of onboarding process, When the request received bank will check this ID and role before processing the payment. The value in this Tag is mandatory/Non mandatory basis customer option at the time of onboarding",
+                    "type": "string"
+                  },
+                  "Checker_ID": {
+                    "description": "This is an ID registered by the corporate with Bank as part of onboarding process, When the request received bank will check this ID and role before processing the payment. The value in this Tag is mandatory/Non mandatory basis customer option at the time of onboarding",
+                    "type": "string"
+                  },
+                  "Approver_ID": {
+                    "type": "string",
+                    "description": "This is an ID registered by the corporate with Bank as part of onboarding process, When the request received bank will check this ID and role before processing the payment. The value in this Tag is mandatory/Non mandatory basis customer option at the time of onboarding"
+                  },
+                  "Status": {
+                    "type": "string",
+                    "description": "Status will be Success/Failure for the FT /DD/IMPS. Status will be 'Initiated' for NEFT/RTGS initially and after settlement it will be 'Success/Failure'. User has to use Payment Query/Status API to check the same. On Hold Status will be reflected for NEFT transactions which are queued for the next working day as cut –off for NEFT is exceeded (Note: NEFT queuing is an on demand option)"
+                  },
+                  "Error_Cde": {
+                    "description": "Error Code will be null if no error present. Will give Error Code if error present",
+                    "type": "object",
+                    "properties": {}
+                  },
+                  "Error_Desc": {
+                    "description": "Error description will be null if no error present. Will give Error descriptions if error present",
+                    "type": "object",
+                    "properties": {}
+                  }
+                },
+                "required": [
+                  "TranID",
+                  "Corp_ID",
+                  "Maker_ID",
+                  "Checker_ID",
+                  "Approver_ID",
+                  "Status",
+                  "Error_Cde",
+                  "Error_Desc"
+                ]
+              },
+              "Body": {
+                "type": "object",
+                "properties": {
+                  "RefNo": {
+                    "description": "This is an unique number generated by the bank for each transaction, the customer can inquiry the transaction using this number or original transaction id (Tranid) generated by Corporate",
+                    "type": "string"
+                  },
+                  "Ben_Acct_No": {
+                    "description": "Beneficiary/Receiver Account Number",
+                    "type": "string"
+                  },
+                  "Txn_Time": {
+                    "description": "Transaction Initiated Time. Transactions Time will be in format of  ‘YYYY-mm-dd HH:mm:ss.000000’",
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                }
+              },
+              "Signature": {
+                "type": "object",
+                "properties": {
+                  "Signature": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "required": [
+              "Header",
+              "Body",
+              "Signature"
+            ]
+          }
+        },
+        "example": {
+          "Single_Payment_Corp_Req": {
+            "Header": {
+              "TranID": "100123",
+              "Corp_ID": "MC001",
+              "Maker_ID": "M001",
+              "Checker_ID": "C001",
+              "Approver_ID": "A001",
+              "Status": "Success",
+              "Error_Cde": null,
+              "Error_Desc": null
+            },
+            "Body": {
+              "RefNo": "SPZSA12345A67",
+              "Ben_Acct_No": "0987654321234567",
+              "Txn_Time": "2017-10-30 02:47:33.00000"
+            },
+            "Signature": {
+              "Signature": "Signature"
+            }
+          }
+        },
+        "required": [
+          "Single_Payment_Corp_Resp"
+        ]
+      },
+      "Single-Payment-Status-Request": {
+        "type": "object",
+        "properties": {
+          "get_Single_Payment_Status_Corp_Req": {
+            "type": "object",
+            "properties": {
+              "Header": {
+                "type": "object",
+                "properties": {
+                  "TranID": {
+                    "type": "string",
+                    "description": "This ID should be generated by the customers, transaction will be identified using this ID, and for inquiry purpose this ID can be used. Once transaction received against this number, customer cannot initiate another transaction under this number. For any failures the customer should first initiate the inquiry API before re-initiating the same transaction under same ID or new ID",
+                    "maxLength": 20
+                  },
+                  "Corp_ID": {
+                    "description": "This is a unique ID assigned to each corporate for identification, once customer onboarding process is completed. Bank will provide this ID.",
+                    "type": "string",
+                    "maxLength": 20
+                  },
+                  "Maker_ID": {
+                    "description": "This is an ID registered by the corporate with Bank as part of onboarding process, When the request received, bank will check this ID and role before processing the payment. The value in this Tag is mandatory/Non mandatory basis customer option at the time of onboarding",
+                    "type": "string",
+                    "maxLength": 20
+                  },
+                  "Checker_ID": {
+                    "description": "This is an ID registered by the corporate with Bank as part of onboarding process, When the request received bank will check this ID and role before processing the payment. The value in this Tag is mandatory/Non mandatory basis customer option at the time of onboarding",
+                    "type": "string",
+                    "maxLength": 20
+                  },
+                  "Approver_ID": {
+                    "description": "This is an ID registered by the corporate with Bank as part of onboarding process, When the request received bank will check this ID and role before processing the payment. The value in this Tag is mandatory/Non mandatory basis customer option at the time of onboarding",
+                    "type": "string",
+                    "maxLength": 20
+                  }
+                },
+                "required": [
+                  "TranID",
+                  "Corp_ID",
+                  "Maker_ID",
+                  "Checker_ID",
+                  "Approver_ID"
+                ]
+              },
+              "Body": {
+                "type": "object",
+                "properties": {
+                  "RefNo": {
+                    "description": "This is an unique number generated by the bank for each transaction, the customer can inquiry the transaction using this number or original transaction id (Tranid) generated by Corporate",
+                    "type": "string",
+                    "maxLength": 20
+                  },
+                  "UTRNo": {
+                    "description": "Unique Transaction Reference Number for initiated NEFT/RTGS",
+                    "type": "string",
+                    "maxLength": 20
+                  }
+                }
+              },
+              "Signature": {
+                "type": "object",
+                "properties": {
+                  "Signature": {
+                    "description": " Any value can be passed , this is not validated as of now Any value can be passed , this is not validated as of now",
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "required": [
+              "Header",
+              "Body",
+              "Signature"
+            ]
+          }
+        },
+        "required": [
+          "get_Single_Payment_Status_Corp_Req"
+        ],
+        "example": {
+          "get_Single_Payment_Status_Corp_Req": {
+            "Header": {
+              "TranID": "100123",
+              "Corp_ID": "MC001",
+              "Maker_ID": "M001",
+              "Checker_ID": "C001",
+              "Approver_ID": "A001"
+            },
+            "Body": {
+              "RefNo": "SPZSA12345A67",
+              "UTRNo": "RATNH12345678"
+            },
+            "Signature": {
+              "Signature": "Signature"
+            }
+          }
+        }
+      },
+      "Single-Payment-Status-Response": {
+        "type": "object",
+        "properties": {
+          "get_Single_Payment_Status_Res": {
+            "type": "object",
+            "properties": {
+              "Header": {
+                "type": "object",
+                "properties": {
+                  "TranID": {
+                    "type": "string",
+                    "description": "This is an ID should be generated by the customers, transaction will be identified using this ID, for inquiry purpose this ID can be used. Once transaction received against this number, customer cannot initiate another transaction under this number. For any failures the customer should first initiate the inquiry API before re-initiating the same transaction under same ID or new ID"
+                  },
+                  "Corp_ID": {
+                    "type": "string",
+                    "description": "This is a unique ID assigned to each corporate for identification, once customer onboarding process is completed. Bank will provide this ID"
+                  },
+                  "Maker_ID": {
+                    "type": "string",
+                    "description": "This is an ID registered by the corporate with Bank as part of onboarding process, When the request received bank will check this ID and role before processing the payment. The value in this Tag is mandatory/Non mandatory basis customer option at the time of onboarding"
+                  },
+                  "Checker_ID": {
+                    "type": "string",
+                    "description": "This is an ID registered by the corporate with Bank as part of onboarding process, When the request received bank will check this ID and role before processing the payment. The value in this Tag is mandatory/Non mandatory basis customer option at the time of onboarding"
+                  },
+                  "Approver_ID": {
+                    "type": "string",
+                    "description": "This is an ID registered by the corporate with Bank as part of onboarding process, When the request received bank will check this ID and role before processing the payment. The value in this Tag is mandatory/Non mandatory basis customer option at the time of onboarding"
+                  },
+                  "Status": {
+                    "type": "string",
+                    "description": "1) Status will be Success/Failure for the FT /DD/IMPS .Status will be 'Initiated' for NEFT/RTGS initially and after settlement it will be 'Success/Failure'. User has to use Payment Query/Status API to check the same. On Hold Status will be reflected for NEFT transactions which are queued for the next working day as cut –off for NEFT is exceeded (Note: NEFT queuing is an on demand option)"
+                  },
+                  "Error_Cde": {
+                    "type": "string",
+                    "description": "Error Code will be null if no error present. Will give Error Code if error present"
+                  },
+                  "Error_Desc": {
+                    "type": "string",
+                    "description": "Error description will be null if no error present.Will give Error descriptions if error present"
+                  }
+                },
+                "required": [
+                  "TranID",
+                  "Corp_ID",
+                  "Maker_ID",
+                  "Checker_ID",
+                  "Approver_ID",
+                  "Status",
+                  "Error_Cde",
+                  "Error_Desc"
+                ]
+              },
+              "Body": {
+                "type": "object",
+                "properties": {
+                  "REFNO": {
+                    "description": "This is an unique number generated by the bank for each transaction, the customer can inquiry the transaction using this number or original transaction id (Tranid) generated by Corporate",
+                    "type": "string"
+                  },
+                  "UTRNO": {
+                    "type": "string",
+                    "description": "Unique Transaction Reference Number for initiated NEFT/RTGS"
+                  },
+                  "RRN": {
+                    "type": "string",
+                    "description": "RRN No is generated for each successful IMPS Mode Of Pay. This is generated by NPCI and passed on to the beneficiary/receiver bank"
+                  },
+                  "BEN_ACCT_NO": {
+                    "type": "string",
+                    "description": "Beneficiary/Receiver Account Number"
+                  },
+                  "TXNSTATUS": {
+                    "type": "string"
+                  },
+                  "TXNTIME": {
+                    "type": "string",
+                    "description": "Transaction Initiated Time.Transactions Time will be in format of  ‘YYYY-mm-dd HH:mm:ss.000000’"
+                  }
+                }
+              },
+              "Signature": {
+                "type": "object",
+                "properties": {
+                  "Signature": {
+                    "description": "Any value can be passed ,this is not validated as of now",
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "required": [
+              "Header",
+              "Body",
+              "Signature"
+            ]
+          }
+        },
+        "example": {
+          "get_Single_Payment_Res": {
+            "Header": {
+              "TranID": "100123",
+              "Corp_ID": "MC001",
+              "Maker_ID": "M001",
+              "Checker_ID": "C001",
+              "Approver_ID": "A001",
+              "Status": "Success",
+              "Error_Cde": null,
+              "Error_Desc": null
+            },
+            "Body": {
+              "RefNo": "SPZSA12345A67",
+              "UTRNo": "RATNH12345678",
+              "RRN": "ABCD17384856",
+              "Ben_Acct_No": "0987654321234567",
+              "TXNSTATUS": "Success",
+              "TXNTIME": "2017-10-30 02:47:33.00000"
+            },
+            "Signature": {
+              "Signature": "Signature"
+            }
+          }
+        },
+        "required": [
+          "get_Single_Payment_Status_Res"
+        ]
+      },
+      "RefNO": {
+        "type": "string",
+        "properties": {
+          "RefNumber": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}
