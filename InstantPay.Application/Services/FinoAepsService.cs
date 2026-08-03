@@ -211,7 +211,9 @@ namespace InstantPay.Application.Services
             }
 
             if (!result.IsSuccess || result.DecryptedData == null)
+            {
                 return Err("0", result.MessageString);
+            }
 
             var data = result.DecryptedData;
             string responseClientRefId = data["ClientRefID"]?.ToString() ?? "";
