@@ -1011,7 +1011,7 @@ namespace InstantPay.Application.Services.MoneyTransfer
                 }
                 else
                 {
-                    tx.Status = "FAILED";
+                    tx.Status = "PENDING";
                     tx.ApiRes = apiResponse != null ? JsonConvert.SerializeObject(apiResponse) : "API Error";
                     tx.ApiMsg = apiResponse?.msg ?? "API call failed";
                     tx.UpdateDate = DateTime.Now;
