@@ -111,6 +111,19 @@ namespace InstantPay.Application.Services.FinoAeps
             return await ParseResponseAsync(raw, encKey, ct);
         }
 
+        public async Task<FinoApiCallResult> PostTransactionEnquiryAsync(string url, string bodyJson, CancellationToken ct = default)
+        {
+            string encKey = await GetProdEncKeyAsync(ct);
+            string bearer = await GetProdBearerAsync(ct);
+            string encAuth = OpenSSLEncrypt($"{{\"ClientId\": 225,\"AuthKey\": \"{_prodAuthKey}\"}}", _prodMasterKey);
+            string encBody = OpenSSLEncrypt(bodyJson, encKey);
+
+            string raw = await SendAsync(url, encAuth, encBody, bearer, _prodClientId, ct);
+            await _logService.AddLogAsync(bodyJson, raw, "FINO_AEPS_ENQUIRY");
+
+            return await ParseTransactionEnquiryResponseAsync(raw, encKey, ct);
+        }
+
         // ── UAT POST (Aadhaar Pay only) ───────────────────────────────
         public async Task<FinoApiCallResult> PostUatAsync(string bodyJson, CancellationToken ct = default)
         {
@@ -173,23 +186,64 @@ namespace InstantPay.Application.Services.FinoAeps
             };
         }
 
+        private async Task<FinoApiCallResult> ParseTransactionEnquiryResponseAsync(string raw, string encKey, CancellationToken ct)
+        {
+            JObject outer;
+            try { outer = JObject.Parse(raw); }
+            catch { return new FinoApiCallResult { IsSuccess = false, ResponseCode = "-1", MessageString = "Invalid JSON from FINO", RawResponse = raw }; }
+
+            string code = outer["ResponseCode"]?.ToString() ?? "-1";
+            string msg = outer["MessageString"]?.ToString() ?? outer["DispalyMessage"]?.ToString() ?? "Unknown error";
+            if (code != "0" && code != "00")
+                return new FinoApiCallResult { IsSuccess = false, ResponseCode = code, MessageString = msg, RawResponse = raw };
+
+            string encryptedData = outer["ResponseData"]?.ToString() ?? "";
+            try
+            {
+                string decrypted = OpenSSLDecrypt(encryptedData, encKey);
+                await _logService.AddLogAsync("ResponseData", decrypted, "FINO_AEPS_ENQUIRY_DECRYPT");
+                var data = JObject.Parse(decrypted);
+                data["ClientRefID"] ??= outer["ClientRefID"];
+                return new FinoApiCallResult
+                {
+                    IsSuccess = true,
+                    ResponseCode = code,
+                    MessageString = msg,
+                    DecryptedData = data,
+                    RawResponse = raw
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "FINO transaction enquiry response decrypt/parse failed");
+                return new FinoApiCallResult { IsSuccess = false, ResponseCode = "-1", MessageString = "Response decryption failed", RawResponse = raw };
+            }
+        }
+
         // ── RESPONSE PARSER ───────────────────────────────────────────
         private async Task<FinoApiCallResult> ParseResponseAsync(string raw, string encKey, CancellationToken ct)
         {
             JObject outer;
             try { outer = JObject.Parse(raw); }
-            catch { return new FinoApiCallResult { IsSuccess = false, MessageString = "Invalid JSON from FINO", RawResponse = raw }; }
+            catch { return new FinoApiCallResult { IsSuccess = false, IsPending = true, ResponseCode = "-1", MessageString = "Invalid JSON from FINO", RawResponse = raw }; }
 
             string code = outer["ResponseCode"]?.ToString() ?? "-1";
             string msg  = outer["MessageString"]?.ToString() ?? "Unknown error";
 
-            if (code != "0")
-                return new FinoApiCallResult { IsSuccess = false, MessageString = msg, RawResponse = raw };
+            if (code != "0" && code != "00")
+                return new FinoApiCallResult
+                {
+                    IsSuccess = false,
+                    IsPending = code is not "400" and not "401" && IsPendingResponseCode(code),
+                    ResponseCode = code,
+                    MessageString = msg,
+                    RawResponse = raw
+                };
 
             string dataStr   = outer["ResponseData"]?.ToString() ?? "{}";
             JObject dataJson;
             try { dataJson = JObject.Parse(dataStr); }
-            catch { return new FinoApiCallResult { IsSuccess = false, MessageString = "Malformed ResponseData", RawResponse = raw }; }
+            catch { return new FinoApiCallResult { IsSuccess = false, IsPending = true, ResponseCode = "-1", MessageString = "Malformed ResponseData", RawResponse = raw }; }
 
             string clientRes = dataJson["ClientRes"]?.ToString() ?? "";
             JObject inner;
@@ -208,11 +262,21 @@ namespace InstantPay.Application.Services.FinoAeps
             catch (Exception ex)
             {
                 _logger.LogError(ex, "ClientRes decrypt/parse failed");
-                return new FinoApiCallResult { IsSuccess = false, MessageString = "Response decryption failed", RawResponse = raw };
+                return new FinoApiCallResult { IsSuccess = false, IsPending = true, ResponseCode = "-1", MessageString = "Response decryption failed", RawResponse = raw };
             }
 
-            return new FinoApiCallResult { IsSuccess = true, MessageString = msg, DecryptedData = inner, RawResponse = raw };
+            return new FinoApiCallResult
+            {
+                IsSuccess = true,
+                ResponseCode = code,
+                MessageString = msg,
+                DecryptedData = inner,
+                RawResponse = raw
+            };
         }
+
+        private static bool IsPendingResponseCode(string code)
+            => code is "-1" or "500" or "502" or "503" or "504" or "998";
 
         // ── HTTP SENDER ───────────────────────────────────────────────
         private async Task<string> SendAsync(string url, string encAuth, string encBody, string bearer, string clientId, CancellationToken ct)

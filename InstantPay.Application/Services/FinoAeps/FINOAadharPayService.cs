@@ -150,9 +150,11 @@ namespace InstantPay.Application.Services.FinoAeps
 
             var result = await _api.PostAadharPayProdAsync(bodyJson, ct);
 
-            string status = result.IsSuccess
-                ? (result.DecryptedData?["Status"]?.ToString() ?? "SUCCESS")
-                : "FAILED";
+            string status = result.IsPending
+                ? "PENDING"
+                : result.IsSuccess
+                    ? (result.DecryptedData?["Status"]?.ToString() ?? "SUCCESS")
+                    : "FAILED";
             string rrn    = result.DecryptedData?["RRN"]?.ToString() ?? "NA";
             string apiMsg = result.IsSuccess
                 ? (result.DecryptedData?["MessageString"]?.ToString() ?? result.MessageString)
@@ -161,7 +163,12 @@ namespace InstantPay.Application.Services.FinoAeps
             bool isSuccessOrPending = IsSuccessOrPending(status);
             decimal finalNewBal = debitNewBal;
 
-            if (!result.IsSuccess || !isSuccessOrPending)
+            if (result.IsPending)
+            {
+                await UpdateTxnAsync(txnId, status, result.RawResponse, apiMsg,
+                                     debitNewBal, rrn, ct);
+            }
+            else if (!result.IsSuccess || !isSuccessOrPending)
             {
                 status = "FAILED";
 

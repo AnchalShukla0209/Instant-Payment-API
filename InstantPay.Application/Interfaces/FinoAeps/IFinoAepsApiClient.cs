@@ -8,6 +8,7 @@ namespace InstantPay.Application.Interfaces.FinoAeps
         Task<FinoApiCallResult> PostAadharPayProdAsync(string bodyJson, CancellationToken ct = default);
         Task<FinoApiCallResult> PostUatAsync(string bodyJson, CancellationToken ct = default);
         Task<FinoApiCallResult> PostMerchantEkycAsync(string bodyJson, CancellationToken ct = default);
+        Task<FinoApiCallResult> PostTransactionEnquiryAsync(string url, string bodyJson, CancellationToken ct = default);
 
         string ComputeChecksum(string raw);
         string GenerateTxnId();
