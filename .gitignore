@@ -1,0 +1,43 @@
+# Ignore Visual Studio temporary and cache files
+*.obj
+*.exe
+*.dll
+*.pdb
+*.cache
+*.log
+*.user
+*.suo
+*.tmp
+*.tlog
+
+# Build folders
+bin/
+obj/
+Debug/
+Release/
+
+# Visual Studio configuration
+.vs/
+*.userprefs
+*.csproj.user
+
+# Backup files
+*~
+*.bak
+
+# IIS Express
+_IISExpress/
+*.dbmdl
+
+# NuGet packages
+packages/
+*.nupkg
+
+# Publish output
+publish/
+
+TestResults/
+artifacts/
+coverage/
+*.coverage
+*.coveragexml
