@@ -1,4 +1,4 @@
-﻿using InstantPay.Application.Interfaces;
+using InstantPay.Application.Interfaces;
 using InstantPay.Infrastructure.Sql.Entities;
 using InstantPay.SharedKernel.RequestPayload;
 using InstantPay.SharedKernel.Results;
@@ -131,6 +131,137 @@ namespace InstantPay.Application.Services
             }
         }
 
+        private async Task<(string OtpReferenceId, string AccessToken, string AppIdentifierToken)> GenerateAePSOtpReferenceAsync(CashWithdrawalRequest model, string accessToken, string appIdToken, string deviceInfoJson)
+        {
+            string baseUrl = (_config["JPBAEPS:BaseUrl"] ?? "").TrimEnd('/');
+            string path = _config["JPBAEPS:OtpGeneratePath"] ?? "/jpb/v1/user/authenticate";
+            string url = baseUrl + path;
+            var client = _httpFactory.CreateClient("JIO");
+
+            string consentText = "I hereby provide my consent to Jio Payments Bank Limited (\"Bank\") to use my Aadhaar number and biometric authentication to verify my identity for AEPS transactions.";
+            string consentBase64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(consentText));
+
+            var payload = new JObject
+            {
+                ["user"] = new JObject
+                {
+                    ["entityType"] = 2,
+                    ["userId"] = model.AgentLoginId,
+                    ["bankDetails"] = new JObject { ["bankId"] = model.BankId }
+                },
+                ["scope"] = "REQUEST",
+                ["authenticateList"] = new JArray
+                {
+                    new JObject
+                    {
+                        ["mode"] = 56,
+                        ["action"] = "generate",
+                        ["aadhaar"] = new JObject { ["number"] = model.Aadhaar },
+                        ["consent"] = consentBase64,
+                        ["consentCode"] = "B88"
+                    }
+                },
+                ["purpose"] = 38,
+                ["amount"] = (long)model.Amount
+            };
+
+            var extraInfo = _config["JPBAEPS:OtpExtraInfo"];
+            if (!string.IsNullOrEmpty(extraInfo))
+                payload["extraInfo"] = extraInfo;
+
+            string payloadJson = JsonConvert.SerializeObject(payload);
+
+            int attempts = 0;
+            const int maxAttempts = 2;
+
+            while (attempts < maxAttempts)
+            {
+                attempts++;
+                string traceId = Guid.NewGuid().ToString();
+
+                using var req = new HttpRequestMessage(HttpMethod.Post, url);
+                req.Version = HttpVersion.Version11;
+                req.VersionPolicy = HttpVersionPolicy.RequestVersionExact;
+                req.Content = new StringContent(payloadJson, Encoding.UTF8, "application/json");
+                req.Headers.ExpectContinue = false;
+                req.Headers.Add("x-channel-id", _config["JPBAEPS:channelId"]);
+                req.Headers.Add("x-trace-id", traceId);
+                req.Headers.Add("x-device-info", deviceInfoJson);
+                if (!string.IsNullOrEmpty(appIdToken)) req.Headers.Add("x-appid-token", appIdToken);
+                if (!string.IsNullOrEmpty(accessToken)) req.Headers.Add("x-app-access-token", accessToken);
+                var clientId = _config["JPBAEPS:clientId"] ?? "";
+                if (!string.IsNullOrEmpty(clientId)) req.Headers.Add("clientId", clientId);
+
+                try
+                {
+                    await LogApiAsync(url, "POST", "INIT", "", deviceInfoJson, payloadJson, null, "AEPS", "GenerateOTP");
+                    var response = await client.SendAsync(req);
+                    string responseContent = await response.Content.ReadAsStringAsync();
+                    await LogApiAsync(url, "POST", response.IsSuccessStatusCode ? "00" : response.StatusCode.ToString(), null,
+                        deviceInfoJson + " x-appid-token:" + appIdToken + ",x-app-access-token:" + accessToken + ", traceid:" + traceId,
+                        payloadJson, responseContent, "AEPS", "GenerateOTP");
+
+                    if (response.IsSuccessStatusCode)
+                    {
+                        dynamic json = JsonConvert.DeserializeObject(responseContent);
+                        string otpReferenceId = json?.otpReferenceId?.ToString();
+                        if (!string.IsNullOrEmpty(otpReferenceId))
+                            return (otpReferenceId, accessToken, appIdToken);
+                    }
+
+                    bool isSessionExpired = false;
+
+                    try
+                    {
+                        using var doc = JsonDocument.Parse(responseContent);
+                        if (doc.RootElement.TryGetProperty("code", out var codeEl))
+                        {
+                            var codeString = codeEl.GetRawText().Trim('"');
+                            if (codeString == "33306") isSessionExpired = true;
+                        }
+                        if (!isSessionExpired && doc.RootElement.TryGetProperty("message", out var msgEl))
+                        {
+                            var msg = msgEl.GetString();
+                            if (!string.IsNullOrEmpty(msg) && msg.IndexOf("Invalid Session", StringComparison.OrdinalIgnoreCase) >= 0)
+                                isSessionExpired = true;
+                        }
+                        if (!isSessionExpired)
+                        {
+                            if (doc.RootElement.TryGetProperty("error", out var errEl) && errEl.TryGetProperty("code", out var errCodeEl))
+                            {
+                                var ecode = errCodeEl.GetString();
+                                if (ecode == "33306" || ecode == "2369") isSessionExpired = true;
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        if (!string.IsNullOrEmpty(responseContent) && responseContent.Contains("33306")) isSessionExpired = true;
+                        if (!string.IsNullOrEmpty(responseContent) && responseContent.IndexOf("Invalid Session", StringComparison.OrdinalIgnoreCase) >= 0) isSessionExpired = true;
+                    }
+
+                    if (isSessionExpired && attempts < maxAttempts)
+                    {
+                        var fallbackTokens = await GenerateSessionToken(model.Mobile);
+                        if (fallbackTokens != null)
+                        {
+                            accessToken = fallbackTokens.AccessToken;
+                            appIdToken = fallbackTokens.AppIdentifierToken;
+                            continue;
+                        }
+                    }
+
+                    return (null, accessToken, appIdToken);
+                }
+                catch
+                {
+                    return (null, accessToken, appIdToken);
+                }
+            }
+
+            return (null, accessToken, appIdToken);
+        }
+
         private static string Truncate(string input, int maxLen)
         {
             if (string.IsNullOrEmpty(input)) return string.Empty;
@@ -224,74 +355,8 @@ namespace InstantPay.Application.Services
             string timestamp = istTime.ToString("yyyy-MM-dd'T'HH:mm:ss.000'Z'");
             string uid = DateTime.UtcNow.Ticks.ToString().Substring(0, 15);
 
-            // Build request JSON (anonymous object)
-            var body = new
-            {
-                transaction = new
-                {
-                    idempotentKey = uid,
-                    currency = 356,
-                    invoice = uid,
-                    method = new { type = 115, subType = 550 },
-                    mode = 2,
-                    captureMethod = 1,
-                    livemode = "true",
-                    application = channelId,
-                    initiatingEntityTimestamp = timestamp,
-                    initiatingEntity = new { entityId = channelId },
-                    metadata = new
-                    {
-                        agent = new
-                        {
-                            id = model.AgentLoginId,
-                            address = new { pinCode = model.AgentPin }
-                        }
-                    }
-                },
-                amount = new
-                {
-                    netAmount = model.Amount.ToString(CultureInfo.InvariantCulture),
-                    grossAmount = model.Amount.ToString(CultureInfo.InvariantCulture)
-                },
-                payer = new
-                {
-                    type = 13,
-                    mobile = new { number = model.Mobile, countryCode = "91" },
-                    bankId = model.BankId,
-                    bankName = model.BankName,
-                    aadhaar = new
-                    {
-                        aadhaarNumber = model.Aadhaar,
-                        consentCode = new
-                        {
-                            id = "B88",
-                            description = "I hereby provide my consent to Jio Payments Bank Limited (\"Bank\") to use my Aadhaar number and biometric authentication to verify my identity for AEPS transactions.",
-                            version = "1",
-                            timeStamp = timestamp
-                        }
-                    }
-                },
-                secure = new
-                {
-                    biometrics = new { fingerprint = pidBase64, type = 1 },
-                    deviceInfo = new
-                    {
-                        peripheral = channelId,
-                        source = new
-                        {
-                            type = "MOB",
-                            id = Guid.NewGuid().ToString("N").Substring(0, 16),
-                            ip = ipAddress,
-                            osType = deviceConfig.GetValue<string>("os") ?? "ANDROID",
-                            osVer = "13",
-                            model = "DeviceModel"
-                        },
-                        location = new { latitude = model.Latitude ?? "", longitude = model.Longitude ?? "" }
-                    }
-                }
-            };
-
-            string requestBody = JsonConvert.SerializeObject(body);
+            string requestBody = null;
+            string authenticationToken = null;
             var client = _httpFactory.CreateClient("JIO");
 
             int attempts = 0;
@@ -406,6 +471,127 @@ namespace InstantPay.Application.Services
             {
                 string traceId = Guid.NewGuid().ToString();
                 attempts++;
+
+                // Step-up OTP for > INR 5000
+                if (string.IsNullOrEmpty(authenticationToken) && model.Amount > 5000)
+                {
+                    var (otpRef, newAccessToken, newAppIdToken) = await GenerateAePSOtpReferenceAsync(model, accessToken, appIdToken, deviceInfoJson);
+                    accessToken = newAccessToken;
+                    appIdToken = newAppIdToken;
+                    if (string.IsNullOrEmpty(otpRef))
+                    {
+                        return new CashWithdrawalResponseDto { Success = false, ResponseMessage = "Aadhaar OTP authentication failed", ResponseCode = "33", accessToken = accessToken, appIdentifierToken = appIdToken };
+                    }
+                    authenticationToken = otpRef;
+                }
+
+                // Build secure node
+                object secureObj;
+                if (!string.IsNullOrEmpty(authenticationToken))
+                {
+                    secureObj = new
+                    {
+                        authenticationToken = authenticationToken,
+                        biometrics = new { fingerprint = pidBase64, type = 1 },
+                        deviceInfo = new
+                        {
+                            peripheral = channelId,
+                            source = new
+                            {
+                                type = "MOB",
+                                id = Guid.NewGuid().ToString("N").Substring(0, 16),
+                                ip = ipAddress,
+                                osType = deviceConfig.GetValue<string>("os") ?? "ANDROID",
+                                osVer = "13",
+                                model = "DeviceModel"
+                            },
+                            location = new { latitude = model.Latitude ?? "", longitude = model.Longitude ?? "" }
+                        }
+                    };
+                }
+                else
+                {
+                    secureObj = new
+                    {
+                        biometrics = new { fingerprint = pidBase64, type = 1 },
+                        deviceInfo = new
+                        {
+                            peripheral = channelId,
+                            source = new
+                            {
+                                type = "MOB",
+                                id = Guid.NewGuid().ToString("N").Substring(0, 16),
+                                ip = ipAddress,
+                                osType = deviceConfig.GetValue<string>("os") ?? "ANDROID",
+                                osVer = "13",
+                                model = "DeviceModel"
+                            },
+                            location = new { latitude = model.Latitude ?? "", longitude = model.Longitude ?? "" }
+                        }
+                    };
+                }
+
+                // Build request JSON (anonymous object)
+                var body = new
+                {
+                    transaction = new
+                    {
+                        idempotentKey = uid,
+                        currency = 356,
+                        invoice = uid,
+                        method = new { type = 115, subType = 550 },
+                        mode = 2,
+                        captureMethod = 1,
+                        livemode = "true",
+                        application = channelId,
+                        initiatingEntityTimestamp = timestamp,
+                        initiatingEntity = new { entityId = channelId },
+                        metadata = new
+                        {
+                            agent = new
+                            {
+                                id = model.AgentLoginId,
+                                address = new { pinCode = model.AgentPin }
+                            }
+                        }
+                    },
+                    amount = new
+                    {
+                        netAmount = model.Amount.ToString(CultureInfo.InvariantCulture),
+                        grossAmount = model.Amount.ToString(CultureInfo.InvariantCulture)
+                    },
+                    payer = new
+                    {
+                        type = 13,
+                        mobile = new { number = model.Mobile, countryCode = "91" },
+                        bankId = model.BankId,
+                        bankName = model.BankName,
+                        aadhaar = new
+                        {
+                            aadhaarNumber = model.Aadhaar,
+                            consentCode = new
+                            {
+                                id = "B88",
+                                description = "I hereby provide my consent to Jio Payments Bank Limited (\"Bank\") to use my Aadhaar number and biometric authentication to verify my identity for AEPS transactions.",
+                                version = "1",
+                                timeStamp = timestamp
+                            }
+                        }
+                    },
+                    secure = secureObj
+                };
+
+                requestBody = JsonConvert.SerializeObject(body);
+
+                try
+                {
+                    tx.ApiReq = Truncate(RedactSensitive(requestBody), 4000);
+                    tx.UpdateDate = DateTime.Now;
+                    _context.TransactionDetails.Update(tx);
+                    await _context.SaveChangesAsync(cancellationToken);
+                }
+                catch { }
+
                 using var req = new HttpRequestMessage(HttpMethod.Post, apiUrl);
                 req.Version = HttpVersion.Version11;
                 req.VersionPolicy = HttpVersionPolicy.RequestVersionExact;
