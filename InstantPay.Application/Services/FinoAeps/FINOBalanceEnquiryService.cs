@@ -99,7 +99,7 @@ namespace InstantPay.Application.Services.FinoAeps
 
             var result = await _api.PostProdAsync(url, bodyJson, ct);
 
-            string status = result.IsSuccess ? (result.DecryptedData?["Status"]?.ToString() ?? "SUCCESS") : "FAILED";
+            string status = result.IsPending ? "PENDING" : result.IsSuccess ? (result.DecryptedData?["Status"]?.ToString() ?? "SUCCESS") : "FAILED";
             string rrn    = result.DecryptedData?["RRN"]?.ToString() ?? "NA";
 
             await _txnService.UpdateStatusAsync(txnId, status, result.RawResponse, rrn, ct);

@@ -73,4 +73,14 @@ namespace InstantPay.SharedKernel.Results
         [JsonProperty("TxnDate")]
         public string? TxnDate { get; set; }
     }
+
+    public class FinoAepsTransactionStatusData
+    {
+        public string? ClientRefID { get; set; }
+        public string? TransactionStatus { get; set; }
+        public string? Amount { get; set; }
+        public string? TransactionDateTime { get; set; }
+        public string? RRN { get; set; }
+        public string? AdhaarNo { get; set; }
+    }
 }

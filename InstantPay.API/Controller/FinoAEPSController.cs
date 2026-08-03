@@ -54,6 +54,26 @@ namespace InstantPay.API.Controller
             }
         }
 
+        [HttpPost("TransactionStatus")]
+        public async Task<IActionResult> TransactionStatus(
+            [FromBody] FinoAepsTransactionStatusRequest request,
+            CancellationToken ct)
+        {
+            if (request == null)
+                return Ok(new FinoAepsResponse { Status_Code = "0", Message = "Invalid request body", Data = "" });
+
+            try
+            {
+                var result = await _service.CheckTransactionStatusAsync(request, ct);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "FinoAEPSController.TransactionStatus unhandled error");
+                return Ok(new FinoAepsResponse { Status_Code = "0", Message = ex.Message, Data = ex.Message });
+            }
+        }
+
         /// <summary>
         /// Check if user has completed FINO AEPS daily login for today
         /// </summary>

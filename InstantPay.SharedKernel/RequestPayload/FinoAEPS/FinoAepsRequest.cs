@@ -18,4 +18,11 @@ namespace InstantPay.SharedKernel.RequestPayload.FinoAEPS
         public string? deviceType { get; set; }
         public string? comingFrom { get; set; }
     }
+
+    public class FinoAepsTransactionStatusRequest
+    {
+        public string? userid { get; set; }
+        public string? APIKey { get; set; }
+        public string? ClientRefID { get; set; }
+    }
 }

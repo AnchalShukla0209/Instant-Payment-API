@@ -150,6 +150,8 @@ namespace InstantPay.Application.Services.FinoAeps
                 txn.Status = status;
                 txn.UpdateDate = DateTime.Now;
                 txn.Brid = rrn;
+                if (status.Equals("FAILED", StringComparison.OrdinalIgnoreCase))
+                    txn.NewBal = Convert.ToString(txn.OldBal);
                 if (apiRes != null) txn.ApiRes = Truncate(apiRes, 4000);
 
                 await _context.SaveChangesAsync(ct);
@@ -178,10 +180,9 @@ namespace InstantPay.Application.Services.FinoAeps
                 txn.WlComm = onUs ? 0 : commission?.WlCommission ?? 0;
                 txn.Tds = onUs ? 0 : commission?.Tds ?? 0;
                 txn.Cost = onUs ? requestedamount : commission?.Cost ?? 0;
-                if (status.ToUpper() != "FAILED")
-                {
-                    txn.NewBal = Convert.ToString(newBal);
-                }
+                txn.NewBal = status.Equals("FAILED", StringComparison.OrdinalIgnoreCase)
+                    ? Convert.ToString(txn.OldBal)
+                    : Convert.ToString(newBal);
                 txn.Brid = RRN;
                 await _context.SaveChangesAsync(ct);
             }
