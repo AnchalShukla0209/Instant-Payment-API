@@ -45,6 +45,12 @@ namespace InstantPay.Application.Services.FinoAeps
             bool   onUs   = request.bankiinno == OnUsNbin;
             string url    = onUs ? _cwOnUsUrl : _cwUrl;
             string amount = string.IsNullOrWhiteSpace(request.amount) ? "0" : request.amount!;
+            decimal txnAmount = decimal.TryParse(amount, out var a) ? a : 0m;
+
+            string isNpciOtp = txnAmount > 5000m ? "1" : "0";
+            if (isNpciOtp == "1" &&
+                (string.IsNullOrWhiteSpace(request.npciTxnId) || string.IsNullOrWhiteSpace(request.npciTxnRefNo)))
+                return Err("NPCI TransactionId and TxnReferenceNo are required for amounts above 5000");
 
             string bodyJson = JsonConvert.SerializeObject(new
             {
@@ -63,13 +69,15 @@ namespace InstantPay.Application.Services.FinoAeps
                 IPAddress   = _api.ProdIPAddress,
                 Latitude    = lat,
                 Longitude   = lng,
-                IMEI_MAC    = _api.GetMacAddress(),
-                DeviceNo    = request.DeviceSrNo,
-                CheckSum    = _api.ComputeChecksum($"{txnId}+{amount}+{request.aadharno}"),
-                IsIris      = request.deviceType
+                IMEI_MAC       = _api.GetMacAddress(),
+                DeviceNo       = request.DeviceSrNo,
+                CheckSum       = _api.ComputeChecksum($"{txnId}+{amount}+{request.aadharno}"),
+                IsIris         = request.deviceType,
+                MerAuthTxnId   = request.merAuthTxnId,
+                IsNpciOtp      = isNpciOtp,
+                TransactionId  = request.npciTxnId ?? "",
+                TxnReferenceNo = request.npciTxnRefNo ?? ""
             });
-
-            decimal txnAmount = decimal.TryParse(amount, out var a) ? a : 0m;
 
             var commission = await _commissionService.CalculateCommissionAsync(int.Parse(userId), txnAmount, "CW", ct);
 

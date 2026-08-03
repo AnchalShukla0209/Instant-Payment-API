@@ -30,6 +30,8 @@ namespace InstantPay.Application.Services
         private readonly IFINOAadharPayService       _aadharPay;
         private readonly IFINODailyLoginService      _dailyLogin;
         private readonly IFINORegistrationService    _registration;
+        private readonly IFINOMerchantAuthService    _merchantAuth;
+        private readonly IFINONpciOtpService         _npciOtp;
 
         public FinoAepsService(
             AppDbContext context,
@@ -43,7 +45,9 @@ namespace InstantPay.Application.Services
             IFINOCashDepositService    cashDeposit,
             IFINOAadharPayService      aadharPay,
             IFINODailyLoginService     dailyLogin,
-            IFINORegistrationService   registration)
+            IFINORegistrationService   registration,
+            IFINOMerchantAuthService   merchantAuth,
+            IFINONpciOtpService        npciOtp)
         {
             _context        = context;
             _apiClient      = apiClient;
@@ -57,6 +61,8 @@ namespace InstantPay.Application.Services
             _aadharPay      = aadharPay;
             _dailyLogin     = dailyLogin;
             _registration   = registration;
+            _merchantAuth   = merchantAuth;
+            _npciOtp        = npciOtp;
         }
 
         // ── MAIN ENTRY POINT ─────────────────────────────────────────
@@ -108,14 +114,17 @@ namespace InstantPay.Application.Services
 
                 return txnType switch
                 {
-                    "be"  => await _balanceEnquiry.ProcessAsync(request, userId, txnId, lat, lng, ct),
-                    "cw"  => await _cashWithdrawal.ProcessAsync(request, userId, txnId, lat, lng, ct),
-                    "ms"  => await _miniStatement .ProcessAsync(request, userId, txnId, lat, lng, ct),
-                    "cd"  => await _cashDeposit   .ProcessAsync(request, userId, txnId, lat, lng, ct),
-                    "ap"  => await _aadharPay     .ProcessAsync(request, userId, txnId, lat, lng, ct),
-                    "dl"  => await _dailyLogin    .ProcessAsync(request, userId, txnId, lat, lng, ct),
-                    "reg" => await _registration  .ProcessAsync(request, userId, txnId, lat, lng, ct),
-                    _     => await _balanceEnquiry.ProcessAsync(request, userId, txnId, lat, lng, ct)
+                    "be"       => await _balanceEnquiry.ProcessAsync(request, userId, txnId, lat, lng, ct),
+                    "cw"       => await _cashWithdrawal.ProcessAsync(request, userId, txnId, lat, lng, ct),
+                    "ms"       => await _miniStatement .ProcessAsync(request, userId, txnId, lat, lng, ct),
+                    "cd"       => await _cashDeposit   .ProcessAsync(request, userId, txnId, lat, lng, ct),
+                    "ap"       => await _aadharPay     .ProcessAsync(request, userId, txnId, lat, lng, ct),
+                    "dl"       => await _dailyLogin    .ProcessAsync(request, userId, txnId, lat, lng, ct),
+                    "reg"      => await _registration  .ProcessAsync(request, userId, txnId, lat, lng, ct),
+                    "ma"       => await _merchantAuth  .ProcessAsync(request, userId, txnId, lat, lng, ct),
+                    "merchantauth" => await _merchantAuth.ProcessAsync(request, userId, txnId, lat, lng, ct),
+                    "npciotp"  => await _npciOtp       .ProcessAsync(request, userId, txnId, lat, lng, ct),
+                    _          => await _balanceEnquiry.ProcessAsync(request, userId, txnId, lat, lng, ct)
                 };
             }
             catch (Exception ex)

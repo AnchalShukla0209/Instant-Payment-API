@@ -17,5 +17,11 @@ namespace InstantPay.SharedKernel.RequestPayload.FinoAEPS
         public string? DeviceSrNo { get; set; }
         public string? deviceType { get; set; }
         public string? comingFrom { get; set; }
+
+        // NPCI step-up OTP & merchant auth fields
+        public string? merAuthTxnId { get; set; }
+        public string? npciTxnId { get; set; }
+        public string? npciTxnRefNo { get; set; }
+        public string? npciOtpFor { get; set; }
     }
 }

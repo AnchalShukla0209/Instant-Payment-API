@@ -187,11 +187,23 @@ namespace InstantPay.Application.Services.FinoAeps
                 return new FinoApiCallResult { IsSuccess = false, MessageString = msg, RawResponse = raw };
 
             string dataStr   = outer["ResponseData"]?.ToString() ?? "{}";
-            JObject dataJson;
-            try { dataJson = JObject.Parse(dataStr); }
-            catch { return new FinoApiCallResult { IsSuccess = false, MessageString = "Malformed ResponseData", RawResponse = raw }; }
+            string? clientRes = null;
 
-            string clientRes = dataJson["ClientRes"]?.ToString() ?? "";
+            // Some APIs (e.g. AEPSNpciOtpAPI) return ResponseData as a direct encrypted string;
+            // others wrap it inside a JSON object with a "ClientRes" field.
+            JObject? dataJson = null;
+            try
+            {
+                dataJson = JObject.Parse(dataStr);
+                clientRes = dataJson["ClientRes"]?.ToString();
+            }
+            catch
+            {
+                clientRes = dataStr;
+            }
+
+            if (string.IsNullOrEmpty(clientRes))
+                return new FinoApiCallResult { IsSuccess = false, MessageString = "Missing ClientRes/ResponseData", RawResponse = raw };
             JObject inner;
             try
             {

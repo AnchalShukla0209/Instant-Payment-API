@@ -519,6 +519,8 @@ builder.Services.AddScoped<IFINOCashDepositService,     FINOCashDepositService>(
 builder.Services.AddScoped<IFINOAadharPayService,       FINOAadharPayService>();
 builder.Services.AddScoped<IFINODailyLoginService,      FINODailyLoginService>();
 builder.Services.AddScoped<IFINORegistrationService,    FINORegistrationService>();
+builder.Services.AddScoped<IFINOMerchantAuthService,    FINOMerchantAuthService>();
+builder.Services.AddScoped<IFINONpciOtpService,         FINONpciOtpService>();
 builder.Services.AddScoped<IFinoAepsService,            FinoAepsService>();
 // ─────────────────────────────────────────────────────────────────────────────
 
