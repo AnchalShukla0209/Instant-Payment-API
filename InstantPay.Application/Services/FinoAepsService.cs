@@ -178,7 +178,6 @@ namespace InstantPay.Application.Services
 
             var txn = await _context.TransactionDetails.FirstOrDefaultAsync(t =>
                 t.TxnId == request.ClientRefID
-                && t.UserId == userId
                 && t.ServiceName == "AEPS"
                 && t.ApiName == "FINO", ct);
 
