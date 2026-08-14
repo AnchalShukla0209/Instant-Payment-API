@@ -41,3 +41,4 @@ artifacts/
 coverage/
 *.coverage
 *.coveragexml
+*.pfx

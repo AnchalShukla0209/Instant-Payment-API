@@ -332,7 +332,27 @@ namespace InstantPay.Application.Services
 
         public async Task<List<ProviderDTO>> GetProviders(string serviceCode)
         {
-            return await (
+            if (string.Equals(serviceCode, "SETTLEMENT", StringComparison.OrdinalIgnoreCase))
+            {
+                var mappings = await _context.SERVICE_PROVIDER.AsNoTracking()
+                    .Where(x => x.ServiceCode != null && x.ServiceCode.ToUpper() == "SETTLEMENT")
+                    .ToListAsync();
+                return new List<ProviderDTO>
+                {
+                    new()
+                    {
+                        key = "RKIT", label = "RechargeKit",
+                        isEnabled = mappings.Count == 0 || mappings.Any(x => x.ProviderCode != null && x.ProviderCode.ToUpper() == "RKIT" && x.IsEnabled == true)
+                    },
+                    new()
+                    {
+                        key = "RBL", label = "RBL Bank",
+                        isEnabled = mappings.Any(x => x.ProviderCode != null && x.ProviderCode.ToUpper() == "RBL" && x.IsEnabled == true)
+                    }
+                };
+            }
+
+            var providers = await (
                 from sp in _context.SERVICE_PROVIDER.AsNoTracking()
                 join p in _context.MASTER_PROVIDER.AsNoTracking()
                     on sp.ProviderCode equals p.ProviderCode
@@ -344,6 +364,8 @@ namespace InstantPay.Application.Services
                     isEnabled = sp.IsEnabled 
                 }
             ).ToListAsync();
+
+            return providers;
         }
 
         public async Task<List<FeatureDto>> GetFeatures(string serviceCode)
@@ -475,13 +497,37 @@ namespace InstantPay.Application.Services
             var row = await _context.SERVICE_PROVIDER.FirstOrDefaultAsync(x => x.ServiceCode == req.ServiceCode && x.ProviderCode == req.ProviderCode);
 
             if (row == null)
-                return new ResponseSuccess
-                {
-                    success = false,
-                    message = "Service Provider mapping not found"
-                };
+            {
+                var isSettlementProvider = string.Equals(req.ServiceCode, "SETTLEMENT", StringComparison.OrdinalIgnoreCase)
+                    && (string.Equals(req.ProviderCode, "RKIT", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(req.ProviderCode, "RBL", StringComparison.OrdinalIgnoreCase));
+                if (!isSettlementProvider)
+                    return new ResponseSuccess { success = false, message = "Service Provider mapping not found" };
 
-            row.IsEnabled = req.IsEnabled;
+                row = new ServiceProvider
+                {
+                    ServiceCode = "SETTLEMENT",
+                    ProviderCode = req.ProviderCode!.Trim().ToUpperInvariant(),
+                    IsEnabled = false
+                };
+                _context.SERVICE_PROVIDER.Add(row);
+                await _context.SaveChangesAsync();
+            }
+
+            // Settlement payouts have exactly one active provider. Enabling a provider
+            // atomically disables the other settlement providers for a real switch.
+            if (req.IsEnabled && string.Equals(req.ServiceCode, "SETTLEMENT", StringComparison.OrdinalIgnoreCase))
+            {
+                var settlementProviders = await _context.SERVICE_PROVIDER
+                    .Where(x => x.ServiceCode != null && x.ServiceCode.ToUpper() == "SETTLEMENT")
+                    .ToListAsync();
+                foreach (var provider in settlementProviders)
+                    provider.IsEnabled = provider.Id == row.Id;
+            }
+            else
+            {
+                row.IsEnabled = req.IsEnabled;
+            }
             await _context.SaveChangesAsync();
 
             return new ResponseSuccess

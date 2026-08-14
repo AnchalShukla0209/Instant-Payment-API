@@ -57,6 +57,10 @@ using InstantPay.SharedKernel.Entity.FinzepConfigDTO;
 using InstantPay.SharedKernel.Entity.RechargeKitConfigDTO;
 using InstantPay.SharedKernel.Entity.TramoConfigDTO;
 using InstantPay.Application.Interfaces.MoneyTransfer.Tramo;
+using InstantPay.Application.Interfaces.MoneyTransfer.RBL;
+using InstantPay.Application.Interfaces.RBL;
+using InstantPay.Application.Services.RBL;
+using InstantPay.SharedKernel.Entity.RblConfigDTO;
 
 using InstantPay.Application.Interfaces.MoneyTransfer.RechargeKit;
 
@@ -84,6 +88,7 @@ using System.Net;
 using System.Net.Sockets;
 
 using System.Security.Authentication;
+using System.Security.Cryptography.X509Certificates;
 
 using System.Text;
 using System.Threading.RateLimiting;
@@ -184,6 +189,8 @@ builder.Services.AddAuthorization(options =>
         policy.RequireAuthenticatedUser().RequireClaim("usertype", "AD"));
     options.AddPolicy("MasterDistributorOnly", policy =>
         policy.RequireAuthenticatedUser().RequireClaim("usertype", "MD"));
+    options.AddPolicy("SuperAdminOnly", policy =>
+        policy.RequireAuthenticatedUser().RequireClaim("usertype", "SuperAdmin"));
     options.AddPolicy("PartnerDashboard", policy =>
         policy.RequireAuthenticatedUser().RequireAssertion(context =>
             context.User.HasClaim("usertype", "AD") ||
@@ -467,6 +474,16 @@ builder.Services.Configure<TramoConfig>(
 
     builder.Configuration.GetSection("TramoConfig"));
 
+builder.Services.AddOptions<RblConfig>()
+    .Bind(builder.Configuration.GetSection("RblConfig"))
+    .Validate(x => Uri.TryCreate(x.PaymentUrl, UriKind.Absolute, out _), "RBL PaymentUrl must be an absolute URL")
+    .Validate(x => Uri.TryCreate(x.StatementUrl, UriKind.Absolute, out _), "RBL StatementUrl must be an absolute URL")
+    .Validate(x => Uri.TryCreate(x.StatementWrapperUrl, UriKind.Absolute, out _), "RBL StatementWrapperUrl must be an absolute URL")
+    .Validate(x => !string.IsNullOrWhiteSpace(x.ClientId) && !string.IsNullOrWhiteSpace(x.ClientSecret), "RBL client credentials are required")
+    .Validate(x => !string.IsNullOrWhiteSpace(x.Username) && !string.IsNullOrWhiteSpace(x.Password), "RBL basic-auth credentials are required")
+    .Validate(x => !string.IsNullOrWhiteSpace(x.CertificatePath) && !string.IsNullOrWhiteSpace(x.CertificatePassword), "RBL certificate settings are required")
+    .ValidateOnStart();
+
 
 
 
@@ -714,6 +731,33 @@ builder.Services.AddScoped<IAeronpayDmtService, AeronpayDmtService>();
 builder.Services.AddScoped<IRechargeKitDmtService, RechargeKitDmtService>();
 
 builder.Services.AddScoped<ITramoUpiDmtService, TramoUpiDmtService>();
+
+builder.Services.AddHttpClient("RBL", client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(90);
+    client.DefaultRequestHeaders.ExpectContinue = false;
+})
+.ConfigurePrimaryHttpMessageHandler(serviceProvider =>
+{
+    var settings = serviceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<RblConfig>>().Value;
+    var environment = serviceProvider.GetRequiredService<IWebHostEnvironment>();
+    var path = Path.IsPathRooted(settings.CertificatePath)
+        ? settings.CertificatePath
+        : Path.Combine(environment.ContentRootPath, settings.CertificatePath);
+    if (!File.Exists(path)) throw new FileNotFoundException("RBL client certificate was not found.", path);
+
+    var certificate = X509CertificateLoader.LoadPkcs12FromFile(path, settings.CertificatePassword,
+        X509KeyStorageFlags.EphemeralKeySet | X509KeyStorageFlags.Exportable);
+    var handler = new HttpClientHandler
+    {
+        ClientCertificateOptions = ClientCertificateOption.Manual,
+        SslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13
+    };
+    handler.ClientCertificates.Add(certificate);
+    return handler;
+});
+builder.Services.AddScoped<IRblDmtService, RblDmtService>();
+builder.Services.AddScoped<IRblStatementService, RblStatementService>();
 
 
 builder.Services.AddHttpClient<IPanService, PanService>();

@@ -5,6 +5,7 @@ using InstantPay.Application.Interfaces.MoneyTransfer.Finzep;
 using InstantPay.Application.Interfaces.MoneyTransfer.NIFI;
 using InstantPay.Application.Interfaces.MoneyTransfer.RechargeKit;
 using InstantPay.Application.Interfaces.MoneyTransfer.Tramo;
+using InstantPay.Application.Interfaces.MoneyTransfer.RBL;
 using InstantPay.Application.Services;
 using InstantPay.Infrastructure.Sql.Entities;
 using InstantPay.SharedKernel.RequestPayload;
@@ -32,9 +33,10 @@ namespace InstantPay.API.Controller
         private readonly IAeronpayDmtService _aeronpayDmtService;
         private readonly IRechargeKitDmtService _rechargeKitDmtService;
         private readonly ITramoUpiDmtService _tramoDmtService;
+        private readonly IRblDmtService _rblDmtService;
         private readonly AppDbContext _context;
 
-        public MoneyTransferController(ICastlerDmtService dmtService, INifiDmtService nifiDmtService, IFinzepDmtService finzepDmtService, IAeronpayDmtService aeronpayDmtService, IRechargeKitDmtService rechargeKitDmtService, ITramoUpiDmtService tramoDmtService, AppDbContext context)
+        public MoneyTransferController(ICastlerDmtService dmtService, INifiDmtService nifiDmtService, IFinzepDmtService finzepDmtService, IAeronpayDmtService aeronpayDmtService, IRechargeKitDmtService rechargeKitDmtService, ITramoUpiDmtService tramoDmtService, IRblDmtService rblDmtService, AppDbContext context)
         {
             _dmtService = dmtService;
             _nifiDmtService = nifiDmtService;
@@ -42,6 +44,7 @@ namespace InstantPay.API.Controller
             _aeronpayDmtService = aeronpayDmtService;
             _rechargeKitDmtService = rechargeKitDmtService;
             _tramoDmtService = tramoDmtService;
+            _rblDmtService = rblDmtService;
             _context = context;
         }
 
@@ -361,6 +364,14 @@ namespace InstantPay.API.Controller
                     Data = null
                 });
             }
+        }
+
+        [HttpPost("rbl/transfer")]
+        public async Task<IActionResult> RblTransfer([FromBody] AeronpayDmtRequest model, CancellationToken cancellationToken)
+        {
+            string ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "103.49.124.63";
+            var result = await _rblDmtService.MoneyTransfer(model, ip, cancellationToken);
+            return Ok(result);
         }
 
         [HttpGet("tramo/status/{txnId}")]
