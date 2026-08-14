@@ -1,0 +1,9 @@
+using InstantPay.SharedKernel.RequestPayload.MoneyTransfer.AeronPay;
+using InstantPay.SharedKernel.Results.MoneyTransfer.Castler;
+
+namespace InstantPay.Application.Interfaces.MoneyTransfer.RBL;
+
+public interface IRblDmtService
+{
+    Task<LoginModel> MoneyTransfer(AeronpayDmtRequest model, string ip, CancellationToken cancellationToken);
+}

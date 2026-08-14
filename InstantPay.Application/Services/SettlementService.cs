@@ -2,13 +2,18 @@ using InstantPay.Application.DTOs;
 using InstantPay.Application.Interfaces;
 using InstantPay.Infrastructure.Sql.Entities;
 using InstantPay.SharedKernel.Entity.RechargeKitConfigDTO;
+using InstantPay.SharedKernel.Entity.RblConfigDTO;
 using InstantPay.SharedKernel.Results.MoneyTransfer.RechargeKit;
+using InstantPay.SharedKernel.Results.MoneyTransfer.RBL;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Globalization;
+using System.Net.Http.Headers;
 
 namespace InstantPay.Application.Services
 {
@@ -16,13 +21,21 @@ namespace InstantPay.Application.Services
     {
         private readonly AppDbContext _context;
         private readonly RechargeKitConfig _config;
+        private readonly RblConfig _rblConfig;
         private readonly IWalletService _walletService;
+        private readonly IHttpClientFactory _httpClientFactory;
+        private readonly ILogger<SettlementService> _logger;
 
-        public SettlementService(AppDbContext context, IOptions<RechargeKitConfig> config, IWalletService walletService)
+        public SettlementService(AppDbContext context, IOptions<RechargeKitConfig> config,
+            IOptions<RblConfig> rblConfig, IWalletService walletService,
+            IHttpClientFactory httpClientFactory, ILogger<SettlementService> logger)
         {
             _context = context;
             _config = config.Value;
+            _rblConfig = rblConfig.Value;
             _walletService = walletService;
+            _httpClientFactory = httpClientFactory;
+            _logger = logger;
         }
 
         private decimal CalculateCharge(decimal amount, string withdrawalType)
@@ -371,6 +384,18 @@ namespace InstantPay.Application.Services
                 }
 
                 string clientReferenceId = string.Empty;
+                var payoutProvider = await ResolveSettlementProviderAsync();
+                if (string.IsNullOrEmpty(payoutProvider))
+                {
+                    return new WithdrawalResponseDto
+                    {
+                        Success = false,
+                        Message = "Settlement payout provider configuration is invalid. Enable exactly one of RKIT or RBL.",
+                        RemainingAmount = availableAmount,
+                        NewWalletBalance = currentWalletBalance,
+                        Charge = charge
+                    };
+                }
                 SettlementWithdrawal withdrawal = null!;
                 string Username = userData.Name + "-" + userData.Phone;
                 var recordToDate = request.WithdrawalType.ToUpper() == "RAZORPAY" ? razorpayToDate : toDate;
@@ -420,7 +445,9 @@ namespace InstantPay.Application.Services
                         };
                     }
 
-                    clientReferenceId = $"SETT_{userIdInt}_{DateTime.Now:yyyyMMddHHmmss}";
+                    clientReferenceId = payoutProvider == "RBL"
+                        ? $"TXN{DateTime.UtcNow:yyMMddHHmmss}{Random.Shared.Next(100, 999)}"
+                        : $"SETT_{userIdInt}_{DateTime.Now:yyyyMMddHHmmss}";
 
                     // Check 2: Exact duplicate transaction check
                     var exactDuplicate = await _context.SettlementWithdrawals
@@ -503,8 +530,12 @@ namespace InstantPay.Application.Services
                     };
                 }
 
-                // Call RechargeKit payout API
-                var payoutResponse = await CallRechargeKitPayoutApi(request, clientReferenceId);
+                var payoutResponse = payoutProvider switch
+                {
+                    "RBL" => await CallRblPayoutApi(request, clientReferenceId),
+                    "RKIT" => await CallRechargeKitPayoutApi(request, clientReferenceId),
+                    _ => new ProviderPayoutResult { Status = "PENDING", Message = "No settlement payout provider is enabled" }
+                };
 
                 // Update withdrawal with API response (brid, request, response, message, status)
                 UpdateSettlementWithdrawalWithApiResponse(withdrawal, payoutResponse);
@@ -665,7 +696,7 @@ namespace InstantPay.Application.Services
             return withdrawal;
         }
 
-        private static void UpdateSettlementWithdrawalWithApiResponse(SettlementWithdrawal withdrawal, RechargeKitPayoutResult payoutResponse)
+        private static void UpdateSettlementWithdrawalWithApiResponse(SettlementWithdrawal withdrawal, ProviderPayoutResult payoutResponse)
         {
             withdrawal.PayoutReferenceId = payoutResponse.TransactionId ?? "";
             withdrawal.RRN = payoutResponse.ReferenceId ?? "";
@@ -717,7 +748,7 @@ namespace InstantPay.Application.Services
             };
         }
 
-        private async Task<RechargeKitPayoutResult> CallRechargeKitPayoutApi(WithdrawalRequestDto request, string partnerRequestId, CancellationToken cancellationToken = default)
+        private async Task<ProviderPayoutResult> CallRechargeKitPayoutApi(WithdrawalRequestDto request, string partnerRequestId, CancellationToken cancellationToken = default)
         {
             var bodyObj = new
             {
@@ -775,7 +806,7 @@ namespace InstantPay.Application.Services
 
                 if (apiResponse == null)
                 {
-                    return new RechargeKitPayoutResult
+                    return new ProviderPayoutResult
                     {
                         Status = "FAILED",
                         Message = "Invalid or empty API response",
@@ -786,7 +817,7 @@ namespace InstantPay.Application.Services
 
                 string mappedStatus = MapPayoutStatus(apiResponse.status, apiResponse.optransid ?? "");
 
-                return new RechargeKitPayoutResult
+                return new ProviderPayoutResult
                 {
                     Status = mappedStatus,
                     Message = apiResponse.msg,
@@ -798,7 +829,7 @@ namespace InstantPay.Application.Services
             }
             catch (Exception ex)
             {
-                return new RechargeKitPayoutResult
+                return new ProviderPayoutResult
                 {
                     Status = "FAILED",
                     Message = $"API call failed: {ex.Message}",
@@ -807,7 +838,138 @@ namespace InstantPay.Application.Services
             }
         }
 
-        private class RechargeKitPayoutResult
+        private async Task<string> ResolveSettlementProviderAsync()
+        {
+            var mappings = await _context.SERVICE_PROVIDER.AsNoTracking()
+                .Where(x => x.ServiceCode != null && x.ServiceCode.ToUpper() == "SETTLEMENT")
+                .Select(x => new { x.ProviderCode, x.IsEnabled })
+                .ToListAsync();
+
+            // Keep existing deployments working until SETTLEMENT mappings are seeded.
+            if (mappings.Count == 0) return "RKIT";
+
+            var enabled = mappings
+                .Where(x => x.IsEnabled == true && !string.IsNullOrWhiteSpace(x.ProviderCode))
+                .Select(x => x.ProviderCode!.Trim().ToUpperInvariant())
+                .ToList();
+
+            if (enabled.Count != 1)
+            {
+                _logger.LogError("Settlement provider configuration is invalid. Enabled providers: {Providers}", string.Join(",", enabled));
+                return string.Empty;
+            }
+
+            return enabled[0] is "RKIT" or "RBL" ? enabled[0] : string.Empty;
+        }
+
+        private async Task<ProviderPayoutResult> CallRblPayoutApi(
+            WithdrawalRequestDto request, string transactionId, CancellationToken cancellationToken = default)
+        {
+            var payload = new
+            {
+                Single_Payment_Corp_Req = new
+                {
+                    Header = new
+                    {
+                        TranID = transactionId,
+                        Corp_ID = _rblConfig.CorpId,
+                        Maker_ID = _rblConfig.MakerId,
+                        Checker_ID = _rblConfig.CheckerId,
+                        Approver_ID = _rblConfig.ApproverId
+                    },
+                    Body = new
+                    {
+                        Amount = request.Amount.ToString("0.##", CultureInfo.InvariantCulture),
+                        Debit_Acct_No = _rblConfig.DebitAccountNumber,
+                        Debit_Acct_Name = _rblConfig.DebitAccountName,
+                        Debit_IFSC = _rblConfig.DebitIfsc,
+                        Debit_Mobile = _rblConfig.DebitMobile,
+                        Debit_TrnParticulars = "Settlement Payment",
+                        Debit_PartTrnRmks = "Settlement Payout",
+                        Ben_IFSC = request.Ifsc,
+                        Ben_Acct_No = request.BankAccount,
+                        Ben_Name = request.BeneName,
+                        Ben_Address = string.IsNullOrWhiteSpace(request.BeneAddress) ? "India" : request.BeneAddress,
+                        Ben_BankName = request.BankName,
+                        Ben_BankCd = "0",
+                        Ben_BranchCd = "0",
+                        Ben_Email = request.BeneEmail,
+                        Ben_Mobile = request.BenePhone,
+                        Ben_TrnParticulars = "Settlement Transfer",
+                        Ben_PartTrnRmks = "Received",
+                        Issue_BranchCd = "0000",
+                        Mode_of_Pay = "IMPS",
+                        Remarks = "DMR",
+                        RptCode = "HSBA"
+                    },
+                    Signature = new { Signature = "Settlement Txn" }
+                }
+            };
+
+            var json = JsonConvert.SerializeObject(payload);
+            try
+            {
+                var uri = new UriBuilder(_rblConfig.PaymentUrl)
+                {
+                    Query = $"client_id={Uri.EscapeDataString(_rblConfig.ClientId)}&client_secret={Uri.EscapeDataString(_rblConfig.ClientSecret)}"
+                }.Uri;
+                using var httpRequest = new HttpRequestMessage(HttpMethod.Post, uri);
+                httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Basic",
+                    Convert.ToBase64String(Encoding.UTF8.GetBytes($"{_rblConfig.Username}:{_rblConfig.Password}")));
+                httpRequest.Content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                var client = _httpClientFactory.CreateClient("RBL");
+                using var response = await client.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+                var responseText = await response.Content.ReadAsStringAsync(cancellationToken);
+                _context.Apilogs.Add(new Apilog
+                {
+                    Apiname = "Settlement-RBL",
+                    Reqdatae = DateTime.Now,
+                    Request = Truncate(json, 4000),
+                    Response = Truncate(responseText, 4000)
+                });
+                await _context.SaveChangesAsync(CancellationToken.None);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning("RBL settlement returned HTTP {StatusCode} for {TransactionId}", (int)response.StatusCode, transactionId);
+                    return new ProviderPayoutResult { Status = "PENDING", Message = $"RBL HTTP {(int)response.StatusCode}", RawResponse = responseText, RequestJson = json };
+                }
+
+                var apiResponse = JsonConvert.DeserializeObject<RblPaymentResponse>(responseText);
+                if (apiResponse?.Payment == null)
+                    return new ProviderPayoutResult { Status = "PENDING", Message = "Invalid or empty RBL response", RawResponse = responseText, RequestJson = json };
+
+                var header = apiResponse.Payment.Header;
+                var body = apiResponse.Payment.Body;
+                var success = string.Equals(header?.Status, "Success", StringComparison.OrdinalIgnoreCase) && header?.Resp_cde == "00";
+                var uncertainFailure = header?.Error_Cde is "ER004" or "ER006" or "ER017" or "ER018";
+                return new ProviderPayoutResult
+                {
+                    Status = success ? "SUCCESS" : uncertainFailure ? "PENDING" : "FAILED",
+                    Message = success ? "Success" : header?.Error_Desc ?? "RBL payout failed",
+                    TransactionId = body?.RefNo ?? transactionId,
+                    ReferenceId = body?.RRN ?? body?.channelpartnerrefno ?? string.Empty,
+                    RawResponse = responseText,
+                    RequestJson = json
+                };
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
+            {
+                _logger.LogError(ex, "RBL settlement transport/parse failure for {TransactionId}", transactionId);
+                return new ProviderPayoutResult
+                {
+                    Status = "PENDING",
+                    Message = "RBL API outcome unknown; kept pending for reconciliation",
+                    RequestJson = json
+                };
+            }
+        }
+
+        private static string Truncate(string? value, int maxLength) =>
+            string.IsNullOrEmpty(value) ? string.Empty : value.Length <= maxLength ? value : value[..maxLength];
+
+        private class ProviderPayoutResult
         {
             public string Status { get; set; } = "FAILED";
             public string Message { get; set; } = "API call failed";
