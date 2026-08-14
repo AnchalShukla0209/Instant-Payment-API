@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -13,6 +13,8 @@ namespace InstantPay.SharedKernel.Entity
         public string billpayment { get; set; }
         public string mobilerecharge { get; set; }
         public string aeps { get; set; }
+        public string razorpaypayment { get; set; }
+        public string settlement { get; set; }
     }
 
     public class ServiceDtoRequest

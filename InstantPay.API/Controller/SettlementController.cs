@@ -11,10 +11,12 @@ namespace InstantPay.API.Controller
     public class SettlementController : ControllerBase
     {
         private readonly ISettlementService _settlementService;
+        private readonly IUserServiceRightService _serviceRightService;
 
-        public SettlementController(ISettlementService settlementService)
+        public SettlementController(ISettlementService settlementService, IUserServiceRightService serviceRightService)
         {
             _settlementService = settlementService;
+            _serviceRightService = serviceRightService;
         }
 
         /// <summary>
@@ -61,7 +63,13 @@ namespace InstantPay.API.Controller
                     });
                 }
 
-                var settlement = await _settlementService.GetSettlementAsync(userId);
+                if (!await _serviceRightService.IsEnabledAsync(uid, "settlement"))
+                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "Settlement is disabled for this user." });
+
+                if (!string.IsNullOrWhiteSpace(userId) && userId != uid.ToString())
+                    return Forbid();
+
+                var settlement = await _settlementService.GetSettlementAsync(uid.ToString());
                 return Ok(settlement);
             }
             catch (Exception ex)
@@ -119,6 +127,12 @@ namespace InstantPay.API.Controller
                 {
                     return BadRequest(new { message = "UserId is required" });
                 }
+
+                if (request.UserId != uid.ToString())
+                    return Forbid();
+
+                if (!await _serviceRightService.IsEnabledAsync(uid, "settlement"))
+                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "Settlement is disabled for this user." });
 
                 if (request.Amount <= 0)
                 {

@@ -62,4 +62,28 @@ namespace InstantPay.SharedKernel.Results
         [JsonProperty("transactionId")]
         public string TransactionId { get; set; }
     }
+
+    public class JioOtpResponseDto
+    {
+        [JsonProperty("responseCode")]
+        public string ResponseCode { get; set; }
+        public bool Success { get; set; }
+
+        [JsonProperty("responseMessage")]
+        public string ResponseMessage { get; set; }
+
+        [JsonProperty("responseData")]
+        public JioOtpResponseData ResponseData { get; set; }
+
+        [JsonProperty("traceid")]
+        public string TraceId { get; set; }
+        public string accessToken { get; set; }
+        public string appIdentifierToken { get; set; }
+    }
+
+    public class JioOtpResponseData
+    {
+        [JsonProperty("otpReferenceId")]
+        public string OtpReferenceId { get; set; }
+    }
 }

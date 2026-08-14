@@ -1,4 +1,5 @@
-﻿using InstantPay.Application.Interfaces;
+using InstantPay.Application.DTOs;
+using InstantPay.Application.Interfaces;
 using InstantPay.Application.Interfaces.SMS;
 using InstantPay.Application.Services.SMS;
 using InstantPay.Infrastructure.Security;
@@ -24,12 +25,14 @@ namespace InstantPay.Application.Services
         private IFileHandler _IFileHandler;
         private ISmsService _smsService;
         private readonly AesEncryptionService _aes;
-        public ClientOperation(AppDbContext context, IFileHandler iFileHandler, AesEncryptionService aes, ISmsService smsService)
+        private readonly IClientVerificationService _verificationService;
+        public ClientOperation(AppDbContext context, IFileHandler iFileHandler, AesEncryptionService aes, ISmsService smsService, IClientVerificationService verificationService)
         {
             _context = context;
             _IFileHandler = iFileHandler;
             _aes = aes;
             _smsService = smsService;
+            _verificationService = verificationService;
         }
 
         public async Task<GetUsersWithMainBalanceResponse> GetClientList(GetUsersWithMainBalanceQuery request)
@@ -127,6 +130,69 @@ namespace InstantPay.Application.Services
         {
             TblWlUser client;
             bool isNew = request.ClientId == 0;
+            var existingClient = isNew
+                ? null
+                : await _context.TblWlUsers.FirstOrDefaultAsync(c => c.Id == request.ClientId, cancellationToken);
+
+            if (!isNew && existingClient == null)
+            {
+                return new ResponseModelforClientaddandupdateapi
+                {
+                    Msg = "Record Not Found",
+                    flag = false
+                };
+            }
+
+            if (request.CommissionPlanId > 0)
+            {
+                var planExists = await _context.PlanDetails
+                    .AnyAsync(p => p.Id == request.CommissionPlanId && p.IsActive, cancellationToken);
+                if (!planExists)
+                {
+                    return new ResponseModelforClientaddandupdateapi
+                    {
+                        Msg = "Please select a valid active commission plan.",
+                        flag = false
+                    };
+                }
+            }
+
+            var phoneNeedsVerification = isNew
+                || !existingClient!.IsPhoneVerified
+                || !string.Equals(existingClient.Phone?.Trim(), request.Phone?.Trim(), StringComparison.Ordinal);
+            var emailNeedsVerification = isNew
+                || !existingClient!.IsEmailVerified
+                || !string.Equals(existingClient.EmailId?.Trim(), request.EmailId?.Trim(), StringComparison.OrdinalIgnoreCase);
+            var panNeedsVerification = isNew
+                || !existingClient!.IsPanVerified
+                || !string.Equals(existingClient.PanCard?.Trim(), request.PanCard?.Trim(), StringComparison.OrdinalIgnoreCase);
+            var aadhaarNeedsVerification = isNew
+                || !existingClient!.IsAadhaarVerified
+                || !string.Equals(existingClient.AadharCard?.Trim(), request.AadharCard?.Trim(), StringComparison.Ordinal);
+
+            if (phoneNeedsVerification && !_verificationService.ValidateProof(
+                    request.MobileVerificationToken,
+                    ClientUserVerificationTypes.Phone,
+                    request.Phone))
+                return new ResponseModelforClientaddandupdateapi { Msg = "Mobile number verification is required.", flag = false };
+
+            if (emailNeedsVerification && !_verificationService.ValidateProof(
+                    request.EmailVerificationToken,
+                    ClientUserVerificationTypes.Email,
+                    request.EmailId))
+                return new ResponseModelforClientaddandupdateapi { Msg = "Email verification is required.", flag = false };
+
+            if (panNeedsVerification && !_verificationService.ValidateProof(
+                    request.PanVerificationToken,
+                    ClientUserVerificationTypes.Pan,
+                    request.PanCard))
+                return new ResponseModelforClientaddandupdateapi { Msg = "PAN verification is required.", flag = false };
+
+            if (aadhaarNeedsVerification && !_verificationService.ValidateProof(
+                    request.AadharVerificationToken,
+                    ClientUserVerificationTypes.Aadhaar,
+                    request.AadharCard))
+                return new ResponseModelforClientaddandupdateapi { Msg = "Aadhaar verification is required.", flag = false };
 
             if (isNew)
             {
@@ -165,10 +231,24 @@ namespace InstantPay.Application.Services
                     Apitransfer = request.APITransfer,
                     Margin = request.Margin,
                     Debit = request.Debit,
+                    RazorpayPayment = request.RazorpayPayment,
+                    Settlement = request.Settlement,
                     Status = "Active",
                     RegDate = DateTime.UtcNow,
                     TxnPin = request.TxnPin,
-                    PlanId = request.PlanId,
+                    PlanId = request.CommissionPlanId > 0 ? request.CommissionPlanId.ToString() : null,
+                    CommissionPlanId = request.CommissionPlanId > 0 ? request.CommissionPlanId : (int?)null,
+                    Lat = request.lat,
+                    Longitute = request.longitute,
+                    IsPhoneVerified = true,
+                    PhoneVerifiedAt = DateTime.UtcNow,
+                    IsEmailVerified = true,
+                    EmailVerifiedAt = DateTime.UtcNow,
+                    IsPanVerified = true,
+                    PanVerifiedAt = DateTime.UtcNow,
+                    PanVerifiedName = _verificationService.GetVerifiedName(request.PanVerificationToken),
+                    IsAadhaarVerified = true,
+                    AadharVerifiedAt = DateTime.UtcNow,
                 };
 
                 _context.TblWlUsers.Add(client);
@@ -176,15 +256,7 @@ namespace InstantPay.Application.Services
             }
             else
             {
-                client = await _context.TblWlUsers.FirstOrDefaultAsync(c => c.Id == request.ClientId);
-                if (client == null)
-                {
-                    return new ResponseModelforClientaddandupdateapi
-                    {
-                        Msg = "Record Not Found",
-                        flag = false
-                    };
-                }
+                client = existingClient!;
 
                 var existingUser = await _context.TblWlUsers.FirstOrDefaultAsync(x => x.UserName.ToLower().Trim() == request.UserName.ToLower().Trim() && x.Id != request.ClientId);
 
@@ -219,8 +291,39 @@ namespace InstantPay.Application.Services
                 client.Apitransfer = request.APITransfer;
                 client.Margin = request.Margin;
                 client.Debit = request.Debit;
+                client.RazorpayPayment = request.RazorpayPayment;
+                client.Settlement = request.Settlement;
                 client.Status = request.Status;
                 client.TxnPin = request.TxnPin;
+                if (request.CommissionPlanId > 0)
+                {
+                    client.PlanId = request.CommissionPlanId.ToString();
+                    client.CommissionPlanId = request.CommissionPlanId;
+                }
+                client.Lat = request.lat;
+                client.Longitute = request.longitute;
+
+                if (phoneNeedsVerification)
+                {
+                    client.IsPhoneVerified = true;
+                    client.PhoneVerifiedAt = DateTime.UtcNow;
+                }
+                if (emailNeedsVerification)
+                {
+                    client.IsEmailVerified = true;
+                    client.EmailVerifiedAt = DateTime.UtcNow;
+                }
+                if (panNeedsVerification)
+                {
+                    client.IsPanVerified = true;
+                    client.PanVerifiedAt = DateTime.UtcNow;
+                    client.PanVerifiedName = _verificationService.GetVerifiedName(request.PanVerificationToken);
+                }
+                if (aadhaarNeedsVerification)
+                {
+                    client.IsAadhaarVerified = true;
+                    client.AadharVerifiedAt = DateTime.UtcNow;
+                }
             }
 
             string webRootPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
@@ -231,10 +334,11 @@ namespace InstantPay.Application.Services
                 if (file == null) return null;
                 string folderPath = Path.Combine(basePath, folder);
                 Directory.CreateDirectory(folderPath);
-                string filePath = Path.Combine(folderPath, file.FileName);
+                var safeFileName = $"{Guid.NewGuid():N}{Path.GetExtension(file.FileName).ToLowerInvariant()}";
+                string filePath = Path.Combine(folderPath, safeFileName);
                 using var stream = new FileStream(filePath, FileMode.Create);
                 file.CopyTo(stream);
-                return Path.Combine("UploadFiles", client.Id.ToString(), folder, file.FileName).Replace("\\", "/");
+                return Path.Combine("UploadFiles", client.Id.ToString(), folder, safeFileName).Replace("\\", "/");
             }
             string? panPath = "";
             string? aadharPath = "";
@@ -260,8 +364,16 @@ namespace InstantPay.Application.Services
                 logopath = SaveFile(request.LogoFile, "Logo");
                 client.Logo = logopath ?? "";
             }
+            if (request.SelfieFile != null)
+            {
+                client.SelfieImage = SaveFile(request.SelfieFile, "Selfie") ?? "";
+            }
 
             await _context.SaveChangesAsync(cancellationToken);
+            _verificationService.ConsumeProof(request.MobileVerificationToken);
+            _verificationService.ConsumeProof(request.EmailVerificationToken);
+            _verificationService.ConsumeProof(request.PanVerificationToken);
+            _verificationService.ConsumeProof(request.AadharVerificationToken);
 
             return new ResponseModelforClientaddandupdateapi
             {
@@ -288,6 +400,7 @@ namespace InstantPay.Application.Services
                     AadharCard = c.AadharCard,
                     DomainName = c.DomainName,
                     Logo = c.Logo,
+                    SelfieImage = c.SelfieImage,
                     AddressLine1 = c.AddressLine1,
                     AddressLine2 = c.AddressLine2,
                     State = c.State,
@@ -304,10 +417,20 @@ namespace InstantPay.Application.Services
                     APITransfer = c.Apitransfer,
                     Margin = c.Margin,
                     Debit = c.Debit,
+                    RazorpayPayment = c.RazorpayPayment,
+                    Settlement = c.Settlement,
                     Status = c.Status,
                     RegDate = c.RegDate,
                     TxnPin = c.TxnPin,
-                    PlanId = c.PlanId
+                    PlanId = c.PlanId,
+                    CommissionPlanId = c.CommissionPlanId,
+                    Lat = c.Lat,
+                    Longitute = c.Longitute,
+                    IsPhoneVerified = c.IsPhoneVerified,
+                    IsEmailVerified = c.IsEmailVerified,
+                    IsPanVerified = c.IsPanVerified,
+                    PanVerifiedName = c.PanVerifiedName,
+                    IsAadhaarVerified = c.IsAadhaarVerified
                 })
         .FirstOrDefaultAsync();
 
@@ -346,6 +469,10 @@ namespace InstantPay.Application.Services
                 case "AadharBackFile":
                     filePath = client.AadharBack;
                     client.AadharBack = "";
+                    break;
+                case "SelfieFile":
+                    filePath = client.SelfieImage;
+                    client.SelfieImage = "";
                     break;
                 default:
                     return new ResponseModelforClientaddandupdateapi

@@ -30,6 +30,17 @@ public class SessionValidationMiddleware
             return;
         }
 
+        var authenticatedUserType = context.User.FindFirst("usertype")?.Value;
+        if (context.User.Identity?.IsAuthenticated == true &&
+            (authenticatedUserType == "AD" || authenticatedUserType == "MD") &&
+            context.Request.Path.StartsWithSegments(
+                "/api/v1/partner",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            await _next(context);
+            return;
+        }
+
         var userIdHeader = context.Request.Headers["userid"].FirstOrDefault();
         var username = context.Request.Headers["username"].FirstOrDefault();
 

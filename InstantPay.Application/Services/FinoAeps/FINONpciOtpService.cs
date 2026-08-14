@@ -31,23 +31,22 @@ namespace InstantPay.Application.Services.FinoAeps
             FinoAepsRequest request, string userId, string txnId,
             string lat, string lng, CancellationToken ct = default)
         {
-            string tranType = (request.npciOtpFor ?? "CASHWAEPS").Trim().ToUpperInvariant();
-            if (tranType != "CASHWAEPS" && tranType != "ADHARPAY")
-                return Err("npciOtpFor must be CASHWAEPS or AdharPay");
-
-            // Display label per doc
-            string tranTypeValue = tranType == "ADHARPAY" ? "AdharPay" : "CASHWAEPS";
+            string tranType = (request.npciOtpFor ?? "CASHWAEPSACQ").Trim();
+            if (tranType != "CASHWAEPSACQ" && tranType != "CASHWAPAYACQ")
+                return Err("npciOtpFor must be CASHWAEPSACQ or CASHWAPAYACQ");
 
             string bodyJson = JsonConvert.SerializeObject(new
             {
                 ClientRefID    = txnId,
                 MobileNo       = request.customermobileno ?? request.mobileno,
-                NBIN           = "100012",
+                NBIN           = request.bankiinno ?? "876880",
                 MerchantID     = request.mobileno,
                 ServiceID      = "227",
-                AdhaarNo       = request.aadharno,
-                Trantype       = tranTypeValue,
-                Version        = "1001"
+                AadharNo       = request.aadharno,
+                Trantype       = tranType,
+                Version        = "1001",
+                Latitude       = lat,
+                Longitude      = lng
             });
 
             var result = await _api.PostProdAsync(_npciOtpUrl, bodyJson, ct);
@@ -56,7 +55,8 @@ namespace InstantPay.Application.Services.FinoAeps
                 return Err(result.MessageString);
 
             string npciTxnId  = result.DecryptedData?["TransactionId"]?.ToString() ?? "";
-            string npciRefNo  = result.DecryptedData?["TxnReferenceNo"]?.ToString() ?? "";
+            string npciRefNo  = result.DecryptedData?["txnReferenceNo"]?.ToString() ?? "";
+            string uidaiDataTxn = result.DecryptedData?["UidaiDataTxn"]?.ToString() ?? "";
 
             if (string.IsNullOrWhiteSpace(npciTxnId) || string.IsNullOrWhiteSpace(npciRefNo))
                 return Err("NPCI OTP response did not return TransactionId / TxnReferenceNo");
@@ -64,7 +64,8 @@ namespace InstantPay.Application.Services.FinoAeps
             return Ok(result.MessageString, new
             {
                 TransactionId  = npciTxnId,
-                TxnReferenceNo = npciRefNo
+                txnReferenceNo = npciRefNo,
+                UidaiDataTxn   = uidaiDataTxn
             });
         }
 

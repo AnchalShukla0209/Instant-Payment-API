@@ -1,4 +1,4 @@
-﻿using InstantPay.Application.Interfaces.PAN;
+using InstantPay.Application.Interfaces.PAN;
 using InstantPay.SharedKernel.AppSettingsConfiguration;
 using InstantPay.SharedKernel.Results.PAN;
 using Microsoft.Extensions.Options;
@@ -26,6 +26,16 @@ namespace InstantPay.Application.Services.PAN
 
         public async Task<PanVerifyResponse> VerifyPanAsync(string panNumber)
         {
+            panNumber = panNumber?.Trim().ToUpperInvariant() ?? string.Empty;
+            if (!Regex.IsMatch(panNumber, "^[A-Z]{5}[0-9]{4}[A-Z]{1}$"))
+            {
+                return new PanVerifyResponse
+                {
+                    Success = false,
+                    Message = "Invalid PAN format"
+                };
+            }
+
             var requestBody = new
             {
                 key = _settings.ApiKey,
@@ -46,15 +56,6 @@ namespace InstantPay.Application.Services.PAN
                 {
                     Success = false,
                     Message = "API request failed"
-                };
-            }
-
-            if (!Regex.IsMatch(panNumber, "^[A-Z]{5}[0-9]{4}[A-Z]{1}$"))
-            {
-                return new PanVerifyResponse
-                {
-                    Success = false,
-                    Message = "Invalid PAN format"
                 };
             }
 

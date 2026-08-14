@@ -170,21 +170,6 @@ namespace InstantPay.Application.Services
             if (string.IsNullOrWhiteSpace(request.ClientRefID))
                 return Err("0", "ClientRefID is required");
 
-            string username;
-            try
-            {
-                username = request.userid;
-                if (string.IsNullOrWhiteSpace(username)) throw new InvalidDataException("empty username");
-            }
-            catch
-            {
-                return Err("2", "Session Expired Please Login Again");
-            }
-
-            string? userId = await ValidateSessionAsync(username, ct);
-            if (string.IsNullOrEmpty(userId))
-                return Err("2", "Session Expired Please Login Again");
-
             var txn = await _context.TransactionDetails.FirstOrDefaultAsync(t =>
                 t.TxnId == request.ClientRefID
                 && t.ServiceName == "AEPS"

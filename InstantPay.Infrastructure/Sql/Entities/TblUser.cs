@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -22,6 +22,15 @@ public partial class TblUser
     public string? PanCard { get; set; }
 
     public string? AadharCard { get; set; }
+    public bool IsAadhaarVerified { get; set; }
+    public DateTime? AadharVerifiedAt { get; set; }
+    public bool IsPhoneVerified { get; set; }
+    public DateTime? PhoneVerifiedAt { get; set; }
+    public bool IsEmailVerified { get; set; }
+    public DateTime? EmailVerifiedAt { get; set; }
+    public bool IsPanVerified { get; set; }
+    public DateTime? PanVerifiedAt { get; set; }
+    public string? PanVerifiedName { get; set; }
     public string? Wlid { get; set; }
 
     public string? AddressLine1 { get; set; }
@@ -50,6 +59,8 @@ public partial class TblUser
     public string? BillPayment { get; set; }
 
     public string? MicroAtm { get; set; }
+    public string? RazorpayPayment { get; set; }
+    public string? Settlement { get; set; }
     public string? Status { get; set; }
     public string? PlanId { get; set; }
 
@@ -72,6 +83,7 @@ public partial class TblUser
     public string? Adid { get; set; }
 
     public string? Logo { get; set; }
+    public string? SelfieImage { get; set; }
 
 
     public string? TxnPin { get; set; }

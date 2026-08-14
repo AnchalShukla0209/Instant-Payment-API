@@ -1,4 +1,4 @@
-﻿using InstantPay.Application.Interfaces;
+using InstantPay.Application.Interfaces;
 using MailKit.Net.Smtp;
 using MailKit.Security;
 using MimeKit;
@@ -45,6 +45,37 @@ namespace InstantPay.Application.Services
             {
                 return (ex.ToString());
                 
+            }
+        }
+
+        public async Task<string> SendClientUserVerificationOtpAsync(string toEmail, string otp)
+        {
+            try
+            {
+                var email = new MimeMessage();
+                email.From.Add(new MailboxAddress("Instant Payment", _smtpEmail));
+                email.To.Add(MailboxAddress.Parse(toEmail));
+                email.Subject = "Verify your email - Instant Payment";
+                email.Body = new BodyBuilder
+                {
+                    HtmlBody = $"""
+                        <p>Your Instant Payment email verification OTP is:</p>
+                        <h2>{otp}</h2>
+                        <p>This OTP is valid for 5 minutes. Do not share it with anyone.</p>
+                        """
+                }.ToMessageBody();
+
+                using var smtp = new SmtpClient();
+                smtp.CheckCertificateRevocation = false;
+                await smtp.ConnectAsync("smtp.gmail.com", 587, SecureSocketOptions.StartTls);
+                await smtp.AuthenticateAsync(_smtpEmail, _smtpPassword);
+                await smtp.SendAsync(email);
+                await smtp.DisconnectAsync(true);
+                return "1";
+            }
+            catch (Exception ex)
+            {
+                return ex.ToString();
             }
         }
 

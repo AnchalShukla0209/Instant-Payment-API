@@ -1,4 +1,4 @@
-﻿using InstantPay.Application.DTOs;
+using InstantPay.Application.DTOs;
 using InstantPay.Application.Interfaces;
 using InstantPay.Infrastructure.Security;
 using InstantPay.SharedKernel.Entity;
@@ -16,11 +16,48 @@ namespace InstantPay.API.Controller
     public class ClientController : ControllerBase
     {
         private readonly IClientOperation _reportservice;
+        private readonly IClientVerificationService _verificationService;
         private readonly AesEncryptionService _aes;
-        public ClientController(IClientOperation reportservice, AesEncryptionService aes)
+        public ClientController(IClientOperation reportservice, IClientVerificationService verificationService, AesEncryptionService aes)
         {
             _reportservice = reportservice;
+            _verificationService = verificationService;
             _aes = aes;
+        }
+
+        [HttpPost("send-phone-otp")]
+        public async Task<IActionResult> SendPhoneOtp([FromBody] SendClientUserOtpRequest request)
+        {
+            var result = await _verificationService.SendPhoneOtpAsync(request.Value);
+            return Ok(result);
+        }
+
+        [HttpPost("send-email-otp")]
+        public async Task<IActionResult> SendEmailOtp([FromBody] SendClientUserOtpRequest request)
+        {
+            var result = await _verificationService.SendEmailOtpAsync(request.Value);
+            return Ok(result);
+        }
+
+        [HttpPost("verify-otp")]
+        public async Task<IActionResult> VerifyOtp([FromBody] VerifyClientUserOtpRequest request)
+        {
+            var result = await _verificationService.VerifyOtpAsync(request);
+            return Ok(result);
+        }
+
+        [HttpPost("verify-pan")]
+        public async Task<IActionResult> VerifyPan([FromBody] VerifyClientUserPanRequest request)
+        {
+            var result = await _verificationService.VerifyPanAsync(request.PanNumber, request.ClientId);
+            return Ok(result);
+        }
+
+        [HttpPost("verify-aadhaar")]
+        public async Task<IActionResult> VerifyAadhaar([FromBody] VerifyClientUserAadhaarRequest request)
+        {
+            var result = await _verificationService.VerifyAadhaarAsync(request.AadharNumber, request.ClientId);
+            return Ok(result);
         }
 
         [HttpPost("Client-Report")]

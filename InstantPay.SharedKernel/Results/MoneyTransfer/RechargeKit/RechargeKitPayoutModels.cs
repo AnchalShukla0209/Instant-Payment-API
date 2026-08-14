@@ -6,15 +6,15 @@ namespace InstantPay.SharedKernel.Results.MoneyTransfer.RechargeKit
 
     public class RechargeKitPayoutApiResponse
     {
-        public int error { get; set; }
-        public string msg { get; set; }
+        public int? error { get; set; }
+        public string? msg { get; set; }
         public int status { get; set; }
-        public string orderid { get; set; }
-        public string optransid { get; set; }
+        public string? orderid { get; set; }
+        public string? optransid { get; set; }
         public string partnerreqid { get; set; }
-        public string user_var1 { get; set; }
-        public string user_var2 { get; set; }
-        public string user_var3 { get; set; }
+        public string? user_var1 { get; set; }
+        public string? user_var2 { get; set; }
+        public string? user_var3 { get; set; }
     }
 
     // ─── Status check API response from RechargeKit ────────────────────────────

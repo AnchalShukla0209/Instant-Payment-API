@@ -38,18 +38,17 @@ namespace InstantPay.Application.Services.FinoAeps
             string amount = string.IsNullOrWhiteSpace(request.amount) ? "0" : request.amount!;
             decimal txnAmount = decimal.TryParse(amount, out var a) ? a : 0m;
 
-            string isNpciOtp = txnAmount > 5000m ? "1" : "0";
-            if (isNpciOtp == "1" &&
-                (string.IsNullOrWhiteSpace(request.npciTxnId) || string.IsNullOrWhiteSpace(request.npciTxnRefNo)))
-                return Err("NPCI TransactionId and TxnReferenceNo are required for amounts above 5000");
+            if (txnAmount > 5000m &&
+                (string.IsNullOrWhiteSpace(request.npciTxnId) || string.IsNullOrWhiteSpace(request.npciTxnRefNo) || string.IsNullOrWhiteSpace(request.uidaiDataTxn)))
+                return Err("TransactionId, TxnReferenceNo and UidaiDataTxn are required for amounts above 5000");
 
-            string bodyJson = JsonConvert.SerializeObject(new
+            var body = new
             {
                 MerchantID  = request.mobileno,
                 Version     = "1001",
                 ServiceID   = "176",
                 ClientRefID = txnId,
-                MobileNo    = request.mobileno,
+                MobileNo    = request.customermobileno ?? request.mobileno,
                 AadharNo    = request.aadharno,
                 TotalAmount = amount,
                 BankName    = request.BankName,
@@ -60,15 +59,16 @@ namespace InstantPay.Application.Services.FinoAeps
                 IPAddress   = _api.ProdIPAddress,
                 Latitude    = lat,
                 Longitude   = lng,
-                IMEI_MAC       = _api.GetMacAddress(),
-                DeviceNo       = request.DeviceSrNo,
-                CheckSum       = _api.ComputeChecksum($"{txnId}+{amount}+{request.aadharno}"),
-                IsIris         = request.deviceType,
-                MerAuthTxnId   = request.merAuthTxnId ?? "",
-                IsNpciOtp      = isNpciOtp,
-                TransactionId  = request.npciTxnId ?? "",
-                TxnReferenceNo = request.npciTxnRefNo ?? ""
-            });
+                IMEI_MAC    = _api.GetMacAddress(),
+                DeviceNo    = request.DeviceSrNo,
+                CheckSum    = _api.ComputeChecksum($"{txnId}+{amount}+{request.aadharno}"),
+                IsIris      = request.deviceType,
+                TransactionId  = request.npciTxnId,
+                UidaiDataTxn   = request.uidaiDataTxn,
+                TxnReferenceNo = request.npciTxnRefNo
+            };
+
+            string bodyJson = JsonConvert.SerializeObject(body, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore });
 
             decimal charge;
             if (txnAmount >= 100 && txnAmount <= 1000)

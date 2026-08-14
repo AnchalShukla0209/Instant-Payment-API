@@ -20,7 +20,8 @@ namespace InstantPay.API.Controller
         private readonly IJPPCashWithdrawal _cashwithdrawal;
         private readonly IJPBCashDeposit _cashdeposit;
         private readonly IInstantPayLogService _logService;
-        public AEPSController(IAEPSService service, IJPBBalanceEnquiry balanceEnquiryService, IJPBMiniStatement miniStatementService, IJPPCashWithdrawal cashwithdrawal, IInstantPayLogService logservice, IJPBCashDeposit cashdeposit)
+        private readonly IJPBSendNPCIOtp _jpbSendOtp;
+        public AEPSController(IAEPSService service, IJPBBalanceEnquiry balanceEnquiryService, IJPBMiniStatement miniStatementService, IJPPCashWithdrawal cashwithdrawal, IInstantPayLogService logservice, IJPBCashDeposit cashdeposit, IJPBSendNPCIOtp jpbSendOtp)
         {
             _service = service;
             _balanceEnquiryService = balanceEnquiryService;
@@ -28,6 +29,7 @@ namespace InstantPay.API.Controller
             _cashwithdrawal = cashwithdrawal;
             _logService = logservice;
             _cashdeposit = cashdeposit;
+            _jpbSendOtp = jpbSendOtp;
         }
 
         [HttpGet("agentstatus")]
@@ -390,6 +392,56 @@ namespace InstantPay.API.Controller
                 JsonConvert.SerializeObject(request),
                 JsonConvert.SerializeObject(res),
                 "JPBCashWithdrawal"
+            );
+            return Ok(res);
+        }
+
+        [HttpPost("JPBGenerateOtp")]
+        public async Task<IActionResult> JPBGenerateOtp([FromBody] JioOtpRequest request)
+        {
+            int uid = 0;
+            string username = null;
+
+            // 1️⃣ Try JWT claims FIRST
+            var userIdClaim = User?.FindFirst("userid");
+            var usernameClaim = User?.FindFirst("username");
+
+            if (userIdClaim != null &&
+                int.TryParse(userIdClaim.Value, out uid) &&
+                usernameClaim != null &&
+                !string.IsNullOrWhiteSpace(usernameClaim.Value))
+            {
+                username = usernameClaim.Value;
+            }
+
+            // 2️⃣ If JWT not available → fallback to Headers
+            if (uid == 0 || string.IsNullOrWhiteSpace(username))
+            {
+                var headerUserId = Request.Headers["userid"].FirstOrDefault();
+                var headerUsername = Request.Headers["username"].FirstOrDefault();
+
+                if (!string.IsNullOrWhiteSpace(headerUserId) &&
+                    int.TryParse(headerUserId, out uid) &&
+                    !string.IsNullOrWhiteSpace(headerUsername))
+                {
+                    username = headerUsername;
+                }
+            }
+
+            // 3️⃣ Unauthorized ONLY if both sources failed
+            if (uid == 0 || string.IsNullOrWhiteSpace(username))
+            {
+                return Unauthorized(new
+                {
+                    message = "Invalid or missing userid/username in token and headers"
+                });
+            }
+
+            var res = await _jpbSendOtp.SendOtpAsync(request);
+            await _logService.AddLogAsync(
+                JsonConvert.SerializeObject(request),
+                JsonConvert.SerializeObject(res),
+                "JPBGenerateOtp"
             );
             return Ok(res);
         }

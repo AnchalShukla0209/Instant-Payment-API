@@ -49,16 +49,16 @@ namespace InstantPay.Application.Services.FinoAeps
 
             string isNpciOtp = txnAmount > 5000m ? "1" : "0";
             if (isNpciOtp == "1" &&
-                (string.IsNullOrWhiteSpace(request.npciTxnId) || string.IsNullOrWhiteSpace(request.npciTxnRefNo)))
-                return Err("NPCI TransactionId and TxnReferenceNo are required for amounts above 5000");
+                (string.IsNullOrWhiteSpace(request.npciTxnId) || string.IsNullOrWhiteSpace(request.npciTxnRefNo) || string.IsNullOrWhiteSpace(request.uidaiDataTxn)))
+                return Err("NPCI TransactionId, UidaiDataTxn and TxnReferenceNo are required for amounts above 5000");
 
-            string bodyJson = JsonConvert.SerializeObject(new
+            var body = new
             {
                 MerchantID  = request.mobileno,
                 Version     = "1001",
                 ServiceID   = onUs ? "182" : "188",
                 ClientRefID = txnId,
-                MobileNo    = request.mobileno,
+                MobileNo    = request.customermobileno ?? request.mobileno,
                 AadharNo    = request.aadharno,
                 TotalAmount = amount,
                 BankName    = request.BankName,
@@ -69,15 +69,17 @@ namespace InstantPay.Application.Services.FinoAeps
                 IPAddress   = _api.ProdIPAddress,
                 Latitude    = lat,
                 Longitude   = lng,
-                IMEI_MAC       = _api.GetMacAddress(),
-                DeviceNo       = request.DeviceSrNo,
-                CheckSum       = _api.ComputeChecksum($"{txnId}+{amount}+{request.aadharno}"),
-                IsIris         = request.deviceType,
-                MerAuthTxnId   = request.merAuthTxnId,
+                IMEI_MAC    = _api.GetMacAddress(),
+                DeviceNo    = request.DeviceSrNo,
+                CheckSum    = _api.ComputeChecksum($"{txnId}+{amount}+{request.aadharno}"),
+                IsIris      = request.deviceType,
                 IsNpciOtp      = isNpciOtp,
-                TransactionId  = request.npciTxnId ?? "",
-                TxnReferenceNo = request.npciTxnRefNo ?? ""
-            });
+                TransactionId  = request.npciTxnId,
+                UidaiDataTxn   = request.uidaiDataTxn,
+                TxnReferenceNo = request.npciTxnRefNo
+            };
+
+            string bodyJson = JsonConvert.SerializeObject(body, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore });
 
             var commission = await _commissionService.CalculateCommissionAsync(int.Parse(userId), txnAmount, "CW", ct);
 

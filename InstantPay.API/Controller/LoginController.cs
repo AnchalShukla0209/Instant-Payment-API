@@ -1,4 +1,4 @@
-﻿using InstantPay.Application.DTOs;
+using InstantPay.Application.DTOs;
 using InstantPay.Application.Interfaces;
 using InstantPay.Infrastructure.Security;
 using InstantPay.SharedKernel.Entity;
@@ -84,6 +84,10 @@ namespace InstantPay.API.Controller
         [HttpGet("get-rightsinfo")]
         public async Task<IActionResult> GetRightsinfo(int Id)
         {
+            var headerUserId = Request.Headers["userid"].FirstOrDefault();
+            if (!int.TryParse(headerUserId, out var authenticatedUserId) || authenticatedUserId != Id)
+                return Forbid();
+
             var response = await _loginService.GetUserRightsInfoDet(Id);
             return Ok(new { data = response });
         }

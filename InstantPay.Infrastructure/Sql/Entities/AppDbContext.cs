@@ -1,4 +1,4 @@
-﻿using InstantPay.SharedKernel.Entity;
+using InstantPay.SharedKernel.Entity;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -527,6 +527,11 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.EmailId)
                 .HasMaxLength(255)
                 .IsUnicode(false);
+            entity.Property(e => e.AadharVerifiedAt).HasColumnType("datetime");
+            entity.Property(e => e.PhoneVerifiedAt).HasColumnType("datetime");
+            entity.Property(e => e.EmailVerifiedAt).HasColumnType("datetime");
+            entity.Property(e => e.PanVerifiedAt).HasColumnType("datetime");
+            entity.Property(e => e.PanVerifiedName).HasMaxLength(255);
             entity.Property(e => e.Lat)
                 .HasMaxLength(255)
                 .IsUnicode(false)
@@ -555,6 +560,12 @@ public partial class AppDbContext : DbContext
                 .HasMaxLength(255)
                 .IsUnicode(false)
                 .HasColumnName("MicroATM");
+            entity.Property(e => e.RazorpayPayment)
+                .HasMaxLength(20)
+                .IsUnicode(false);
+            entity.Property(e => e.Settlement)
+                .HasMaxLength(20)
+                .IsUnicode(false);
             entity.Property(e => e.MoneyTransfer)
                 .HasMaxLength(255)
                 .IsUnicode(false);
@@ -583,6 +594,9 @@ public partial class AppDbContext : DbContext
                 .HasMaxLength(255)
                 .IsUnicode(false);
             entity.Property(e => e.RegDate).HasColumnType("datetime");
+            entity.Property(e => e.SelfieImage)
+                .HasMaxLength(500)
+                .IsUnicode(false);
             entity.Property(e => e.SessionKey).IsUnicode(false);
             entity.Property(e => e.ShipZipcode)
                 .HasMaxLength(255)
@@ -635,6 +649,27 @@ public partial class AppDbContext : DbContext
                 .IsUnicode(false);
             entity.Property(e => e.AddressLine1).IsUnicode(false);
             entity.Property(e => e.AddressLine2).IsUnicode(false);
+            entity.Property(e => e.AadharVerifiedAt).HasColumnType("datetime");
+            entity.Property(e => e.PhoneVerifiedAt).HasColumnType("datetime");
+            entity.Property(e => e.EmailVerifiedAt).HasColumnType("datetime");
+            entity.Property(e => e.PanVerifiedAt).HasColumnType("datetime");
+            entity.Property(e => e.PanVerifiedName).HasMaxLength(255);
+            entity.Property(e => e.SelfieImage)
+                .HasMaxLength(500)
+                .IsUnicode(false);
+            entity.Property(e => e.RazorpayPayment)
+                .HasMaxLength(20)
+                .IsUnicode(false);
+            entity.Property(e => e.Settlement)
+                .HasMaxLength(20)
+                .IsUnicode(false);
+            entity.Property(e => e.Lat)
+                .HasMaxLength(255)
+                .IsUnicode(false);
+            entity.Property(e => e.Longitute)
+                .HasMaxLength(255)
+                .IsUnicode(false);
+            entity.Property(e => e.CommissionPlanId);
             entity.Property(e => e.Aeps)
                 .HasMaxLength(255)
                 .IsUnicode(false)

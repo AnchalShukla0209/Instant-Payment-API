@@ -18,11 +18,11 @@ namespace InstantPay.SharedKernel.RequestPayload.FinoAEPS
         public string? deviceType { get; set; }
         public string? comingFrom { get; set; }
 
-        // NPCI step-up OTP & merchant auth fields
-        public string? merAuthTxnId { get; set; }
+        // NPCI step-up OTP fields
         public string? npciTxnId { get; set; }
         public string? npciTxnRefNo { get; set; }
         public string? npciOtpFor { get; set; }
+        public string? uidaiDataTxn { get; set; }
     }
 
     public class FinoAepsTransactionStatusRequest

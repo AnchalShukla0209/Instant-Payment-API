@@ -25,6 +25,18 @@ namespace InstantPay.SharedKernel.RequestPayload
         public string ComingFrom { get; set; } = "Web";
         public decimal Amount { get; set; }
         public string? AuthType { get; set; } = "FINGER";
+        public string AuthenticationToken { get; set; }
+    }
+
+    public class JioOtpRequest
+    {
+        public string AgentLoginId { get; set; }
+        public string Aadhaar { get; set; }
+        public string BankId { get; set; }
+        public string Mobile { get; set; }
+        public decimal Amount { get; set; }
+        public string AccessToken { get; set; }
+        public string AppIdentifierToken { get; set; }
     }
 
     public class CashDepositRequest

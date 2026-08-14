@@ -4,6 +4,7 @@ using InstantPay.Application.Interfaces.MoneyTransfer.AeronPay;
 using InstantPay.Application.Interfaces.MoneyTransfer.Finzep;
 using InstantPay.Application.Interfaces.MoneyTransfer.NIFI;
 using InstantPay.Application.Interfaces.MoneyTransfer.RechargeKit;
+using InstantPay.Application.Interfaces.MoneyTransfer.Tramo;
 using InstantPay.Application.Services;
 using InstantPay.Infrastructure.Sql.Entities;
 using InstantPay.SharedKernel.RequestPayload;
@@ -30,15 +31,17 @@ namespace InstantPay.API.Controller
         private readonly IFinzepDmtService _finzepDmtService;
         private readonly IAeronpayDmtService _aeronpayDmtService;
         private readonly IRechargeKitDmtService _rechargeKitDmtService;
+        private readonly ITramoUpiDmtService _tramoDmtService;
         private readonly AppDbContext _context;
 
-        public MoneyTransferController(ICastlerDmtService dmtService, INifiDmtService nifiDmtService, IFinzepDmtService finzepDmtService, IAeronpayDmtService aeronpayDmtService, IRechargeKitDmtService rechargeKitDmtService, AppDbContext context)
+        public MoneyTransferController(ICastlerDmtService dmtService, INifiDmtService nifiDmtService, IFinzepDmtService finzepDmtService, IAeronpayDmtService aeronpayDmtService, IRechargeKitDmtService rechargeKitDmtService, ITramoUpiDmtService tramoDmtService, AppDbContext context)
         {
             _dmtService = dmtService;
             _nifiDmtService = nifiDmtService;
             _finzepDmtService = finzepDmtService;
             _aeronpayDmtService = aeronpayDmtService;
             _rechargeKitDmtService = rechargeKitDmtService;
+            _tramoDmtService = tramoDmtService;
             _context = context;
         }
 
@@ -306,6 +309,73 @@ namespace InstantPay.API.Controller
                 var log = new Apilog
                 {
                     Apiname = "RKIT-Transfer",
+                    Reqdatae = DateTime.Now,
+                    Request = requestJson,
+                    Response = responseJson
+                };
+                _context.Apilogs.Add(log);
+                await _context.SaveChangesAsync(cancellationToken);
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return Ok(new LoginModel
+                {
+                    Status_Code = "0",
+                    Message = "ERR:500 " + ex.Message,
+                    Data = null
+                });
+            }
+        }
+
+        [HttpPost("tramo/transfer")]
+        public async Task<IActionResult> TramoTransfer([FromBody] AeronpayDmtRequest model, CancellationToken cancellationToken)
+        {
+            try
+            {
+                string ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "103.49.124.63";
+                string requestJson = JsonConvert.SerializeObject(model);
+
+                var result = await _tramoDmtService.MoneyTransfer(model, ip, cancellationToken);
+                string responseJson = JsonConvert.SerializeObject(result);
+
+                var log = new Apilog
+                {
+                    Apiname = "TRAMO-Transfer",
+                    Reqdatae = DateTime.Now,
+                    Request = requestJson,
+                    Response = responseJson
+                };
+                _context.Apilogs.Add(log);
+                await _context.SaveChangesAsync(cancellationToken);
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return Ok(new LoginModel
+                {
+                    Status_Code = "0",
+                    Message = "ERR:500 " + ex.Message,
+                    Data = null
+                });
+            }
+        }
+
+        [HttpGet("tramo/status/{txnId}")]
+        public async Task<IActionResult> TramoCheckStatus(string txnId, CancellationToken cancellationToken)
+        {
+            try
+            {
+                string requestJson = txnId;
+
+                var result = await _tramoDmtService.CheckStatus(txnId, cancellationToken);
+                string responseJson = JsonConvert.SerializeObject(result);
+
+                var log = new Apilog
+                {
+                    Apiname = "TRAMO-CheckStatus",
                     Reqdatae = DateTime.Now,
                     Request = requestJson,
                     Response = responseJson

@@ -1,4 +1,4 @@
-﻿using InstantPay.Application.Interfaces;
+using InstantPay.Application.Interfaces;
 using InstantPay.Infrastructure.Sql.Entities;
 using InstantPay.SharedKernel.Entity;
 using Microsoft.AspNetCore.Http;
@@ -288,7 +288,9 @@ namespace InstantPay.Application.Services
                     microatm = tblUser.MicroAtm,
                     moneytransfer = tblUser.MoneyTransfer,
                     billpayment = tblUser.BillPayment,
-                    mobilerecharge = tblUser.MobileRecharge
+                    mobilerecharge = tblUser.MobileRecharge,
+                    razorpaypayment = tblUser.RazorpayPayment,
+                    settlement = tblUser.Settlement
                 };
 
                 return servData;

@@ -28,7 +28,7 @@ namespace InstantPay.Application.Services
             var authKey = _configuration["OTP:AuthKey"];
             var templateId = _configuration["OTP:TemplateId"];
 
-            var url = $"{baseUrl}?template_id={templateId}&mobile=91{mobile}&otp={otp}&otp_length=4";
+            var url = $"{baseUrl}?template_id={templateId}&mobile=91{mobile}&otp={otp}&otp_length={otp.Length}";
             var body = new StringContent("{\"Param1\":\"value1\",\"Param2\":\"value2\",\"Param3\":\"value3\"}", Encoding.UTF8, "application/json");
 
             var request = new HttpRequestMessage(HttpMethod.Post, url);

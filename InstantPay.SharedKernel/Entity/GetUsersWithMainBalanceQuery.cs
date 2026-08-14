@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -62,14 +62,24 @@ namespace InstantPay.SharedKernel.Entity
         public string APITransfer { get; set; }
         public string Margin { get; set; }
         public string Debit { get; set; }
+        public string RazorpayPayment { get; set; }
+        public string Settlement { get; set; }
         public string Status { get; set; }
         public DateTime RegDate { get; set; }
         public string TxnPin { get; set; }
-        public string PlanId { get; set; }
+        public string? PlanId { get; set; }
+        public int CommissionPlanId { get; set; }
+        public string? lat { get; set; }
+        public string? longitute { get; set; }
+        public string? MobileVerificationToken { get; set; }
+        public string? EmailVerificationToken { get; set; }
+        public string? PanVerificationToken { get; set; }
+        public string? AadharVerificationToken { get; set; }
         public IFormFile? PancopyFile { get; set; }
         public IFormFile? AadharFrontFile { get; set; }
         public IFormFile? AadharBackFile { get; set; }
         public IFormFile? LogoFile { get; set; }
+        public IFormFile? SelfieFile { get; set; }
     }
 
 
@@ -93,6 +103,7 @@ namespace InstantPay.SharedKernel.Entity
         public string? AadharCard { get; set; }
         public string? DomainName { get; set; }
         public string? Logo { get; set; }
+        public string? SelfieImage { get; set; }
         public string? AddressLine1 { get; set; }
         public string? AddressLine2 { get; set; }
         public string? State { get; set; }
@@ -109,10 +120,20 @@ namespace InstantPay.SharedKernel.Entity
         public string? APITransfer { get; set; }
         public string? Margin { get; set; }
         public string? Debit { get; set; }
+        public string? RazorpayPayment { get; set; }
+        public string? Settlement { get; set; }
         public string? Status { get; set; }
         public DateTime? RegDate { get; set; }
         public string? TxnPin { get; set; }
         public string? PlanId { get; set; }
+        public int? CommissionPlanId { get; set; }
+        public string? Lat { get; set; }
+        public string? Longitute { get; set; }
+        public bool IsPhoneVerified { get; set; }
+        public bool IsEmailVerified { get; set; }
+        public bool IsPanVerified { get; set; }
+        public string? PanVerifiedName { get; set; }
+        public bool IsAadhaarVerified { get; set; }
     }
 
     public class DeleteClientFileCommand 

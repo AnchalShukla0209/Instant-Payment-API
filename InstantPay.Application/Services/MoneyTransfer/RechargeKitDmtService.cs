@@ -313,7 +313,7 @@ namespace InstantPay.Application.Services.MoneyTransfer
                 {
                     optransid = apiResponse.optransid ?? "";
                     orderid = apiResponse.orderid ?? "";
-                    status = MapPayoutStatus(apiResponse.status, optransid);
+                    status = MapPayoutStatus(apiResponse.status , optransid);
 
                     tx.ApiTxnId = !string.IsNullOrEmpty(orderid) ? orderid : clientReferenceId;
                     tx.ApiRes = JsonConvert.SerializeObject(apiResponse);
@@ -1016,7 +1016,7 @@ namespace InstantPay.Application.Services.MoneyTransfer
                     tx.ApiMsg = apiResponse?.msg ?? "API call failed";
                     tx.UpdateDate = DateTime.Now;
                     await _context.SaveChangesAsync(CancellationToken.None);
-                    await RefundCcBillUserAsync(tx);
+                    //await RefundCcBillUserAsync(tx);
                 }
 
                 var list = new List<DMTTXN>

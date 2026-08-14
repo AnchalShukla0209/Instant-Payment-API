@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,6 +14,8 @@ namespace InstantPay.SharedKernel.Entity
         public string? fromDate { get; set; }
         public string? toDate { get; set; }
         public int? ClientId { get; set; }
+        /// <summary>'AD' = Distributor scope (filter by Adid), 'MD' = Master Distributor scope (filter by Mdid), null/other = White-Label scope (filter by Wlid).</summary>
+        public string? ScopeType { get; set; }
         public string? commonsearch { get; set; }
     }
 
@@ -73,16 +75,28 @@ namespace InstantPay.SharedKernel.Entity
         public string AEPS { get; set; }
         public string BillPayment { get; set; }
         public string MicroATM { get; set; }
+        public string RazorpayPayment { get; set; }
+        public string Settlement { get; set; }
         public string Status { get; set; }
         public string? lat { get; set; }
         public string? longitute { get; set; }
         public string TxnPin { get; set; }
         public string WLID { get; set; }
+        /// <summary>'AD' = Distributor scope (sets Adid = ScopePartnerId), 'MD' = Master Distributor scope (sets Mdid = ScopePartnerId), null/other = White-Label scope (sets Wlid = WLID).</summary>
+        public string? ScopeType { get; set; }
+        /// <summary>Logged-in AD/MD partner id (server-side). Used for Adid/Mdid while WLID carries the partner's white-label id.</summary>
+        public int ScopePartnerId { get; set; }
         public string MPin { get; set; }
+        public int CommissionPlanId { get; set; }
+        public string? MobileVerificationToken { get; set; }
+        public string? EmailVerificationToken { get; set; }
+        public string? PanVerificationToken { get; set; }
+        public string? AadharVerificationToken { get; set; }
         public IFormFile? PancopyFile { get; set; }
         public IFormFile? AadharFrontFile { get; set; }
         public IFormFile? AadharBackFile { get; set; }
         public IFormFile? LogoFile { get; set; }
+        public IFormFile? SelfieFile { get; set; }
     }
 
 
@@ -109,6 +123,7 @@ namespace InstantPay.SharedKernel.Entity
 
 
         public string? Logo { get; set; }
+        public string? SelfieImage { get; set; }
         public string? AddressLine1 { get; set; }
         public string? AddressLine2 { get; set; }
         public string? State { get; set; }
@@ -136,7 +151,17 @@ namespace InstantPay.SharedKernel.Entity
         public string? AEPS { get; set; }
         public string? BillPayment { get; set; }
         public string? MicroATM { get; set; }
+        public string? RazorpayPayment { get; set; }
+        public string? Settlement { get; set; }
         public string? Status { get; set; }
+        public string? Lat { get; set; }
+        public string? Longitute { get; set; }
+        public int? CommissionPlanId { get; set; }
+        public bool IsPhoneVerified { get; set; }
+        public bool IsEmailVerified { get; set; }
+        public bool IsPanVerified { get; set; }
+        public string? PanVerifiedName { get; set; }
+        public bool IsAadhaarVerified { get; set; }
 
 
         public DateTime? RegDate { get; set; }

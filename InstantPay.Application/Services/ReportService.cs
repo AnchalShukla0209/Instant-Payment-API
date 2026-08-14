@@ -1,4 +1,5 @@
-﻿using InstantPay.Application.Interfaces;
+using InstantPay.Application.DTOs;
+using InstantPay.Application.Interfaces;
 using InstantPay.Infrastructure.Sql.Entities;
 using InstantPay.SharedKernel.Entity;
 using Microsoft.EntityFrameworkCore;
@@ -899,10 +900,292 @@ namespace InstantPay.Application.Services
             };
         }
 
+        public async Task<PaginatedTxnResultDto> GetPartnerTransactionReportAsync(
+            int partnerId, string userType, string serviceType, string status, string dateFrom, string dateTo,
+            int pageIndex = 1, int pageSize = 50, string commonsearch = "", int ispaginationenabled = 1, int filterUserId = 0)
+        {
+            serviceType = serviceType?.Trim().ToUpper();
+            commonsearch = commonsearch?.Trim().ToLower();
+            status = status?.Trim().ToUpper();
 
+            var normalizedUserType = userType?.Trim().ToUpper() == "MD" ? "MD" : "AD";
+            var partnerIdText = partnerId.ToString();
 
+            // Everyone under this partner's network (their downline), plus the partner's own
+            // transactions - mirrors PartnerDashboardService's scoping. Never trusts a
+            // client-supplied user id - membership is always resolved from Adid/Mdid here.
+            var scopedUserIds = await _context.TblUsers
+                .AsNoTracking()
+                .Where(u => normalizedUserType == "AD" ? u.Adid == partnerIdText : u.Mdid == partnerIdText)
+                .Select(u => u.Id)
+                .ToListAsync();
+            if (!scopedUserIds.Contains(partnerId))
+            {
+                scopedUserIds.Add(partnerId);
+            }
 
+            if (filterUserId > 0)
+            {
+                // Narrow to a single downline user - but only if they're actually in this
+                // partner's own network. If not, this silently yields zero rows rather than
+                // ever leaking another partner's downline data.
+                scopedUserIds = scopedUserIds.Where(id => id == filterUserId).ToList();
+            }
 
+            var scopedUserIdStrings = scopedUserIds.Select(id => id.ToString()).ToList();
+
+            IQueryable<TxnReportData> query = Enumerable.Empty<TxnReportData>().AsQueryable();
+            int flagForTrans = 0;
+
+            if (serviceType == "QR CODE" || serviceType == "ONLINE PAYMENT")
+            {
+                string gatewayType = serviceType == "QR CODE" ? "UPI" : "Razorpay";
+
+                query = from tonp in _context.Tblonlinepayments
+                        join tum in _context.TblUsers on tonp.Mdid equals Convert.ToString(tum.Id) into tumJoin
+                        from tum in tumJoin.DefaultIfEmpty()
+
+                        join tua in _context.TblUsers on tonp.AdId equals Convert.ToString(tua.Id) into tuaJoin
+                        from tua in tuaJoin.DefaultIfEmpty()
+
+                        join tud in _context.TblUsers on tonp.UserKey equals Convert.ToString(tud.Id) into tudJoin
+                        from tud in tudJoin.DefaultIfEmpty()
+
+                        where tonp.Gatwaytype == gatewayType
+                              && (string.IsNullOrEmpty(dateFrom) || tonp.ReqDate.Value.Date >= DateTime.Parse(dateFrom).Date)
+                              && (string.IsNullOrEmpty(dateTo) || tonp.ReqDate.Value.Date <= DateTime.Parse(dateTo).Date)
+                              && (string.IsNullOrEmpty(status) || tonp.Status.ToUpper() == status)
+                              && (tonp.UserKey != null && scopedUserIdStrings.Contains(tonp.UserKey))
+                              && (string.IsNullOrEmpty(commonsearch)
+                                  || (tonp.AadharCard ?? "").ToLower().Contains(commonsearch)
+                                  || (tonp.Pancard ?? "").ToLower().Contains(commonsearch)
+                                  || (tonp.Gatwaytype ?? "").ToLower().Contains(commonsearch)
+                                  || (tonp.OrderId ?? "").ToLower().Contains(commonsearch)
+                                  || tonp.ReqBy.ToString().ToLower().Contains(commonsearch)
+                                 )
+
+                        select new TxnReportData
+                        {
+                            Id = tonp.Id,
+                            TXN_ID = Convert.ToString(tonp.TxnId),
+                            BankRefNo = tonp.OrderId,
+                            UserName = (tud.Name ?? string.Empty) + "-" + (tud.Phone ?? string.Empty),
+                            OperatorName = tonp.PanName,
+                            AccountNo = tonp.Pancard,
+                            OpeningBal = 0,
+                            Amount = tonp.Amount,
+                            Closing = 0,
+                            Status = tonp.Status,
+                            APIName = tonp.MobileNo,
+                            ComingFrom = Convert.ToString(tonp.Paymentid),
+                            MasterDistributor = tum.Name ?? string.Empty,
+                            Distributor = tua.Name ?? string.Empty,
+                            TimeStamp = tonp.ReqDate,
+                            UpdatedTime = tonp.ResDate,
+                            Success = string.Empty,
+                            Failed = string.Empty,
+                            APIRes = ispaginationenabled > 0 ? tonp.Apiresponse ?? string.Empty : "",
+                            flagforTrans = 0,
+                            CustomerMobile = tonp.Cardno,
+                            BeneName = tonp.Cardtype,
+                            BRId = tonp.Rrn
+                        };
+            }
+            else if (serviceType == "LESSER REPORT")
+            {
+                query = from t in _context.Tbluserbalances
+                        join tu in _context.TblUsers on t.UserId equals tu.Id
+                        where t.UserId != null && scopedUserIds.Contains(t.UserId.Value)
+                           && (string.IsNullOrEmpty(dateFrom) || t.Txndate.Value.Date >= DateTime.Parse(dateFrom).Date)
+                           && (string.IsNullOrEmpty(dateTo) || t.Txndate.Value.Date <= DateTime.Parse(dateTo).Date)
+                            && (string.IsNullOrEmpty(commonsearch)
+                                  || (t.Remarks ?? "").ToLower().Contains(commonsearch)
+                                  || (t.Amount.ToString() ?? "").ToLower().Contains(commonsearch)
+                                  || (t.TxnAmount.ToString() ?? "").ToLower().Contains(commonsearch)
+                                  || (t.TxnType ?? "").ToLower().Contains(commonsearch)
+                                 )
+
+                        select new TxnReportData
+                        {
+                            Id = t.Id,
+                            TXN_ID = string.Empty,
+                            BankRefNo = string.Empty,
+                            UserName = tu.Name + "-" + tu.Phone ?? string.Empty,
+                            OperatorName = string.Empty,
+                            AccountNo = string.Empty,
+                            OpeningBal = t.OldBal,
+                            Amount = t.Amount,
+                            Closing = t.NewBal,
+                            Status = t.CrdrType,
+                            APIName = t.TxnType,
+                            ComingFrom = string.Empty,
+                            MasterDistributor = string.Empty,
+                            Distributor = string.Empty,
+                            TimeStamp = t.Txndate,
+                            UpdatedTime = null,
+                            Success = string.Empty,
+                            Failed = string.Empty,
+                            APIRes = t.Remarks ?? string.Empty,
+                            flagforTrans = 0,
+                            BeneName = Convert.ToString(t.SurCom),
+                            CustomerMobile = Convert.ToString(t.Tds),
+                            servicename = Convert.ToString(t.TxnAmount)
+                        };
+            }
+            else if (serviceType == "SETTLEMENT")
+            {
+                flagForTrans = 1;
+                query = from tds in _context.SettlementWithdrawals
+                        join tud in _context.TblUsers on tds.UserId equals Convert.ToString(tud.Id) into tudJoin
+                        from tud in tudJoin.DefaultIfEmpty()
+
+                        where tds.UserId != null && scopedUserIdStrings.Contains(tds.UserId)
+                              && (string.IsNullOrEmpty(dateFrom) || tds.CreatedAt.Date >= DateTime.Parse(dateFrom).Date)
+                              && (string.IsNullOrEmpty(dateTo) || tds.CreatedAt.Date <= DateTime.Parse(dateTo).Date)
+                              && (string.IsNullOrEmpty(status) || tds.PayoutStatus.Trim().ToUpper() == status)
+                              && (string.IsNullOrEmpty(commonsearch)
+                                  || (tds.WithdrawalType ?? "").ToLower().Contains(commonsearch)
+                                  || (Convert.ToString(tds.Amount) ?? "").ToLower().Contains(commonsearch)
+                                  || (tds.BankAccount ?? "").ToLower().Contains(commonsearch)
+                                  || (tds.RRN ?? "").ToLower().Contains(commonsearch)
+                                  || tds.PayoutTransactionId.ToString().ToLower().Contains(commonsearch)
+                                 )
+
+                        select new TxnReportData
+                        {
+                            Id = tds.Id,
+                            TXN_ID = tds.PayoutTransactionId.ToString(),
+                            BankRefNo = tds.BankName ?? string.Empty,
+                            BRId = tds.RRN ?? string.Empty,
+                            UserName = tud.Name + "-" + tud.Phone ?? tud.Username ?? string.Empty,
+                            OperatorName = tds.Charge.ToString() ?? "",
+                            AccountNo = tds.BankAccount ?? string.Empty,
+                            OpeningBal = 0,
+                            Amount = tds.Amount,
+                            Closing = 0,
+                            Status = tds.PayoutStatus ?? string.Empty,
+                            APIName = "Settlement" ?? string.Empty,
+                            ComingFrom = tds.ComingFrom ?? string.Empty,
+                            MasterDistributor = string.Empty,
+                            Distributor = string.Empty,
+                            TimeStamp = tds.CreatedAt,
+                            UpdatedTime = tds.WithdrawalDate,
+                            Success = tds.Ifsc ?? "",
+                            Failed = string.Empty,
+                            APIRes = ispaginationenabled > 0 ? tds.PayoutResponse ?? string.Empty : "",
+                            flagforTrans = 1,
+                            BeneName = tds.BeneName ?? string.Empty,
+                            CustomerMobile = tds.BenePhone ?? string.Empty,
+                            servicename = "Settlement" + tds.WithdrawalType ?? string.Empty,
+                            Transactionid = tds.PayoutReferenceId ?? string.Empty,
+                        };
+            }
+            else
+            {
+                flagForTrans = 1;
+
+                query = from tds in _context.TransactionDetails
+                        join tum in _context.TblUsers on tds.MdId equals Convert.ToString(tum.Id) into tumJoin
+                        from tum in tumJoin.DefaultIfEmpty()
+
+                        join tua in _context.TblUsers on tds.AdId equals Convert.ToString(tua.Id) into tuaJoin
+                        from tua in tuaJoin.DefaultIfEmpty()
+
+                        join tud in _context.TblUsers on tds.UserId equals Convert.ToString(tud.Id) into tudJoin
+                        from tud in tudJoin.DefaultIfEmpty()
+
+                        where (tds.UserId != null && scopedUserIdStrings.Contains(tds.UserId))
+                              && (serviceType == "ALL SERVICE" || tds.ServiceName.Trim().ToUpper() == serviceType)
+                              && (string.IsNullOrEmpty(dateFrom) || tds.ReqDate.Value.Date >= DateTime.Parse(dateFrom).Date)
+                              && (string.IsNullOrEmpty(dateTo) || tds.ReqDate.Value.Date <= DateTime.Parse(dateTo).Date)
+                              && (string.IsNullOrEmpty(status) || tds.Status.Trim().ToUpper() == status)
+                              && (string.IsNullOrEmpty(commonsearch)
+                                  || (tds.AccountNo ?? "").ToLower().Contains(commonsearch)
+                                  || (tds.Mobileno ?? "").ToLower().Contains(commonsearch)
+                                  || (tds.CustomerName ?? "").ToLower().Contains(commonsearch)
+                                  || (tds.Brid ?? "").ToLower().Contains(commonsearch)
+                                  || tds.TransId.ToString().ToLower().Contains(commonsearch)
+                                 )
+
+                        select new TxnReportData
+                        {
+                            Id = tds.TransId,
+                            TXN_ID = tds.TransId.ToString(),
+                            BankRefNo = tds.BankName ?? string.Empty,
+                            BRId = tds.Brid ?? string.Empty,
+                            UserName = tud.Name + "-" + tud.Phone ?? string.Empty,
+                            OperatorName = tds.OperatorName ?? string.Empty,
+                            AccountNo = tds.AccountNo ?? string.Empty,
+                            OpeningBal = tds.OldBal,
+                            Amount = tds.Amount,
+                            Closing = Convert.ToDecimal(tds.NewBal),
+                            Status = tds.Status ?? string.Empty,
+                            APIName = tds.ApiName ?? string.Empty,
+                            ComingFrom = tds.ComingFrom ?? string.Empty,
+                            MasterDistributor = tum.Name ?? string.Empty,
+                            Distributor = tua.Name ?? string.Empty,
+                            TimeStamp = tds.ReqDate,
+                            UpdatedTime = tds.UpdateDate,
+                            Success = string.Empty,
+                            Failed = string.Empty,
+                            APIRes = ispaginationenabled > 0 ? tds.ApiRes ?? string.Empty : "",
+                            flagforTrans = 1,
+                            BeneName = tds.CustomerName ?? string.Empty,
+                            CustomerMobile = tds.Mobileno ?? string.Empty
+                        };
+            }
+
+            var baseQuery = query.AsNoTracking();
+
+            var totalTransactions = await baseQuery.CountAsync();
+
+            var totalAmount = await baseQuery
+                .Select(x => (decimal?)x.Amount)
+                .SumAsync() ?? 0;
+
+            var paginated = new List<TxnReportData>();
+            if (ispaginationenabled > 0)
+            {
+                paginated = await query
+                    .OrderByDescending(x => x.Id)
+                    .Skip((pageIndex - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
+            }
+            else
+            {
+                paginated = await query
+                    .OrderByDescending(x => x.Id)
+                    .ToListAsync();
+            }
+
+            return new PaginatedTxnResultDto
+            {
+                Data = paginated,
+                TotalTransactions = totalTransactions,
+                TotalAmount = totalAmount,
+                FlagForTrans = flagForTrans
+            };
+        }
+
+        public async Task<List<PartnerUserDropdownDto>> GetPartnerUserDropdownAsync(int partnerId, string userType)
+        {
+            var normalizedUserType = userType?.Trim().ToUpper() == "MD" ? "MD" : "AD";
+            var partnerIdText = partnerId.ToString();
+
+            var users = await _context.TblUsers
+                .AsNoTracking()
+                .Where(u => normalizedUserType == "AD" ? u.Adid == partnerIdText : u.Mdid == partnerIdText)
+                .OrderBy(u => u.Name)
+                .Select(u => new PartnerUserDropdownDto
+                {
+                    Id = u.Id,
+                    Label = (u.Name ?? u.Username ?? "User") + " - " + (u.Phone ?? string.Empty)
+                })
+                .ToListAsync();
+
+            return users;
+        }
 
     }
 }

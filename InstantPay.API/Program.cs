@@ -1,4 +1,4 @@
-﻿using InstantPay.API.Middleware;
+using InstantPay.API.Middleware;
 
 using InstantPay.Application.Factory;
 
@@ -11,6 +11,7 @@ using InstantPay.Application.Interfaces.A2Z;
 using InstantPay.Application.Interfaces.MoneyTransfer.Castler;
 
 using InstantPay.Application.Interfaces.PAN;
+using InstantPay.Application.Interfaces.Aadhaar;
 
 using InstantPay.Application.Interfaces.RazorPay;
 
@@ -25,6 +26,7 @@ using InstantPay.Application.Services.A2Z;
 using InstantPay.Application.Services.MoneyTransfer;
 
 using InstantPay.Application.Services.PAN;
+using InstantPay.Application.Services.Aadhaar;
 
 using InstantPay.Application.Services.RazorPay;
 
@@ -53,6 +55,8 @@ using InstantPay.SharedKernel.Entity.AeronpayConfigDTO;
 using InstantPay.SharedKernel.Entity.FinzepConfigDTO;
 
 using InstantPay.SharedKernel.Entity.RechargeKitConfigDTO;
+using InstantPay.SharedKernel.Entity.TramoConfigDTO;
+using InstantPay.Application.Interfaces.MoneyTransfer.Tramo;
 
 using InstantPay.Application.Interfaces.MoneyTransfer.RechargeKit;
 
@@ -67,6 +71,7 @@ using InstantPay.Application.Interfaces.MoneyTransfer.NIFI;
 using InstantPay.Application.Services;
 
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
 
 using Microsoft.EntityFrameworkCore;
 
@@ -81,6 +86,7 @@ using System.Net.Sockets;
 using System.Security.Authentication;
 
 using System.Text;
+using System.Threading.RateLimiting;
 
 
 
@@ -172,6 +178,18 @@ builder.Services.AddAuthentication(options =>
 
 });
 
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("DistributorOnly", policy =>
+        policy.RequireAuthenticatedUser().RequireClaim("usertype", "AD"));
+    options.AddPolicy("MasterDistributorOnly", policy =>
+        policy.RequireAuthenticatedUser().RequireClaim("usertype", "MD"));
+    options.AddPolicy("PartnerDashboard", policy =>
+        policy.RequireAuthenticatedUser().RequireAssertion(context =>
+            context.User.HasClaim("usertype", "AD") ||
+            context.User.HasClaim("usertype", "MD")));
+});
+
 
 
 builder.Services.AddSwaggerGen(options =>
@@ -248,10 +266,22 @@ builder.Services.AddCors(options =>
 
     {
 
-        policy.SetIsOriginAllowed(origin => 
-            origin == "https://demo2.instantpayment.co.in" ||
-            origin == "https://neqs.co.in" ||
-            origin == "http://localhost:4200")
+        policy.SetIsOriginAllowed(origin =>
+        {
+            if (string.IsNullOrWhiteSpace(origin)) return false;
+            try
+            {
+                var uri = new Uri(origin);
+                var host = uri.Host;
+                return host.Equals("demo2.instantpayment.co.in", StringComparison.OrdinalIgnoreCase) ||
+                       host.Equals("neqs.co.in", StringComparison.OrdinalIgnoreCase) ||
+                       ((host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
+                         host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
+                         host.Equals("::1", StringComparison.OrdinalIgnoreCase)) &&
+                        uri.Port == 4200);
+            }
+            catch { return false; }
+        })
 
         .AllowAnyHeader()
 
@@ -433,6 +463,12 @@ builder.Services.Configure<RechargeKitConfig>(
 
 
 
+builder.Services.Configure<TramoConfig>(
+
+    builder.Configuration.GetSection("TramoConfig"));
+
+
+
 
 builder.Services.Configure<PanApiSettings>(
 
@@ -440,9 +476,54 @@ builder.Services.Configure<PanApiSettings>(
 
 );
 
+builder.Services.Configure<AadhaarApiSettings>(
+
+    builder.Configuration.GetSection("AadhaarApiSettings")
+
+);
+
 
 
 builder.Services.AddMemoryCache();
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    options.AddPolicy("distributor-login", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+
+    options.AddPolicy("distributor-otp", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(5),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+
+    options.AddPolicy("partner-dashboard", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.User.FindFirst("userid")?.Value ??
+                          httpContext.Connection.RemoteIpAddress?.ToString() ??
+                          "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 90,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+});
 
 builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(Program).Assembly));
 
@@ -451,10 +532,13 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 
 builder.Services.AddScoped<ILoginService, LoginService>();
+builder.Services.AddScoped<IDistributorAuthService, DistributorAuthService>();
 
 builder.Services.AddSingleton<AesEncryptionService>();
 
 builder.Services.AddScoped<IDashboardService, DashboardService>();
+builder.Services.AddScoped<IPartnerDashboardService, PartnerDashboardService>();
+builder.Services.AddScoped<IPartnerAccountService, PartnerAccountService>();
 
 builder.Services.AddScoped<IOperatorReadRepository, OperatorReadRepository>();
 
@@ -467,8 +551,11 @@ builder.Services.AddScoped<IMasterService, MasterService>();
 builder.Services.AddScoped<IReportService, ReportService>();
 
 builder.Services.AddScoped<IClientOperation, ClientOperation>();
+builder.Services.AddScoped<IClientVerificationService, ClientVerificationService>();
 
 builder.Services.AddScoped<IClientUserOperation, ClientUserOperation>();
+builder.Services.AddScoped<IClientUserVerificationService, ClientUserVerificationService>();
+builder.Services.AddScoped<IUserServiceRightService, UserServiceRightService>();
 
 builder.Services.AddScoped<ISlabReadRepository, SlabReadRepository>();
 
@@ -490,6 +577,8 @@ builder.Services.AddScoped<IJPBMiniStatement, JPBMiniStatement>();
 
 builder.Services.AddScoped<IJPPCashWithdrawal, JPPCashWithdrawal>();
 
+builder.Services.AddScoped<IJPBSendNPCIOtp, JPBSendNPCIOtpService>();
+
 builder.Services.AddScoped<IJPBCashDeposit, JPBCashDeposit>();
 
 // ── FINO AEPS ────────────────────────────────────────────────────────────────
@@ -502,8 +591,14 @@ builder.Services.AddHttpClient("FINO", client =>
 {
     Expect100ContinueTimeout = TimeSpan.Zero,
     ConnectTimeout           = TimeSpan.FromSeconds(15),
+    PooledConnectionLifetime = TimeSpan.FromMinutes(1),
+    PooledConnectionIdleTimeout = TimeSpan.FromSeconds(30),
     UseProxy                 = false,
-    AutomaticDecompression   = DecompressionMethods.None
+    AutomaticDecompression   = DecompressionMethods.None,
+    SslOptions = new System.Net.Security.SslClientAuthenticationOptions
+    {
+        EnabledSslProtocols = System.Security.Authentication.SslProtocols.Tls12 | System.Security.Authentication.SslProtocols.Tls13
+    }
 });
 
 builder.Services.AddScoped<IFinoAepsApiClient,         FinoAepsApiClient>();
@@ -618,8 +713,11 @@ builder.Services.AddScoped<IAeronpayDmtService, AeronpayDmtService>();
 
 builder.Services.AddScoped<IRechargeKitDmtService, RechargeKitDmtService>();
 
+builder.Services.AddScoped<ITramoUpiDmtService, TramoUpiDmtService>();
+
 
 builder.Services.AddHttpClient<IPanService, PanService>();
+builder.Services.AddHttpClient<IAadhaarService, AadhaarService>();
 
 builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
 
@@ -692,8 +790,10 @@ app.UseMiddleware<SecurityHeadersMiddleware>();
 app.UseHttpsRedirection();
 
 app.UseCors("AllowAllFrontends");
+app.UseRateLimiter();
 
 app.UseAuthentication();
+app.UseMiddleware<DistributorAccessBoundaryMiddleware>();
 
 app.UseAuthorization();
 
