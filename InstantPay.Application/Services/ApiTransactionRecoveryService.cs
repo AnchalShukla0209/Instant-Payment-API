@@ -93,7 +93,7 @@ namespace InstantPay.Application.Services
             var token = _config["RechargeApis:Mrobotics:Token"];
             var baseUrl = _config["RechargeApis:Mrobotics:BaseUrl"];
 
-            string url = $"{baseUrl}/api/transaction_status?api_token={token}&order_id={orderId}";
+            string url = $"{baseUrl?.TrimEnd('/')}/api/order_id_status?api_token={Uri.EscapeDataString(token ?? string.Empty)}&order_id={Uri.EscapeDataString(orderId)}";
 
             try
             {
@@ -103,7 +103,7 @@ namespace InstantPay.Application.Services
                 // Parse Mrobotics response format: JSON with status field
                 var obj = JObject.Parse(apiResponse);
                 var status = obj["status"]?.ToString()?.ToLower();
-                var apiTxnId = obj["opid"]?.ToString() ?? "";
+                var apiTxnId = obj["tnx_id"]?.ToString() ?? obj["id"]?.ToString() ?? "";
 
                 string finalStatus = status switch
                 {

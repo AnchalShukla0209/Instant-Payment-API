@@ -31,6 +31,7 @@ namespace InstantPay.API.Controller
         //}
 
         [HttpPost("submit")]
+        [HttpPost("mobile-recharge")]
         public async Task<IActionResult> SubmitRecharge(EncryptedRequest request)
         {
             var decryptedJson = _aes.Decrypt(request.Data);
@@ -38,6 +39,9 @@ namespace InstantPay.API.Controller
             {
                 PropertyNameCaseInsensitive = true
             });
+            if (dto?.payload == null)
+                return BadRequest(new { success = false, message = "Invalid recharge payload" });
+
             var result = await _rechargeService.SubmitRechargeAsync(dto.payload);
             var responseJson = JsonSerializer.Serialize(result);
             var encryptedResponse = _aes.Encrypt(responseJson);

@@ -26,7 +26,7 @@ namespace InstantPay.Application.Repositry
             _serviceProvider = serviceProvider;
         }
 
-        public async Task<string> Recharge(string mobile, string amount, string orderId, string companyId, string Type, string Optional = "", string Optional1 = "")
+        public async Task<string> Recharge(string mobile, string amount, string orderId, string companyId, string Type, string Optional = "", string Optional1 = "", bool isStv = false)
         {
             var baseUrl = _config["RechargeApis:Cyrus:BaseUrl"];
             var memberId = _config["RechargeApis:Cyrus:MemberId"];
