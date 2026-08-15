@@ -1,5 +1,7 @@
 using InstantPay.Application.DTOs;
 using InstantPay.Application.Interfaces;
+using InstantPay.Application.Interfaces.RBL;
+using InstantPay.Application.Services.RBL;
 using InstantPay.Infrastructure.Sql.Entities;
 using InstantPay.SharedKernel.Entity.RechargeKitConfigDTO;
 using InstantPay.SharedKernel.Entity.RblConfigDTO;
@@ -25,10 +27,12 @@ namespace InstantPay.Application.Services
         private readonly IWalletService _walletService;
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly ILogger<SettlementService> _logger;
+        private readonly IRblOpenSslTransport _rblTransport;
 
         public SettlementService(AppDbContext context, IOptions<RechargeKitConfig> config,
             IOptions<RblConfig> rblConfig, IWalletService walletService,
-            IHttpClientFactory httpClientFactory, ILogger<SettlementService> logger)
+            IHttpClientFactory httpClientFactory, ILogger<SettlementService> logger,
+            IRblOpenSslTransport rblTransport)
         {
             _context = context;
             _config = config.Value;
@@ -36,6 +40,7 @@ namespace InstantPay.Application.Services
             _walletService = walletService;
             _httpClientFactory = httpClientFactory;
             _logger = logger;
+            _rblTransport = rblTransport;
         }
 
         private decimal CalculateCharge(decimal amount, string withdrawalType)
@@ -446,7 +451,7 @@ namespace InstantPay.Application.Services
                     }
 
                     clientReferenceId = payoutProvider == "RBL"
-                        ? $"TXN{DateTime.UtcNow:yyMMddHHmmss}{Random.Shared.Next(100, 999)}"
+                        ? $"TXN{Random.Shared.Next(0x8000000):X7}"
                         : $"SETT_{userIdInt}_{DateTime.Now:yyyyMMddHHmmss}";
 
                     // Check 2: Exact duplicate transaction check
@@ -890,7 +895,7 @@ namespace InstantPay.Application.Services
                         Ben_Acct_No = request.BankAccount,
                         Ben_Name = request.BeneName,
                         Ben_Address = string.IsNullOrWhiteSpace(request.BeneAddress) ? "India" : request.BeneAddress,
-                        Ben_BankName = request.BankName,
+                        Ben_BankName = RblPayloadNormalizer.NormalizeBankName(request.BankName),
                         Ben_BankCd = "0",
                         Ben_BranchCd = "0",
                         Ben_Email = request.BeneEmail,
@@ -913,32 +918,36 @@ namespace InstantPay.Application.Services
                 {
                     Query = $"client_id={Uri.EscapeDataString(_rblConfig.ClientId)}&client_secret={Uri.EscapeDataString(_rblConfig.ClientSecret)}"
                 }.Uri;
-                using var httpRequest = new HttpRequestMessage(HttpMethod.Post, uri);
-                httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Basic",
-                    Convert.ToBase64String(Encoding.UTF8.GetBytes($"{_rblConfig.Username}:{_rblConfig.Password}")));
-                httpRequest.Content = new StringContent(json, Encoding.UTF8, "application/json");
-
-                var client = _httpClientFactory.CreateClient("RBL");
-                using var response = await client.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-                var responseText = await response.Content.ReadAsStringAsync(cancellationToken);
+                var response = await _rblTransport.PostAsync(uri.ToString(), json, cancellationToken);
+                var responseText = response.Body;
                 _context.Apilogs.Add(new Apilog
                 {
                     Apiname = "Settlement-RBL",
                     Reqdatae = DateTime.Now,
                     Request = Truncate(json, 4000),
-                    Response = Truncate(responseText, 4000)
+                    Response = Truncate($"HTTP {response.StatusCode} | {responseText}", 4000)
                 });
                 await _context.SaveChangesAsync(CancellationToken.None);
 
-                if (!response.IsSuccessStatusCode)
+                if (response.StatusCode is < 200 or >= 300)
                 {
-                    _logger.LogWarning("RBL settlement returned HTTP {StatusCode} for {TransactionId}", (int)response.StatusCode, transactionId);
-                    return new ProviderPayoutResult { Status = "PENDING", Message = $"RBL HTTP {(int)response.StatusCode}", RawResponse = responseText, RequestJson = json };
+                    _logger.LogWarning("RBL settlement returned HTTP {StatusCode} for {TransactionId}", response.StatusCode, transactionId);
+                    var rejected = response.StatusCode is >= 400 and < 500
+                        && response.StatusCode is not 408 and not 425;
+                    return new ProviderPayoutResult {
+                        Status = rejected ? "FAILED" : "PENDING",
+                        Message = rejected ? ExtractRblGatewayError(responseText) : $"RBL HTTP {response.StatusCode}",
+                        RawResponse = responseText, RequestJson = json };
                 }
 
                 var apiResponse = JsonConvert.DeserializeObject<RblPaymentResponse>(responseText);
                 if (apiResponse?.Payment == null)
-                    return new ProviderPayoutResult { Status = "PENDING", Message = "Invalid or empty RBL response", RawResponse = responseText, RequestJson = json };
+                {
+                    var gatewayError = ExtractRblGatewayError(responseText);
+                    return new ProviderPayoutResult { Status = string.IsNullOrWhiteSpace(gatewayError) ? "PENDING" : "FAILED",
+                        Message = string.IsNullOrWhiteSpace(gatewayError) ? "Invalid or empty RBL response" : gatewayError,
+                        RawResponse = responseText, RequestJson = json };
+                }
 
                 var header = apiResponse.Payment.Header;
                 var body = apiResponse.Payment.Body;
@@ -968,6 +977,21 @@ namespace InstantPay.Application.Services
 
         private static string Truncate(string? value, int maxLength) =>
             string.IsNullOrEmpty(value) ? string.Empty : value.Length <= maxLength ? value : value[..maxLength];
+
+        private static string ExtractRblGatewayError(string responseText)
+        {
+            if (string.IsNullOrWhiteSpace(responseText)) return string.Empty;
+            try
+            {
+                var error = JsonConvert.DeserializeObject<Dictionary<string, object?>>(responseText);
+                var message = error != null && error.TryGetValue("error", out var value) ? value?.ToString() : null;
+                if (!string.IsNullOrWhiteSpace(message)) return $"RBL gateway rejected request: {message}";
+            }
+            catch (JsonException) { }
+            return responseText.Contains("access denied", StringComparison.OrdinalIgnoreCase)
+                ? "RBL gateway rejected request: access denied"
+                : string.Empty;
+        }
 
         private class ProviderPayoutResult
         {

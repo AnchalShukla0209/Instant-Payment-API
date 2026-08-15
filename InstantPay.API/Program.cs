@@ -89,6 +89,8 @@ using System.Net.Sockets;
 
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
+using System.Security.Cryptography;
+using System.Net.Security;
 
 using System.Text;
 using System.Threading.RateLimiting;
@@ -741,23 +743,97 @@ builder.Services.AddHttpClient("RBL", client =>
 {
     var settings = serviceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<RblConfig>>().Value;
     var environment = serviceProvider.GetRequiredService<IWebHostEnvironment>();
-    var path = Path.IsPathRooted(settings.CertificatePath)
-        ? settings.CertificatePath
-        : Path.Combine(environment.ContentRootPath, settings.CertificatePath);
-    if (!File.Exists(path)) throw new FileNotFoundException("RBL client certificate was not found.", path);
+    var configuredPath = settings.CertificatePath.Replace('/', Path.DirectorySeparatorChar);
+    var relativeToWebRoot = configuredPath.StartsWith($"wwwroot{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase)
+        ? configuredPath[("wwwroot".Length + 1)..]
+        : configuredPath;
 
-    var certificate = X509CertificateLoader.LoadPkcs12FromFile(path, settings.CertificatePassword,
-        X509KeyStorageFlags.EphemeralKeySet | X509KeyStorageFlags.Exportable);
-    var handler = new HttpClientHandler
+    var certificateCandidates = Path.IsPathRooted(configuredPath)
+        ? new[] { configuredPath }
+        : new[]
+        {
+            Path.Combine(environment.ContentRootPath, configuredPath),
+            Path.Combine(environment.ContentRootPath, relativeToWebRoot),
+            Path.Combine(environment.WebRootPath ?? Path.Combine(environment.ContentRootPath, "wwwroot"), relativeToWebRoot),
+            Path.Combine(AppContext.BaseDirectory, configuredPath),
+            Path.Combine(AppContext.BaseDirectory, relativeToWebRoot)
+        };
+    var path = certificateCandidates.FirstOrDefault(File.Exists);
+    if (path == null)
+        throw new FileNotFoundException(
+            $"RBL client certificate was not found. Checked: {string.Join("; ", certificateCandidates.Distinct())}");
+
+    X509Certificate2? certificate = null;
+    X509Certificate2Collection? certificateBundle = null;
+    CryptographicException? certificateLoadError = null;
+    var storageOptions = OperatingSystem.IsWindows()
+        ? new[]
+        {
+            // Schannel must be able to reacquire the private key during the handshake.
+            // An ephemeral PFX can load successfully but then fail with
+            // SEC_E_UNKNOWN_CREDENTIALS under IIS/Plesk.
+            X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.PersistKeySet,
+            X509KeyStorageFlags.UserKeySet | X509KeyStorageFlags.PersistKeySet,
+            X509KeyStorageFlags.EphemeralKeySet
+        }
+        : new[]
+        {
+            X509KeyStorageFlags.EphemeralKeySet,
+            X509KeyStorageFlags.UserKeySet | X509KeyStorageFlags.PersistKeySet
+        };
+    foreach (var storageOption in storageOptions)
     {
-        ClientCertificateOptions = ClientCertificateOption.Manual,
-        SslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13
+        try
+        {
+            var loadedBundle = X509CertificateLoader.LoadPkcs12CollectionFromFile(
+                path, settings.CertificatePassword, storageOption);
+            certificate = loadedBundle.OfType<X509Certificate2>().FirstOrDefault(item => item.HasPrivateKey);
+            certificateBundle = loadedBundle;
+            if (certificate == null)
+                throw new CryptographicException("The RBL certificate bundle does not contain a private key.");
+            if (!certificate.HasPrivateKey)
+            {
+                certificate.Dispose();
+                certificate = null;
+                certificateBundle = null;
+                throw new CryptographicException("The RBL certificate does not contain a private key.");
+            }
+            break;
+        }
+        catch (CryptographicException ex)
+        {
+            certificateLoadError = ex;
+        }
+    }
+    if (certificate == null)
+        throw new CryptographicException(
+            "The RBL PFX could not be loaded with any supported key-storage mode.", certificateLoadError);
+
+    // Preserve the full chain from the PFX. Postman imports this entire collection;
+    // presenting only the leaf can be rejected by the RBL/Akamai mTLS edge.
+    var clientCertificates = new X509CertificateCollection();
+    clientCertificates.AddRange(certificateBundle!);
+    var handler = new SocketsHttpHandler
+    {
+        SslOptions = new SslClientAuthenticationOptions
+        {
+            EnabledSslProtocols = SslProtocols.Tls12,
+            CertificateRevocationCheckMode = X509RevocationMode.Online,
+            ClientCertificates = clientCertificates,
+            // This PFX has only the Server Authentication EKU. HttpClientHandler's
+            // automatic client-certificate selection therefore silently excludes it,
+            // while Postman sends it explicitly. RBL accepts this registered cert, so
+            // force selection to reproduce the working Postman mTLS handshake.
+            // This is a dedicated RBL-only named client, so always return its registered
+            // private-key certificate; do not depend on host-string formatting.
+            LocalCertificateSelectionCallback = (_, _, _, _, _) => certificate
+        }
     };
-    handler.ClientCertificates.Add(certificate);
     return handler;
 });
 builder.Services.AddScoped<IRblDmtService, RblDmtService>();
 builder.Services.AddScoped<IRblStatementService, RblStatementService>();
+builder.Services.AddScoped<IRblOpenSslTransport, RblOpenSslTransport>();
 
 
 builder.Services.AddHttpClient<IPanService, PanService>();
@@ -838,12 +914,9 @@ app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseMiddleware<DistributorAccessBoundaryMiddleware>();
-
-app.UseAuthorization();
-
 app.UseStaticFiles();
-
 app.UseMiddleware<SessionValidationMiddleware>();
+app.UseAuthorization();
 
 app.MapControllers();
 

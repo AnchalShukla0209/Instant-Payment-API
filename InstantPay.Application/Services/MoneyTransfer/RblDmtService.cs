@@ -1,5 +1,7 @@
 using InstantPay.Application.Interfaces;
 using InstantPay.Application.Interfaces.MoneyTransfer.RBL;
+using InstantPay.Application.Interfaces.RBL;
+using InstantPay.Application.Services.RBL;
 using InstantPay.Application.Interfaces.SMS;
 using InstantPay.Infrastructure.Sql.Entities;
 using InstantPay.SharedKernel.Entity.RblConfigDTO;
@@ -11,6 +13,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Security.Authentication;
 using System.Net.Http.Headers;
 using System.Text;
 
@@ -27,10 +31,11 @@ public sealed class RblDmtService : IRblDmtService
     private readonly ICommissionService _commissionService;
     private readonly ISmsService _smsService;
     private readonly ILogger<RblDmtService> _logger;
+    private readonly IRblOpenSslTransport _rblTransport;
 
     public RblDmtService(IOptions<RblConfig> config, IHttpClientFactory httpClientFactory, AppDbContext context,
         IWalletService walletService, ICommissionService commissionService, ISmsService smsService,
-        ILogger<RblDmtService> logger)
+        ILogger<RblDmtService> logger, IRblOpenSslTransport rblTransport)
     {
         _config = config.Value;
         _httpClientFactory = httpClientFactory;
@@ -39,6 +44,7 @@ public sealed class RblDmtService : IRblDmtService
         _commissionService = commissionService;
         _smsService = smsService;
         _logger = logger;
+        _rblTransport = rblTransport;
     }
 
     public async Task<LoginModel> MoneyTransfer(AeronpayDmtRequest model, string ip, CancellationToken cancellationToken)
@@ -49,6 +55,30 @@ public sealed class RblDmtService : IRblDmtService
 
             if (!int.TryParse(model.UserId, out var userId)) return Fail("Invalid User Id");
             if (!Validate(model, out var validationMessage)) return Fail(validationMessage);
+
+            // Materialize the named client before creating a transaction or debiting the wallet.
+            // Its handler loads the mandatory mTLS certificate and can fail when a deployment
+            // does not contain the PFX or the configured password is invalid.
+            try
+            {
+                _httpClientFactory.CreateClient("RBL");
+            }
+            catch (FileNotFoundException ex)
+            {
+                _logger.LogError(ex, "RBL client certificate file is unavailable. Configured path: {CertificatePath}",
+                    _config.CertificatePath);
+                return Fail("RBL certificate file was not found on this server. Please contact support");
+            }
+            catch (CryptographicException ex)
+            {
+                _logger.LogError(ex, "RBL client certificate could not be loaded. Verify the PFX and its password");
+                return Fail("RBL certificate or certificate password is invalid. Please contact support");
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogError(ex, "RBL HTTP client configuration is invalid");
+                return Fail("RBL banking service configuration is invalid. Please contact support");
+            }
 
             var user = await _context.TblUsers.FirstOrDefaultAsync(x => x.Id == userId, cancellationToken);
             if (user == null) return Fail("User not found");
@@ -135,19 +165,27 @@ public sealed class RblDmtService : IRblDmtService
                 return Fail("Please try again later, there is an issue with your wallet");
             }
 
-            var apiResponse = await CallRblApi(model, transactionId, cancellationToken);
+            var apiCall = await CallRblApi(model, transactionId, cancellationToken);
+            var apiResponse = apiCall.Response;
             var header = apiResponse?.Payment?.Header;
             var body = apiResponse?.Payment?.Body;
             var success = string.Equals(header?.Status, "Success", StringComparison.OrdinalIgnoreCase) && header?.Resp_cde == "00";
-            var definitiveFailure = apiResponse?.Payment != null && !success;
+            var definitiveFailure = apiCall.IsDefinitiveFailure || (apiResponse?.Payment != null && !success);
             var status = success ? "SUCCESS" : definitiveFailure ? "FAILED" : "PENDING";
             var providerReference = body?.RRN ?? body?.channelpartnerrefno ?? body?.RefNo ?? string.Empty;
+            var apiError = !string.IsNullOrWhiteSpace(header?.Error_Desc)
+                ? header.Error_Desc
+                : !string.IsNullOrWhiteSpace(header?.Error_Cde)
+                    ? $"RBL error {header.Error_Cde}"
+                    : !string.IsNullOrWhiteSpace(apiCall.ErrorMessage)
+                        ? apiCall.ErrorMessage
+                        : "RBL rejected the transaction without an error description";
 
             tx.Status = status;
             tx.ApiTxnId = body?.RefNo ?? transactionId;
             tx.Brid = providerReference;
-            tx.ApiRes = Truncate(apiResponse == null ? "API transport/parse error" : JsonConvert.SerializeObject(apiResponse), 4000);
-            tx.ApiMsg = success ? "Success" : header?.Error_Desc ?? "RBL API call outcome unknown";
+            tx.ApiRes = Truncate(apiCall.RawResponse, 4000);
+            tx.ApiMsg = success ? "Success" : apiError;
             tx.UpdateDate = DateTime.Now;
             await _context.SaveChangesAsync(CancellationToken.None);
 
@@ -161,9 +199,13 @@ public sealed class RblDmtService : IRblDmtService
             else if (definitiveFailure)
             {
                 await RefundAsync(tx, user);
+                // Return the actual restored wallet balance after a verified failure,
+                // not the temporary post-debit balance calculated before the API call.
+                newBalance = await _walletService.GetBalanceAsync(user.Id, CancellationToken.None);
             }
 
-            return Result(model, transactionId, providerReference, status, charge, newBalance, header?.Error_Desc);
+            return Result(model, transactionId, providerReference, status, charge, newBalance,
+                apiError);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -176,40 +218,127 @@ public sealed class RblDmtService : IRblDmtService
         }
     }
 
-    private async Task<RblPaymentResponse?> CallRblApi(AeronpayDmtRequest model, string transactionId, CancellationToken ct)
+    private async Task<RblApiCallResult> CallRblApi(AeronpayDmtRequest model, string transactionId, CancellationToken ct)
     {
+        var rblTransactionId = BuildRblTransactionId(transactionId);
         var payload = new { Single_Payment_Corp_Req = new {
-            Header = new { TranID = transactionId, Corp_ID = _config.CorpId, Maker_ID = _config.MakerId, Checker_ID = _config.CheckerId, Approver_ID = _config.ApproverId },
+            Header = new { TranID = rblTransactionId, Corp_ID = _config.CorpId, Maker_ID = _config.MakerId, Checker_ID = _config.CheckerId, Approver_ID = _config.ApproverId },
             Body = new { Amount = model.Amount!.Value.ToString("0.##", CultureInfo.InvariantCulture), Debit_Acct_No = _config.DebitAccountNumber,
                 Debit_Acct_Name = _config.DebitAccountName, Debit_IFSC = _config.DebitIfsc, Debit_Mobile = _config.DebitMobile,
                 Debit_TrnParticulars = "Settlement Payment", Debit_PartTrnRmks = "Settlement Payout", Ben_IFSC = model.IFSC,
-                Ben_Acct_No = model.AccountNumber, Ben_Name = model.BeneficiaryName, Ben_Address = "India", Ben_BankName = model.BankName,
+                Ben_Acct_No = model.AccountNumber, Ben_Name = model.BeneficiaryName, Ben_Address = "India",
+                Ben_BankName = RblPayloadNormalizer.NormalizeBankName(model.BankName),
                 Ben_BankCd = "0", Ben_BranchCd = "0", Ben_Email = "", Ben_Mobile = model.BeneficiaryMobile,
                 Ben_TrnParticulars = "Settlement Transfer", Ben_PartTrnRmks = "Received", Issue_BranchCd = "0000",
                 Mode_of_Pay = "IMPS", Remarks = string.IsNullOrWhiteSpace(model.Remark) ? "DMR" : model.Remark, RptCode = "HSBA" },
             Signature = new { Signature = "Settlement Txn" }
         }};
         var json = JsonConvert.SerializeObject(payload);
+        var apiLog = new Apilog
+        {
+            Apiname = "RBL-Transfer",
+            Reqdatae = DateTime.Now,
+            Request = Truncate(json, 4000),
+            Response = $"REQUEST_CREATED | TransactionId={transactionId}"
+        };
+        _context.Apilogs.Add(apiLog);
+        await _context.SaveChangesAsync(CancellationToken.None);
         try
         {
             var uri = new UriBuilder(_config.PaymentUrl) { Query = $"client_id={Uri.EscapeDataString(_config.ClientId)}&client_secret={Uri.EscapeDataString(_config.ClientSecret)}" }.Uri;
             using var request = new HttpRequestMessage(HttpMethod.Post, uri);
             request.Headers.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(Encoding.UTF8.GetBytes($"{_config.Username}:{_config.Password}")));
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            request.Headers.UserAgent.ParseAdd("InstantPayment-RBL/1.0");
             request.Content = new StringContent(json, Encoding.UTF8, "application/json");
-            var httpClient = _httpClientFactory.CreateClient("RBL");
-            using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
-            var responseText = await response.Content.ReadAsStringAsync(ct);
-            _context.Apilogs.Add(new Apilog { Apiname = "RBL-Transfer", Reqdatae = DateTime.Now, Request = Truncate(json, 4000), Response = Truncate(responseText, 4000) });
+            apiLog.Response = $"TLS_REQUEST_STARTED | TransactionId={transactionId}";
             await _context.SaveChangesAsync(CancellationToken.None);
-            if (!response.IsSuccessStatusCode) { _logger.LogWarning("RBL returned HTTP {StatusCode} for {TransactionId}", (int)response.StatusCode, transactionId); return null; }
-            return JsonConvert.DeserializeObject<RblPaymentResponse>(responseText);
+            var transportResponse = await _rblTransport.PostAsync(uri.ToString(), json, ct);
+            var responseText = transportResponse.Body;
+            apiLog.Response = Truncate($"HTTP {transportResponse.StatusCode} | {responseText}", 4000);
+            await _context.SaveChangesAsync(CancellationToken.None);
+            if (transportResponse.StatusCode is < 200 or >= 300)
+            {
+                _logger.LogWarning("RBL returned HTTP {StatusCode} for {TransactionId}. Body: {ResponseBody}",
+                    transportResponse.StatusCode, transactionId, Truncate(responseText, 1000));
+                // A 4xx response means the gateway rejected the request before processing it.
+                // A timeout/5xx remains ambiguous and must stay pending for reconciliation.
+                var rejected = transportResponse.StatusCode is >= 400 and < 500
+                    && transportResponse.StatusCode is not 408 and not 425;
+                var gatewayError = ExtractGatewayError(responseText);
+                return new RblApiCallResult(null, rejected,
+                    rejected
+                        ? (!string.IsNullOrWhiteSpace(gatewayError) ? gatewayError : $"RBL gateway rejected request (HTTP {transportResponse.StatusCode})")
+                        : $"RBL HTTP {transportResponse.StatusCode}", responseText);
+            }
+
+            var parsed = JsonConvert.DeserializeObject<RblPaymentResponse>(responseText);
+            if (parsed?.Payment == null)
+            {
+                var gatewayError = ExtractGatewayError(responseText);
+                var explicitlyRejected = !string.IsNullOrWhiteSpace(gatewayError);
+                return new RblApiCallResult(null, explicitlyRejected,
+                    explicitlyRejected ? gatewayError : "RBL returned an unrecognized response", responseText);
+            }
+            return new RblApiCallResult(parsed, false, string.Empty, responseText);
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException
+            or FileNotFoundException or CryptographicException or InvalidOperationException)
         {
             _logger.LogError(ex, "RBL API transport/parse failure for {TransactionId}", transactionId);
-            return null;
+            var rootException = ex.GetBaseException();
+            var exceptionText = $"{ex.GetType().Name}: {ex.Message} | ROOT: {rootException.GetType().Name}: {rootException.Message}";
+            try
+            {
+                apiLog.Response = Truncate($"REQUEST_EXCEPTION | TransactionId={transactionId} | {exceptionText}", 4000);
+                await _context.SaveChangesAsync(CancellationToken.None);
+            }
+            catch (Exception logException)
+            {
+                _logger.LogError(logException, "Could not persist RBL exception audit for {TransactionId}", transactionId);
+            }
+
+            var tlsFailure = ex is AuthenticationException or CryptographicException
+                || rootException is AuthenticationException or CryptographicException
+                || exceptionText.Contains("SSL", StringComparison.OrdinalIgnoreCase)
+                || exceptionText.Contains("certificate", StringComparison.OrdinalIgnoreCase)
+                || exceptionText.Contains("handshake", StringComparison.OrdinalIgnoreCase);
+            return new RblApiCallResult(null, tlsFailure,
+                tlsFailure ? "RBL TLS handshake failed before payment submission"
+                    : "RBL API outcome unknown; kept pending for reconciliation",
+                exceptionText);
         }
     }
+
+    private static string ExtractGatewayError(string responseText)
+    {
+        if (string.IsNullOrWhiteSpace(responseText)) return string.Empty;
+        try
+        {
+            var error = JsonConvert.DeserializeObject<Dictionary<string, object?>>(responseText);
+            var message = error != null && error.TryGetValue("error", out var value) ? value?.ToString() : null;
+            if (!string.IsNullOrWhiteSpace(message)) return $"RBL gateway rejected request: {message}";
+        }
+        catch (JsonException) { }
+        // Some gateway responses are delivered with a non-standard content prefix even
+        // though the logged body appears as JSON. Never classify an explicit denial as pending.
+        return responseText.Contains("access denied", StringComparison.OrdinalIgnoreCase)
+            ? "RBL gateway rejected request: access denied"
+            : string.Empty;
+    }
+
+    private static string BuildRblTransactionId(string internalTransactionId)
+    {
+        // RBL schema permits a maximum of 10 characters. Preserve TXN as the
+        // recognizable prefix and derive the remaining seven characters from the
+        // unique internal transaction ID without weakening internal DB identifiers.
+        var compact = new string(internalTransactionId.Where(char.IsLetterOrDigit).ToArray()).ToUpperInvariant();
+        var suffix = compact.Length >= 7 ? compact[^7..] : compact.PadLeft(7, '0');
+        return $"TXN{suffix}";
+    }
+
+    private sealed record RblApiCallResult(RblPaymentResponse? Response, bool IsDefinitiveFailure,
+        string ErrorMessage, string RawResponse);
 
     private async Task RefundAsync(TransactionDetail tx, TblUser user)
     {
@@ -238,7 +367,8 @@ public sealed class RblDmtService : IRblDmtService
     private static LoginModel Result(AeronpayDmtRequest model, string txnId, string reference, string status, decimal charge, decimal balance, string? error) => new()
     {
         Status_Code = status is "SUCCESS" or "PENDING" ? "1" : "0",
-        Message = status is "SUCCESS" or "PENDING" ? "Transaction Successful" : "Transaction Failed || " + error,
+        Message = status == "SUCCESS" ? "Transaction Successful" :
+            status == "PENDING" ? "Transaction Pending" : "Transaction Failed || " + error,
         Data = new List<DMTTXN> { new() { AccountNo = model.AccountNumber, BeneName = model.BeneficiaryName,
             Amount = model.Amount!.Value.ToString(CultureInfo.InvariantCulture), Charge = charge.ToString("0.00"),
             CurrentBalance = balance.ToString("0.00"), Status = status, TxnID = txnId, BR_Id = reference,

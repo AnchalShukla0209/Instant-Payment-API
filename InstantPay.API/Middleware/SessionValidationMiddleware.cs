@@ -1,6 +1,7 @@
 using InstantPay.Infrastructure.Sql.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace InstantPay.API.Middleware;
 
@@ -102,6 +103,19 @@ public class SessionValidationMiddleware
                 context.Response.ContentType = "application/json";
                 await context.Response.WriteAsync("{\"message\":\"Invalid userid or username.\"}");
                 return;
+            }
+
+            // The SuperAdmin web login uses a validated session plus identity headers
+            // rather than a bearer JWT. Promote the database-validated session to an
+            // authenticated principal before endpoint authorization is evaluated.
+            if (context.User.Identity?.IsAuthenticated != true)
+            {
+                context.User = new ClaimsPrincipal(new ClaimsIdentity(new[]
+                {
+                    new Claim(ClaimTypes.NameIdentifier, superAdmin.Id.ToString()),
+                    new Claim("usertype", "SuperAdmin"),
+                    new Claim(ClaimTypes.Role, "SuperAdmin")
+                }, "ValidatedSuperAdminSession"));
             }
 
             await _next(context);

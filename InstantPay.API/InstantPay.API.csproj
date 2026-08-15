@@ -21,4 +21,17 @@
     <ProjectReference Include="..\InstantPay.Infrastructure\InstantPay.Infrastructure.csproj" />
   </ItemGroup>
 
+  <!-- The certificate remains outside source control. When present on the build
+       host, ensure it is carried into the publish artifact for RBL mTLS. -->
+  <ItemGroup Condition="Exists('wwwroot\RBLSSL\demo2-instantpayment.pfx')">
+    <Content Update="wwwroot\RBLSSL\demo2-instantpayment.pfx"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="RblTransport\rbl-openssl-client.js"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

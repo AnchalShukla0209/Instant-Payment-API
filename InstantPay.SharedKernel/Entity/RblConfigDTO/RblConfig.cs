@@ -19,4 +19,5 @@ public sealed class RblConfig
     public string DebitAccountName { get; set; } = string.Empty;
     public string DebitIfsc { get; set; } = string.Empty;
     public string DebitMobile { get; set; } = string.Empty;
+    public string NodeExecutable { get; set; } = "node";
 }

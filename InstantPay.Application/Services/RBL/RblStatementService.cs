@@ -18,14 +18,16 @@ public sealed class RblStatementService : IRblStatementService
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly AppDbContext _context;
     private readonly ILogger<RblStatementService> _logger;
+    private readonly IRblOpenSslTransport _rblTransport;
 
     public RblStatementService(IOptions<RblConfig> config, IHttpClientFactory httpClientFactory,
-        AppDbContext context, ILogger<RblStatementService> logger)
+        AppDbContext context, ILogger<RblStatementService> logger, IRblOpenSslTransport rblTransport)
     {
         _config = config.Value;
         _httpClientFactory = httpClientFactory;
         _context = context;
         _logger = logger;
+        _rblTransport = rblTransport;
     }
 
     public Task<RblStatementApiResult> GetDateRangeAsync(RblDateRangeStatementRequest request, CancellationToken cancellationToken)
@@ -48,7 +50,9 @@ public sealed class RblStatementService : IRblStatementService
 
     private void Normalize(RblStatementHeader header, RblStatementSignature signature, object body)
     {
-        header.TranID = $"STMT{DateTime.UtcNow:yyMMddHHmmss}{Random.Shared.Next(100, 999)}";
+        // CAS Statement uses its own 15-character contract (different from the
+        // payment API's 10-character TranID): STMT + yyyyMMdd + 3 digits.
+        header.TranID = $"STMT{DateTime.UtcNow:yyyyMMdd}{Random.Shared.Next(0, 1000):D3}";
         header.Corp_ID = _config.CorpId;
         header.Approver_ID = _config.ApproverId;
         signature.Signature = "Signature";
@@ -74,26 +78,20 @@ public sealed class RblStatementService : IRblStatementService
             {
                 Query = $"client_id={Uri.EscapeDataString(_config.ClientId)}&client_secret={Uri.EscapeDataString(_config.ClientSecret)}"
             }.Uri;
-            using var request = new HttpRequestMessage(HttpMethod.Post, uri);
-            request.Headers.Authorization = new AuthenticationHeaderValue("Basic",
-                Convert.ToBase64String(Encoding.UTF8.GetBytes($"{_config.Username}:{_config.Password}")));
-            request.Content = new StringContent(json, Encoding.UTF8, "application/json");
-
-            var client = _httpClientFactory.CreateClient("RBL");
-            using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-            var responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
+            var response = await _rblTransport.PostAsync(uri.ToString(), json, cancellationToken);
+            var responseJson = response.Body;
             _context.Apilogs.Add(new Apilog
             {
                 Apiname = apiName,
                 Reqdatae = DateTime.Now,
                 Request = Truncate(json, 4000),
-                Response = Truncate(responseJson, 4000)
+                Response = Truncate($"PATH {uri.AbsolutePath} | HTTP {response.StatusCode} | {responseJson}", 4000)
             });
             await _context.SaveChangesAsync(CancellationToken.None);
 
-            if (!response.IsSuccessStatusCode)
+            if (response.StatusCode is < 200 or >= 300)
             {
-                _logger.LogWarning("{ApiName} returned HTTP {StatusCode}", apiName, (int)response.StatusCode);
+                _logger.LogWarning("{ApiName} returned HTTP {StatusCode}", apiName, response.StatusCode);
                 return new RblStatementApiResult(false, responseJson, "RBL statement service returned an HTTP error");
             }
             try { JToken.Parse(responseJson); }
