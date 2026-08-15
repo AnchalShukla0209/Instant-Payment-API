@@ -226,14 +226,19 @@ namespace InstantPay.Application.Services
                     case "mrobotics":
                         var mObj = JObject.Parse(apiResponse);
                         var mStatus = mObj["status"]?.ToString()?.ToLowerInvariant();
-                        finalStatus = mStatus switch
+                        var mHasError = mObj["error"]?.Value<bool>() == true;
+                        finalStatus = (mStatus, mHasError) switch
                         {
-                            "success" => "SUCCESS",
-                            "failed" => "FAILED",
+                            ("success", false) => "SUCCESS",
+                            ("failed", _) => "FAILED",
+                            ("failure", _) => "FAILED",
+                            (_, true) => "FAILED",
                             _ => "PENDING"
                         };
                         apiTxnId = mObj["tnx_id"]?.ToString() ?? mObj["id"]?.ToString() ?? "";
-                        rechargeStatus = mObj["response"]?.ToString() ?? "";
+                        rechargeStatus = mObj["response"]?.ToString()
+                            ?? mObj["errorMessage"]?.ToString()
+                            ?? "";
                         break;
 
                     case "ambika":
