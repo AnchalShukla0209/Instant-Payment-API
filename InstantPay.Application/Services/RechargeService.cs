@@ -229,8 +229,8 @@ namespace InstantPay.Application.Services
                         finalStatus = mStatus switch
                         {
                             "success" => "SUCCESS",
-                            "pending" => "PENDING",
-                            _ => "FAILED"
+                            "failed" => "FAILED",
+                            _ => "PENDING"
                         };
                         apiTxnId = mObj["tnx_id"]?.ToString() ?? mObj["id"]?.ToString() ?? "";
                         rechargeStatus = mObj["response"]?.ToString() ?? "";
