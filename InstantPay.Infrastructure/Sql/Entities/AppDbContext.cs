@@ -45,6 +45,12 @@ public partial class AppDbContext : DbContext
     public virtual DbSet<TblSuperadmin> TblSuperadmins { get; set; }
     public virtual DbSet<TblUser> TblUsers { get; set; }
     public virtual DbSet<TblWlUser> TblWlUsers { get; set; }
+    public virtual DbSet<TblUserOnboardingDocument> TblUserOnboardingDocuments { get; set; }
+    public virtual DbSet<TblUserOnboardingDocumentVersion> TblUserOnboardingDocumentVersions { get; set; }
+    public virtual DbSet<TblUserOnboardingReview> TblUserOnboardingReviews { get; set; }
+    public virtual DbSet<TblUserOnboardingFieldReview> TblUserOnboardingFieldReviews { get; set; }
+    public virtual DbSet<TblUserOnboardingHistory> TblUserOnboardingHistory { get; set; }
+    public virtual DbSet<TblUserCredentialDeliveryLog> TblUserCredentialDeliveryLogs { get; set; }
 
     public virtual DbSet<TblWlbalance> TblWlbalances { get; set; }
 
@@ -527,6 +533,9 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.EmailId)
                 .HasMaxLength(255)
                 .IsUnicode(false);
+            entity.Property(e => e.FatherName)
+                .HasMaxLength(255)
+                .IsUnicode(false);
             entity.Property(e => e.AadharVerifiedAt).HasColumnType("datetime");
             entity.Property(e => e.PhoneVerifiedAt).HasColumnType("datetime");
             entity.Property(e => e.EmailVerifiedAt).HasColumnType("datetime");
@@ -552,6 +561,10 @@ public partial class AppDbContext : DbContext
                 .HasMaxLength(255)
                 .IsUnicode(false)
                 .HasColumnName("MDId");
+            entity.Property(e => e.Stid)
+                .HasMaxLength(255)
+                .IsUnicode(false)
+                .HasColumnName("STId");
             entity.Property(e => e.MerchargeCode)
                 .HasMaxLength(255)
                 .IsUnicode(false)
@@ -632,11 +645,23 @@ public partial class AppDbContext : DbContext
                 .HasColumnName("WLId");
             entity.Property(e => e.CommissionPlanId);
             entity.Property(e => e.SuperAdminId);
+            entity.Property(e => e.OnboardingStatus).HasMaxLength(30).IsUnicode(false);
+            entity.Property(e => e.OnboardingVersion).HasDefaultValue(0);
+            entity.Property(e => e.FinalReviewRemarks).HasMaxLength(2000);
+            entity.Property(e => e.CreatedByUserType).HasMaxLength(20).IsUnicode(false);
+            entity.Property(e => e.RowVersion).IsRowVersion().IsConcurrencyToken();
+            entity.HasIndex(e => new { e.Stid, e.OnboardingStatus, e.RegDate });
         });
+
+        ConfigureUserOnboarding(modelBuilder);
 
         modelBuilder.Entity<TblWlUser>(entity =>
         {
             entity.ToTable("tblWlUsers", "InstantPayment_Db");
+
+            entity.Property(e => e.FatherName)
+                .HasMaxLength(255)
+                .IsUnicode(false);
 
             entity.Property(e => e.AadharBack)
                 .HasMaxLength(255)
@@ -1688,6 +1713,54 @@ public partial class AppDbContext : DbContext
         });
 
         OnModelCreatingPartial(modelBuilder);
+    }
+
+    private static void ConfigureUserOnboarding(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<TblUserOnboardingDocument>(e =>
+        {
+            e.ToTable("tblUserOnboardingDocuments", "InstantPayment_Db"); e.HasKey(x => x.Id);
+            e.Property(x => x.DocumentType).HasMaxLength(50).IsUnicode(false);
+            e.Property(x => x.CurrentFilePath).HasMaxLength(500);
+            e.Property(x => x.ReviewStatus).HasMaxLength(30).IsUnicode(false);
+            e.Property(x => x.RejectionRemarks).HasMaxLength(1000);
+            e.HasIndex(x => new { x.UserId, x.DocumentType }).IsUnique();
+        });
+        modelBuilder.Entity<TblUserOnboardingDocumentVersion>(e =>
+        {
+            e.ToTable("tblUserOnboardingDocumentVersions", "InstantPayment_Db"); e.HasKey(x => x.Id);
+            e.Property(x => x.FilePath).HasMaxLength(500); e.Property(x => x.OriginalFileName).HasMaxLength(255);
+            e.Property(x => x.ContentType).HasMaxLength(100); e.Property(x => x.FileHash).HasMaxLength(64).IsUnicode(false);
+            e.Property(x => x.CorrectionRemarks).HasMaxLength(1000);
+            e.HasIndex(x => new { x.DocumentId, x.VersionNumber }).IsUnique();
+        });
+        modelBuilder.Entity<TblUserOnboardingReview>(e =>
+        {
+            e.ToTable("tblUserOnboardingReviews", "InstantPayment_Db"); e.HasKey(x => x.Id);
+            e.Property(x => x.ReviewStatus).HasMaxLength(30).IsUnicode(false); e.Property(x => x.FinalRemarks).HasMaxLength(2000);
+            e.HasIndex(x => new { x.UserId, x.SubmissionVersion }).IsUnique();
+        });
+        modelBuilder.Entity<TblUserOnboardingFieldReview>(e =>
+        {
+            e.ToTable("tblUserOnboardingFieldReviews", "InstantPayment_Db"); e.HasKey(x => x.Id);
+            e.Property(x => x.FieldName).HasMaxLength(100).IsUnicode(false); e.Property(x => x.ReviewStatus).HasMaxLength(30).IsUnicode(false);
+            e.Property(x => x.RejectionRemarks).HasMaxLength(1000); e.HasIndex(x => new { x.ReviewId, x.FieldName }).IsUnique();
+        });
+        modelBuilder.Entity<TblUserOnboardingHistory>(e =>
+        {
+            e.ToTable("tblUserOnboardingHistory", "InstantPayment_Db"); e.HasKey(x => x.Id);
+            e.Property(x => x.EventType).HasMaxLength(50).IsUnicode(false); e.Property(x => x.FromStatus).HasMaxLength(30).IsUnicode(false);
+            e.Property(x => x.ToStatus).HasMaxLength(30).IsUnicode(false); e.Property(x => x.Remarks).HasMaxLength(2000);
+            e.Property(x => x.ActorUserType).HasMaxLength(20).IsUnicode(false); e.Property(x => x.IpAddress).HasMaxLength(64).IsUnicode(false);
+            e.HasIndex(x => new { x.UserId, x.CreatedAt });
+        });
+        modelBuilder.Entity<TblUserCredentialDeliveryLog>(e =>
+        {
+            e.ToTable("tblUserCredentialDeliveryLogs", "InstantPayment_Db"); e.HasKey(x => x.Id);
+            e.Property(x => x.Channel).HasMaxLength(20).IsUnicode(false); e.Property(x => x.DestinationMasked).HasMaxLength(255);
+            e.Property(x => x.DeliveryStatus).HasMaxLength(30).IsUnicode(false); e.Property(x => x.IdempotencyKey).HasMaxLength(100).IsUnicode(false);
+            e.Property(x => x.FailureReason).HasMaxLength(2000); e.HasIndex(x => x.IdempotencyKey).IsUnique();
+        });
     }
 
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder);

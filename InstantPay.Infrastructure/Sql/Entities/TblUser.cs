@@ -13,6 +13,8 @@ public partial class TblUser
 
     public string? Name { get; set; }
 
+    public string? FatherName { get; set; }
+
     public string? EmailId { get; set; }
 
     public string? Phone { get; set; }
@@ -82,6 +84,8 @@ public partial class TblUser
 
     public string? Adid { get; set; }
 
+    public string? Stid { get; set; }
+
     public string? Logo { get; set; }
     public string? SelfieImage { get; set; }
 
@@ -116,4 +120,16 @@ public partial class TblUser
 
     public int? CommissionPlanId { get; set; }
     public int? SuperAdminId { get; set; }
+    public string? OnboardingStatus { get; set; }
+    public int OnboardingVersion { get; set; }
+    public DateTime? SubmittedAt { get; set; }
+    public DateTime? ApprovedAt { get; set; }
+    public int? ApprovedBy { get; set; }
+    public DateTime? RejectedAt { get; set; }
+    public int? RejectedBy { get; set; }
+    public string? FinalReviewRemarks { get; set; }
+    public DateTime? LastDraftSavedAt { get; set; }
+    public int? CreatedByUserId { get; set; }
+    public string? CreatedByUserType { get; set; }
+    public byte[]? RowVersion { get; set; }
 }

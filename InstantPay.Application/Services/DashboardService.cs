@@ -46,9 +46,7 @@ namespace InstantPay.Application.Services
 
             var rawTransactions = await _context.TransactionDetails
                                     .Where(id =>
-                                        id.UserId == userId.ToString() &&
-                                        id.UserName.Trim().ToLower() ==
-                                        (username + "-" + userdata.Phone).Trim().ToLower())
+                                        id.UserId == userId.ToString())
                                     .OrderByDescending(t => t.TransId)
                                     .Take(5)
                                     .ToListAsync();

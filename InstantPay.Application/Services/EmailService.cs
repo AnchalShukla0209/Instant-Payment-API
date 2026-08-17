@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Net;
 
 namespace InstantPay.Application.Services
 {
@@ -63,6 +64,92 @@ namespace InstantPay.Application.Services
                         <h2>{otp}</h2>
                         <p>This OTP is valid for 5 minutes. Do not share it with anyone.</p>
                         """
+                }.ToMessageBody();
+
+                using var smtp = new SmtpClient();
+                smtp.CheckCertificateRevocation = false;
+                await smtp.ConnectAsync("smtp.gmail.com", 587, SecureSocketOptions.StartTls);
+                await smtp.AuthenticateAsync(_smtpEmail, _smtpPassword);
+                await smtp.SendAsync(email);
+                await smtp.DisconnectAsync(true);
+                return "1";
+            }
+            catch (Exception ex)
+            {
+                return ex.ToString();
+            }
+        }
+
+        public async Task<string> SendNewUserWelcomeEmailAsync(
+            string toEmail,
+            string name,
+            string userId,
+            string phone,
+            string userType,
+            string loginUrl,
+            string? initialPassword = null)
+        {
+            try
+            {
+                var safeName = WebUtility.HtmlEncode(name);
+                var safeUserId = WebUtility.HtmlEncode(userId);
+                var safePhone = WebUtility.HtmlEncode(phone);
+                var safeLoginUrl = WebUtility.HtmlEncode(loginUrl);
+                var passwordRow = string.IsNullOrWhiteSpace(initialPassword) ? string.Empty : $"""
+                                <tr><td style="padding:15px 22px;border-bottom:1px solid #dce5f2;color:#68758e;">Temporary Password</td><td align="right" style="padding:15px 22px;border-bottom:1px solid #dce5f2;font-weight:bold;">{WebUtility.HtmlEncode(initialPassword)}</td></tr>
+                                """;
+                var role = userType.Trim().ToUpperInvariant() switch
+                {
+                    "RT" => "Retailer",
+                    "AD" => "Distributor",
+                    "MD" => "Master Distributor",
+                    "ST" => "Sales Team",
+                    _ => WebUtility.HtmlEncode(userType)
+                };
+
+                var email = new MimeMessage();
+                email.From.Add(new MailboxAddress("Instant Payment", _smtpEmail));
+                email.To.Add(MailboxAddress.Parse(toEmail));
+                email.Subject = "Welcome to Instant Payment - Your account is ready";
+                email.Body = new BodyBuilder
+                {
+                    HtmlBody = $"""
+                    <!doctype html>
+                    <html>
+                    <body style="margin:0;padding:0;background:#f3f7fc;font-family:Arial,Helvetica,sans-serif;color:#102044;">
+                      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f3f7fc;padding:30px 12px;">
+                        <tr><td align="center">
+                          <table role="presentation" width="620" cellspacing="0" cellpadding="0" style="width:100%;max-width:620px;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 8px 30px rgba(15,42,85,.12);">
+                            <tr><td align="center" style="padding:30px;background:linear-gradient(135deg,#061b46,#075bea);">
+                              <img src="https://demo2.instantpayment.co.in/assets/images/logo__.png" width="210" alt="Instant Payment" style="display:block;max-width:210px;height:auto;">
+                            </td></tr>
+                            <tr><td style="padding:38px 42px 18px;text-align:center;">
+                              <h1 style="margin:0 0 10px;font-size:30px;color:#102044;">Welcome to Instant Payment</h1>
+                              <p style="margin:0;color:#72809d;font-size:17px;">Your account has been created successfully</p>
+                            </td></tr>
+                            <tr><td style="padding:18px 42px;">
+                              <h2 style="font-size:20px;margin:0 0 14px;">Hello {safeName},</h2>
+                              <p style="font-size:16px;line-height:1.65;color:#42516e;margin:0 0 24px;">We’re excited to have you on board. Your account is ready and you can now access the portal using the details below.</p>
+                              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border:1px solid #dce5f2;border-radius:12px;background:#f9fbff;">
+                                <tr><td colspan="2" style="padding:20px 22px 12px;font-weight:bold;color:#075bea;font-size:17px;">ACCOUNT DETAILS</td></tr>
+                                <tr><td style="padding:15px 22px;border-bottom:1px solid #dce5f2;color:#68758e;">User ID</td><td align="right" style="padding:15px 22px;border-bottom:1px solid #dce5f2;font-weight:bold;">{safeUserId}</td></tr>
+                                {passwordRow}
+                                <tr><td style="padding:15px 22px;border-bottom:1px solid #dce5f2;color:#68758e;">Registered Mobile</td><td align="right" style="padding:15px 22px;border-bottom:1px solid #dce5f2;font-weight:bold;">{safePhone}</td></tr>
+                                <tr><td style="padding:15px 22px;color:#68758e;">Role</td><td align="right" style="padding:15px 22px;font-weight:bold;">{role}</td></tr>
+                              </table>
+                              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:28px 0 20px;"><tr><td align="center" bgcolor="#075bea" style="border-radius:9px;">
+                                <a href="{safeLoginUrl}" style="display:block;padding:17px 24px;color:#fff;text-decoration:none;font-size:18px;font-weight:bold;">Login to Your Account</a>
+                              </td></tr></table>
+                              <p style="padding:16px 18px;background:#f2fbf7;border:1px solid #ccebdd;border-radius:9px;color:#42516e;line-height:1.5;">For your security, please change your password after your first login.</p>
+                              <p style="padding:14px 18px;background:#f5f8ff;border:1px solid #d6e2fa;border-radius:9px;color:#42516e;">Need help? Contact <a href="mailto:support@instantpayment.co.in" style="color:#075bea;">support@instantpayment.co.in</a></p>
+                            </td></tr>
+                            <tr><td align="center" style="padding:22px;border-top:1px solid #e2e8f1;color:#7a869d;font-size:13px;">© {DateTime.UtcNow.Year} Instant Payment. All rights reserved.</td></tr>
+                          </table>
+                        </td></tr>
+                      </table>
+                    </body>
+                    </html>
+                    """
                 }.ToMessageBody();
 
                 using var smtp = new SmtpClient();

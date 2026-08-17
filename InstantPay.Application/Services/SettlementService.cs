@@ -932,31 +932,29 @@ namespace InstantPay.Application.Services
                 if (response.StatusCode is < 200 or >= 300)
                 {
                     _logger.LogWarning("RBL settlement returned HTTP {StatusCode} for {TransactionId}", response.StatusCode, transactionId);
-                    var rejected = response.StatusCode is >= 400 and < 500
-                        && response.StatusCode is not 408 and not 425;
                     return new ProviderPayoutResult {
-                        Status = rejected ? "FAILED" : "PENDING",
-                        Message = rejected ? ExtractRblGatewayError(responseText) : $"RBL HTTP {response.StatusCode}",
+                        Status = "PENDING",
+                        Message = $"RBL HTTP {response.StatusCode}; outcome kept pending",
                         RawResponse = responseText, RequestJson = json };
                 }
 
                 var apiResponse = JsonConvert.DeserializeObject<RblPaymentResponse>(responseText);
                 if (apiResponse?.Payment == null)
                 {
-                    var gatewayError = ExtractRblGatewayError(responseText);
-                    return new ProviderPayoutResult { Status = string.IsNullOrWhiteSpace(gatewayError) ? "PENDING" : "FAILED",
-                        Message = string.IsNullOrWhiteSpace(gatewayError) ? "Invalid or empty RBL response" : gatewayError,
+                    return new ProviderPayoutResult { Status = "PENDING",
+                        Message = "Invalid or empty RBL response; outcome kept pending",
                         RawResponse = responseText, RequestJson = json };
                 }
 
                 var header = apiResponse.Payment.Header;
                 var body = apiResponse.Payment.Body;
-                var success = string.Equals(header?.Status, "Success", StringComparison.OrdinalIgnoreCase) && header?.Resp_cde == "00";
-                var uncertainFailure = header?.Error_Cde is "ER004" or "ER006" or "ER017" or "ER018";
+                var status = RblPaymentResponseClassifier.GetStatus(header);
                 return new ProviderPayoutResult
                 {
-                    Status = success ? "SUCCESS" : uncertainFailure ? "PENDING" : "FAILED",
-                    Message = success ? "Success" : header?.Error_Desc ?? "RBL payout failed",
+                    Status = status,
+                    Message = status == "SUCCESS" ? "Success" : !string.IsNullOrWhiteSpace(header?.Error_Desc)
+                        ? header.Error_Desc
+                        : status == "FAILED" ? "RBL payout failed" : "RBL transaction outcome is pending",
                     TransactionId = body?.RefNo ?? transactionId,
                     ReferenceId = body?.RRN ?? body?.channelpartnerrefno ?? string.Empty,
                     RawResponse = responseText,

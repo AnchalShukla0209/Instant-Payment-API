@@ -10,6 +10,14 @@ namespace InstantPay.Application.Interfaces
     {
         Task <string> SendOtpEmailAsync(string toEmail, string body);
         Task<string> SendClientUserVerificationOtpAsync(string toEmail, string otp);
+        Task<string> SendNewUserWelcomeEmailAsync(
+            string toEmail,
+            string name,
+            string userId,
+            string phone,
+            string userType,
+            string loginUrl,
+            string? initialPassword = null);
         Task<string> SendSettlementStatusEmailAsync(string transactionId, string accountNo, string txnType, decimal amount, string userName, DateTime createdOn, string status, string rrn = null);
         Task<string> SendTransactionStatusEmailAsync(string transactionId, string accountNo, string txnType, decimal amount, string userName, DateTime createdOn, string status, string rrn = null);
     }

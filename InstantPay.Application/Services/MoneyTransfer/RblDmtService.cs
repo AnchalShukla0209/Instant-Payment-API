@@ -169,9 +169,9 @@ public sealed class RblDmtService : IRblDmtService
             var apiResponse = apiCall.Response;
             var header = apiResponse?.Payment?.Header;
             var body = apiResponse?.Payment?.Body;
-            var success = string.Equals(header?.Status, "Success", StringComparison.OrdinalIgnoreCase) && header?.Resp_cde == "00";
-            var definitiveFailure = apiCall.IsDefinitiveFailure || (apiResponse?.Payment != null && !success);
-            var status = success ? "SUCCESS" : definitiveFailure ? "FAILED" : "PENDING";
+            var status = RblPaymentResponseClassifier.GetStatus(header);
+            var success = status == "SUCCESS";
+            var definitiveFailure = status == "FAILED";
             var providerReference = body?.RRN ?? body?.channelpartnerrefno ?? body?.RefNo ?? string.Empty;
             var apiError = !string.IsNullOrWhiteSpace(header?.Error_Desc)
                 ? header.Error_Desc
@@ -179,7 +179,7 @@ public sealed class RblDmtService : IRblDmtService
                     ? $"RBL error {header.Error_Cde}"
                     : !string.IsNullOrWhiteSpace(apiCall.ErrorMessage)
                         ? apiCall.ErrorMessage
-                        : "RBL rejected the transaction without an error description";
+                        : "RBL transaction outcome is pending";
 
             tx.Status = status;
             tx.ApiTxnId = body?.RefNo ?? transactionId;

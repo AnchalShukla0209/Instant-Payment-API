@@ -1,5 +1,7 @@
 using System.Net.Mail;
 using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using InstantPay.Application.DTOs;
 using InstantPay.Application.Interfaces;
@@ -8,6 +10,7 @@ using InstantPay.Application.Interfaces.PAN;
 using InstantPay.Infrastructure.Sql.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Configuration;
 
 namespace InstantPay.Application.Services;
 
@@ -24,6 +27,7 @@ public sealed class ClientUserVerificationService : IClientUserVerificationServi
     private readonly IPanService _panService;
     private readonly IAadhaarService _aadhaarService;
     private readonly AppDbContext _context;
+    private readonly byte[] _proofSigningKey;
 
     public ClientUserVerificationService(
         IMemoryCache cache,
@@ -31,7 +35,8 @@ public sealed class ClientUserVerificationService : IClientUserVerificationServi
         IEmailService emailService,
         IPanService panService,
         IAadhaarService aadhaarService,
-        AppDbContext context)
+        AppDbContext context,
+        IConfiguration configuration)
     {
         _cache = cache;
         _otpService = otpService;
@@ -39,6 +44,8 @@ public sealed class ClientUserVerificationService : IClientUserVerificationServi
         _panService = panService;
         _aadhaarService = aadhaarService;
         _context = context;
+        _proofSigningKey = Encoding.UTF8.GetBytes(
+            configuration["Jwt:Key"] ?? throw new InvalidOperationException("Jwt:Key is required."));
     }
 
     public Task<ClientUserVerificationResponse> SendPhoneOtpAsync(string phone)
@@ -149,15 +156,12 @@ public sealed class ClientUserVerificationService : IClientUserVerificationServi
 
     public bool ValidateProof(string? token, string type, string value)
     {
-        if (string.IsNullOrWhiteSpace(token))
-            return false;
-
+        var proof = ReadProof(token);
         var normalizedType = type.Trim().ToLowerInvariant();
-        var normalizedValue = Normalize(normalizedType, value);
-        return _cache.TryGetValue(ProofKey(token), out VerificationProof? proof)
-            && proof != null
+        return proof != null
+            && proof.ExpiresAtUtc > DateTime.UtcNow
             && proof.Type == normalizedType
-            && proof.Value == normalizedValue;
+            && proof.Value == Normalize(normalizedType, value);
     }
 
     public void ConsumeProof(string? token)
@@ -168,12 +172,7 @@ public sealed class ClientUserVerificationService : IClientUserVerificationServi
 
     public string? GetVerifiedName(string? token)
     {
-        if (string.IsNullOrWhiteSpace(token))
-            return null;
-
-        return _cache.TryGetValue(ProofKey(token), out VerificationProof? proof)
-            ? proof?.VerifiedName
-            : null;
+        return ReadProof(token)?.VerifiedName;
     }
 
     /// <summary>
@@ -260,12 +259,37 @@ public sealed class ClientUserVerificationService : IClientUserVerificationServi
 
     private string CreateProof(string type, string value, string? verifiedName)
     {
-        var token = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
-        _cache.Set(
-            ProofKey(token),
-            new VerificationProof(type, Normalize(type, value), verifiedName),
-            ProofLifetime);
-        return token;
+        var proof = new VerificationProof(
+            type.Trim().ToLowerInvariant(),
+            Normalize(type, value),
+            verifiedName,
+            DateTime.UtcNow.Add(ProofLifetime));
+        var payload = Convert.ToBase64String(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(proof)));
+        using var hmac = new HMACSHA256(_proofSigningKey);
+        var signature = Convert.ToHexString(hmac.ComputeHash(Encoding.UTF8.GetBytes(payload)));
+        return $"{payload}.{signature}";
+    }
+
+    private VerificationProof? ReadProof(string? token)
+    {
+        if (string.IsNullOrWhiteSpace(token)) return null;
+        var parts = token.Split('.', 2);
+        if (parts.Length != 2) return null;
+        using var hmac = new HMACSHA256(_proofSigningKey);
+        var expected = hmac.ComputeHash(Encoding.UTF8.GetBytes(parts[0]));
+        byte[] actual;
+        try { actual = Convert.FromHexString(parts[1]); }
+        catch (FormatException) { return null; }
+        if (!CryptographicOperations.FixedTimeEquals(expected, actual)) return null;
+        try
+        {
+            var json = Encoding.UTF8.GetString(Convert.FromBase64String(parts[0]));
+            return JsonSerializer.Deserialize<VerificationProof>(json);
+        }
+        catch (Exception ex) when (ex is FormatException or JsonException)
+        {
+            return null;
+        }
     }
 
     private static string Normalize(string type, string value)
@@ -288,5 +312,9 @@ public sealed class ClientUserVerificationService : IClientUserVerificationServi
         public int Attempts { get; set; } = InitialAttempts;
     }
 
-    private sealed record VerificationProof(string Type, string Value, string? VerifiedName);
+    private sealed record VerificationProof(
+        string Type,
+        string Value,
+        string? VerifiedName,
+        DateTime ExpiresAtUtc);
 }
