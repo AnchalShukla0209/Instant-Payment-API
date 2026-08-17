@@ -16,7 +16,7 @@ public sealed class SalesTeamOnboardingService : ISalesTeamOnboardingService
     private static readonly Regex PanRegex = new("^[A-Z]{5}[0-9]{4}[A-Z]$", RegexOptions.Compiled);
     private static readonly Regex AadhaarRegex = new("^[0-9]{12}$", RegexOptions.Compiled);
     private static readonly Regex CoordinateRegex = new("^-?[0-9]{1,3}(\\.[0-9]{1,4})?$", RegexOptions.Compiled);
-    private static readonly string[] RequiredDocuments = ["PanCopy", "AadhaarFront", "AadhaarBack", "Selfie"];
+    private static readonly string[] RequiredDocuments = ["PanCopy", "AadhaarFront", "AadhaarBack", "Selfie", "Logo"];
     private static readonly string[] ReviewableFields = ["Identity", "Contact", "Business", "Address", "Hierarchy", "Kyc"];
     private static readonly HashSet<string> AllowedDocumentTypes = new(RequiredDocuments.Append("Logo"), StringComparer.OrdinalIgnoreCase);
     private const long MaximumFileSize = 5 * 1024 * 1024;
@@ -288,7 +288,7 @@ public sealed class SalesTeamOnboardingService : ISalesTeamOnboardingService
             throw new InvalidOperationException("Complete and validate all mandatory identity fields before submitting.");
         if (!u.IsEmailVerified || !u.IsPhoneVerified || !u.IsPanVerified || !u.IsAadhaarVerified)
             throw new InvalidOperationException("Email, phone, PAN, and Aadhaar verification are required.");
-        if (string.IsNullOrWhiteSpace(u.AddressLine1) || string.IsNullOrWhiteSpace(u.State) || string.IsNullOrWhiteSpace(u.City) ||
+        if (string.IsNullOrWhiteSpace(u.AddressLine1) || string.IsNullOrWhiteSpace(u.AddressLine2) || string.IsNullOrWhiteSpace(u.State) || string.IsNullOrWhiteSpace(u.City) ||
             !Regex.IsMatch(u.Pincode ?? "", "^[0-9]{6}$") || string.IsNullOrWhiteSpace(u.ShopAddress) ||
             string.IsNullOrWhiteSpace(u.ShopState) || string.IsNullOrWhiteSpace(u.ShopCity) || !Regex.IsMatch(u.ShipZipcode ?? "", "^[0-9]{6}$"))
             throw new InvalidOperationException("Complete all mandatory residential and shop address fields.");
@@ -298,6 +298,7 @@ public sealed class SalesTeamOnboardingService : ISalesTeamOnboardingService
             !decimal.TryParse(u.Longitute, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out var longitude) || longitude is < -180 or > 180)
             throw new InvalidOperationException("Latitude must be between -90 and 90 and longitude between -180 and 180.");
         if (!u.CommissionPlanId.HasValue || u.CommissionPlanId <= 0) throw new InvalidOperationException("Select a commission plan.");
+        if (string.IsNullOrWhiteSpace(u.Wlid)) throw new InvalidOperationException("A mapped White Label user is required.");
     }
 
     private void ApplyConcurrencyToken(TblUser user, string? token)
