@@ -1,13 +1,7 @@
 ﻿using InstantPay.Application.IRepositry;
 using InstantPay.Infrastructure.Sql.Entities;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace InstantPay.Application.Repositry
 {
@@ -15,38 +9,46 @@ namespace InstantPay.Application.Repositry
     {
         private readonly IConfiguration _config;
         private readonly HttpClient _client;
-        private readonly AppDbContext _Context;
         private readonly IServiceProvider _serviceProvider;
+        private static readonly HashSet<string> EnabledCompanyIds =
+            ["1", "2", "3", "4", "5", "6", "7", "11", "12", "17", "24", "27", "28"];
 
         public MroboticsRechargeRepository(IHttpClientFactory factory, IConfiguration config, AppDbContext context, IServiceProvider serviceProvider)
         {
             _client = factory.CreateClient();
             _config = config;
-            _Context = context;
             _serviceProvider = serviceProvider;
         }
 
-        public async Task<string> Recharge(string mobile, string amount, string orderId, string companyId, string Type, string Optional = "", string Optional1 = "")
+        public async Task<string> Recharge(string mobile, string amount, string orderId, string companyId, string Type, string Optional = "", string Optional1 = "", bool isStv = false)
         {
             var token = _config["RechargeApis:Mrobotics:Token"];
-            var baseUrl = _config["RechargeApis:Mrobotics:BaseUrl"];
+            var baseUrl = _config["RechargeApis:Mrobotics:BaseUrl"]?.TrimEnd('/');
 
-            var url = $"{baseUrl}/api/recharge_get?api_token={token}&mobile_no={mobile}&amount={amount}&company_id={companyId}&order_id={orderId}&is_stv=false";
+            if (string.IsNullOrWhiteSpace(token) || string.IsNullOrWhiteSpace(baseUrl))
+                throw new InvalidOperationException("MRobotics API configuration is missing.");
+            if (!EnabledCompanyIds.Contains(companyId))
+                throw new ArgumentException($"MRobotics company ID [{companyId}] is invalid or disabled.", nameof(companyId));
 
-            string apiResponse = string.Empty;
-
-            try
+            var url = $"{baseUrl}/api/recharge";
+            var formValues = new Dictionary<string, string>
             {
-                var response = await _client.PostAsync(url, null);
-                apiResponse = await response.Content.ReadAsStringAsync();
-            }
-            catch (Exception ex)
-            {
-                apiResponse = $"Error: {ex.Message}";
-            }
+                ["api_token"] = token,
+                ["mobile_no"] = mobile,
+                ["amount"] = amount,
+                ["company_id"] = companyId,
+                ["order_id"] = orderId,
+                ["is_stv"] = isStv.ToString().ToLowerInvariant()
+            };
+
+            using var content = new FormUrlEncodedContent(formValues);
+            using var response = await _client.PostAsync(url, content);
+            var apiResponse = await response.Content.ReadAsStringAsync();
+            response.EnsureSuccessStatusCode();
 
             // Save Log using separate context to persist even if main transaction rolls back
-            await SaveApiLogSeparately(url, apiResponse, "Mrobotics");
+            var safeRequest = $"{url}?mobile_no={Uri.EscapeDataString(mobile)}&amount={Uri.EscapeDataString(amount)}&company_id={Uri.EscapeDataString(companyId)}&order_id={Uri.EscapeDataString(orderId)}&is_stv={isStv.ToString().ToLowerInvariant()}";
+            await SaveApiLogSeparately(safeRequest, apiResponse, "Mrobotics");
 
             return apiResponse;
         }

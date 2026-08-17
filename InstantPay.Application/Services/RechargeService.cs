@@ -20,6 +20,8 @@ namespace InstantPay.Application.Services
 {
     public class RechargeService : IRechargeService
     {
+        private static readonly HashSet<string> MroboticsCompanyIds =
+            ["1", "2", "3", "4", "5", "6", "7", "11", "12", "17", "24", "27", "28"];
         private readonly IConfiguration _config;
         private readonly AppDbContext _context;
         private readonly IHttpClientFactory _httpClientFactory;
@@ -79,7 +81,7 @@ namespace InstantPay.Application.Services
             string APIName;
             var operatorId = operatorDetails.Id.ToString();
 
-            if (new[] { "1", "2", "10", "11" }.Contains(operatorId))
+            if ((request.Type == "BLL2" || request.Type == "DTH2") && MroboticsCompanyIds.Contains(request.operatorCode))
             {
                 APIName = "mrobotics";
             }
@@ -155,7 +157,8 @@ namespace InstantPay.Application.Services
                     companyId: request.operatorCode,
                     Type: request.Type,
                     Optional: request.optional,
-                    Optional1: request.optional1
+                    Optional1: request.optional1,
+                    isStv: request.IsStv
                 );
             }
             catch (Exception ex)
@@ -221,11 +224,21 @@ namespace InstantPay.Application.Services
                         break;
 
                     case "mrobotics":
-                        var mObj = JObject.Parse(apiResponse.Split('#')[1]);
-                        var mStatus = mObj["status"].ToString().ToLower();
-                        finalStatus = (mStatus == "success") ? "SUCCESS" : "FAILED";
-                        apiTxnId = mObj["opid"]?.ToString() ?? "";
-                        rechargeStatus = mObj["msg"]?.ToString() ?? "";
+                        var mObj = JObject.Parse(apiResponse);
+                        var mStatus = mObj["status"]?.ToString()?.ToLowerInvariant();
+                        var mHasError = mObj["error"]?.Value<bool>() == true;
+                        finalStatus = (mStatus, mHasError) switch
+                        {
+                            ("success", false) => "SUCCESS",
+                            ("failed", _) => "FAILED",
+                            ("failure", _) => "FAILED",
+                            (_, true) => "FAILED",
+                            _ => "PENDING"
+                        };
+                        apiTxnId = mObj["tnx_id"]?.ToString() ?? mObj["id"]?.ToString() ?? "";
+                        rechargeStatus = mObj["response"]?.ToString()
+                            ?? mObj["errorMessage"]?.ToString()
+                            ?? "";
                         break;
 
                     case "ambika":

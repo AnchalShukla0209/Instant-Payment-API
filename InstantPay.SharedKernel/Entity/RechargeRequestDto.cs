@@ -25,6 +25,7 @@ namespace InstantPay.SharedKernel.Entity
         public string optional { get; set; } = "na";
         public string optional1 { get; set; } = "";
         public string comingFrom { get; set; } = "Web";
+        public bool IsStv { get; set; }
     }
 
 }

@@ -274,9 +274,9 @@ namespace InstantPay.Application.Services
                     };
                 }
 
-                request.BeneAddress = userData.AddressLine1 + " " + userData.AddressLine2;
+                request.BeneAddress = "";
                 request.BenePhone = userData.Phone ?? "";
-                request.BeneEmail = userData.EmailId ?? "";
+                request.BeneEmail =  "";
                 request.Latitude = userData.Lat ?? "76.7887";
                 request.Longitude = userData.Longitute ?? "78.7654";
 
