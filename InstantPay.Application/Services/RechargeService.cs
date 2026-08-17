@@ -21,7 +21,7 @@ namespace InstantPay.Application.Services
     public class RechargeService : IRechargeService
     {
         private static readonly HashSet<string> MroboticsCompanyIds =
-            ["1", "2", "3", "4", "5", "6", "7", "11", "12", "17", "24", "27", "28"];
+            ["1", "2", "4", "5", "6", "7", "11", "12", "17", "24", "27", "28"];
         private readonly IConfiguration _config;
         private readonly AppDbContext _context;
         private readonly IHttpClientFactory _httpClientFactory;
