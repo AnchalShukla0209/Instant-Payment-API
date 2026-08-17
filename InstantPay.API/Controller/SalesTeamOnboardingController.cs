@@ -29,6 +29,30 @@ public sealed class SalesTeamOnboardingController : ControllerBase
     public async Task<IActionResult> SaveDraft([FromBody] SaveOnboardingDraftRequest request, CancellationToken ct) =>
         await Execute(() => _service.SaveDraftAsync(request, UserId(), Ip(), Request.Headers.UserAgent, ct));
 
+    [HttpGet("hierarchy-context")]
+    public async Task<IActionResult> HierarchyContext(CancellationToken ct) => await Execute(async () =>
+    {
+        var mappedWlId = await _db.TblUsers.AsNoTracking()
+            .Where(x => x.Id == UserId() && x.Usertype == "ST" && x.Status == "Active")
+            .Select(x => x.Wlid)
+            .SingleOrDefaultAsync(ct);
+        if (!int.TryParse(mappedWlId, out var wlUserId) || wlUserId <= 0)
+            throw new InvalidOperationException("Your Sales Team account is not mapped to a White Label user. Contact SuperAdmin.");
+
+        var wlUser = await _db.TblWlUsers.AsNoTracking()
+            .Where(x => x.Id == wlUserId && x.Status == "Active")
+            .Select(x => new
+            {
+                id = x.Id,
+                name = (x.CompanyName ?? x.UserName ?? string.Empty) + "-" + (x.Phone ?? string.Empty),
+                username = x.UserName ?? string.Empty,
+                phone = x.Phone ?? string.Empty,
+                userType = "WL"
+            })
+            .SingleOrDefaultAsync(ct);
+        return wlUser ?? throw new InvalidOperationException("Your mapped White Label user is not active. Contact SuperAdmin.");
+    });
+
     [HttpGet("resume-by-phone")]
     public async Task<IActionResult> ResumeByPhone([FromQuery] string phone, CancellationToken ct) =>
         await Execute(() => _service.FindOwnedDraftByPhoneAsync(phone, UserId(), ct));
