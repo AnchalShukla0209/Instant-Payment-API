@@ -1,4 +1,5 @@
 using System.IdentityModel.Tokens.Jwt;
+using System.Net;
 using System.Globalization;
 using System.Security.Claims;
 using System.Security.Cryptography;
@@ -560,8 +561,18 @@ public sealed class DistributorAuthService : IDistributorAuthService
         return digits.Length < 4 ? "******" : $"******{digits[^4..]}";
     }
 
-    private static string SafeIpAddress(string ipAddress) =>
-        Truncate(ipAddress, 64) ?? "unknown";
+    private static string SafeIpAddress(string ipAddress)
+    {
+        var value = Truncate(ipAddress, 64);
+        if (value is null)
+        {
+            return "unknown";
+        }
+
+        return IPAddress.TryParse(value, out var parsed) && parsed.IsIPv4MappedToIPv6
+            ? parsed.MapToIPv4().ToString()
+            : value;
+    }
 
     private static string? Truncate(string? value, int maximumLength) =>
         string.IsNullOrWhiteSpace(value)

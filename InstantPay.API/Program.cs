@@ -76,6 +76,7 @@ using InstantPay.Application.Services;
 
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.HttpOverrides;
 
 using Microsoft.EntityFrameworkCore;
 
@@ -102,6 +103,12 @@ System.Net.ServicePointManager.Expect100Continue = false;
 System.Net.ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls13;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.ForwardLimit = 2;
+});
 
 builder.Services.AddControllers()
     .AddNewtonsoftJson();
@@ -890,6 +897,11 @@ builder.WebHost.ConfigureKestrel(options =>
 
 
 var app = builder.Build();
+
+// Resolve the originating client address when hosted behind IIS/reverse proxy.
+// ASP.NET Core trusts loopback proxies by default; additional production proxies
+// must be explicitly configured as known proxies/networks by the host.
+app.UseForwardedHeaders();
 
 if (app.Environment.IsDevelopment() || app.Environment.IsProduction())
 
