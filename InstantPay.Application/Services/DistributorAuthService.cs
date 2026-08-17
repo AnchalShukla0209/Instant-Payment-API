@@ -128,7 +128,7 @@ public sealed class DistributorAuthService : IDistributorAuthService
                     null,
                     null,
                     0,
-                    CreateTokenResponse(user, userType)));
+                    CreateTokenResponse(user, userType, ipAddress)));
         }
 
         if (string.IsNullOrWhiteSpace(user.Phone))
@@ -307,7 +307,7 @@ public sealed class DistributorAuthService : IDistributorAuthService
             user.Id,
             SafeIpAddress(ipAddress));
 
-        return DistributorAuthResult<DistributorTokenResponse>.Success(CreateTokenResponse(user, userType));
+        return DistributorAuthResult<DistributorTokenResponse>.Success(CreateTokenResponse(user, userType, ipAddress));
     }
 
     private async Task RegisterFailedPasswordAttemptAsync(
@@ -378,7 +378,7 @@ public sealed class DistributorAuthService : IDistributorAuthService
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
-    private DistributorTokenResponse CreateTokenResponse(TblUser user, string userType) =>
+    private DistributorTokenResponse CreateTokenResponse(TblUser user, string userType, string ipAddress) =>
         new(
             GenerateAccessToken(user, userType),
             "Bearer",
@@ -386,8 +386,9 @@ public sealed class DistributorAuthService : IDistributorAuthService
             user.Id.ToString(),
             user.Username ?? string.Empty,
             userType,
-            user.Name ?? user.CompanyName ??
-            GetDisplayRole(userType));
+            user.Name ?? user.CompanyName ?? GetDisplayRole(userType),
+            DateTime.UtcNow,
+            SafeIpAddress(ipAddress));
 
     private TimeSpan GetAccessTokenLifetime()
     {

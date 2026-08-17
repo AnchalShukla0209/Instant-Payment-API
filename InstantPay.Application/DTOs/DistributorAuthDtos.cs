@@ -41,7 +41,9 @@ public sealed record DistributorTokenResponse(
     string UserId,
     string Username,
     string UserType,
-    string DisplayName);
+    string DisplayName,
+    DateTime LastLoginAt,
+    string IpAddress);
 
 public sealed record DistributorAuthResult<T>(
     bool Succeeded,
