@@ -141,8 +141,11 @@ public sealed class DistributorAuthService : IDistributorAuthService
         }
 
         var challengeId = Guid.NewGuid();
+        var developmentOtpSection = userType == MasterDistributorUserType
+            ? "MasterDistributorAuth"
+            : "DistributorAuth";
         var configuredDevelopmentOtp = _hostEnvironment.IsDevelopment()
-            ? _configuration["DistributorAuth:DevelopmentOtp"]
+            ? _configuration[$"{developmentOtpSection}:DevelopmentOtp"]
             : null;
         var useDevelopmentOtp = configuredDevelopmentOtp is { Length: 6 } &&
                                 configuredDevelopmentOtp.All(char.IsDigit);
