@@ -11,6 +11,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InstantPay.Infrastructure",
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InstantPay.SharedKernel", "InstantPay.SharedKernel\InstantPay.SharedKernel.csproj", "{3FF392B8-1C04-4C14-A4BF-7CA017486073}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InstantPay.Onboarding.Tests", "InstantPay.Onboarding.Tests\InstantPay.Onboarding.Tests.csproj", "{B417F8AA-D6B1-4E71-A41F-EBB4B708D154}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -33,6 +35,10 @@ Global
 		{3FF392B8-1C04-4C14-A4BF-7CA017486073}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3FF392B8-1C04-4C14-A4BF-7CA017486073}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3FF392B8-1C04-4C14-A4BF-7CA017486073}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B417F8AA-D6B1-4E71-A41F-EBB4B708D154}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B417F8AA-D6B1-4E71-A41F-EBB4B708D154}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B417F8AA-D6B1-4E71-A41F-EBB4B708D154}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B417F8AA-D6B1-4E71-A41F-EBB4B708D154}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

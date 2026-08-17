@@ -13,6 +13,8 @@ public partial class TblWlUser
 
     public string? UserName { get; set; }
 
+    public string? FatherName { get; set; }
+
     public string? EmailId { get; set; }
 
     public string? Phone { get; set; }

@@ -19,6 +19,7 @@ public sealed class DistributorAuthService : IDistributorAuthService
 {
     private const string DistributorUserType = "AD";
     private const string MasterDistributorUserType = "MD";
+    private const string SalesTeamUserType = "ST";
     private const int MaxPasswordAttempts = 5;
     private const int MaxOtpAttempts = 5;
     private const int PasswordHashWorkFactor = 12;
@@ -358,7 +359,7 @@ public sealed class DistributorAuthService : IDistributorAuthService
             new Claim("amr", "otp"),
             new Claim(
                 ClaimTypes.Role,
-                userType == DistributorUserType ? "Distributor" : "MasterDistributor")
+                GetRoleName(userType))
         };
 
         var token = new JwtSecurityToken(
@@ -383,7 +384,7 @@ public sealed class DistributorAuthService : IDistributorAuthService
             user.Username ?? string.Empty,
             userType,
             user.Name ?? user.CompanyName ??
-            (userType == DistributorUserType ? "Distributor" : "Master Distributor"));
+            GetDisplayRole(userType));
 
     private TimeSpan GetAccessTokenLifetime()
     {
@@ -453,6 +454,8 @@ public sealed class DistributorAuthService : IDistributorAuthService
             (DistributorUserType, "apk") => "a",
             (MasterDistributorUserType, "web") => "m",
             (MasterDistributorUserType, "apk") => "n",
+            (SalesTeamUserType, "web") => "s",
+            (SalesTeamUserType, "apk") => "t",
             _ => throw new ArgumentOutOfRangeException(nameof(platform))
         };
         return $"{EncodeChallengeId(challengeId)}|{userId:X}|{contextCode}|{deviceFingerprint}";
@@ -469,6 +472,8 @@ public sealed class DistributorAuthService : IDistributorAuthService
             "a" => (DistributorUserType, "apk"),
             "m" => (MasterDistributorUserType, "web"),
             "n" => (MasterDistributorUserType, "apk"),
+            "s" => (SalesTeamUserType, "web"),
+            "t" => (SalesTeamUserType, "apk"),
             _ => (string.Empty, string.Empty)
         };
         return userType.Length > 0;
@@ -479,8 +484,25 @@ public sealed class DistributorAuthService : IDistributorAuthService
         {
             DistributorUserType => DistributorUserType,
             MasterDistributorUserType => MasterDistributorUserType,
+            SalesTeamUserType => SalesTeamUserType,
             _ => throw new ArgumentOutOfRangeException(nameof(userType))
         };
+
+    private static string GetRoleName(string userType) => userType switch
+    {
+        DistributorUserType => "Distributor",
+        MasterDistributorUserType => "MasterDistributor",
+        SalesTeamUserType => "SalesTeam",
+        _ => throw new ArgumentOutOfRangeException(nameof(userType))
+    };
+
+    private static string GetDisplayRole(string userType) => userType switch
+    {
+        DistributorUserType => "Distributor",
+        MasterDistributorUserType => "Master Distributor",
+        SalesTeamUserType => "Sales Team",
+        _ => "Partner"
+    };
 
     private static string EncodeChallengeId(Guid challengeId) =>
         Convert.ToBase64String(challengeId.ToByteArray())

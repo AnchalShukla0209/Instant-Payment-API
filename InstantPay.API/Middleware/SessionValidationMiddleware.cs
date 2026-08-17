@@ -33,10 +33,9 @@ public class SessionValidationMiddleware
 
         var authenticatedUserType = context.User.FindFirst("usertype")?.Value;
         if (context.User.Identity?.IsAuthenticated == true &&
-            (authenticatedUserType == "AD" || authenticatedUserType == "MD") &&
-            context.Request.Path.StartsWithSegments(
-                "/api/v1/partner",
-                StringComparison.OrdinalIgnoreCase))
+            (authenticatedUserType == "AD" || authenticatedUserType == "MD" || authenticatedUserType == "ST") &&
+            (context.Request.Path.StartsWithSegments("/api/v1/partner", StringComparison.OrdinalIgnoreCase) ||
+             context.Request.Path.StartsWithSegments("/api/v1/sales-team", StringComparison.OrdinalIgnoreCase)))
         {
             await _next(context);
             return;

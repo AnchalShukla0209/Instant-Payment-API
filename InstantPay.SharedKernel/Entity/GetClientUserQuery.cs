@@ -61,6 +61,10 @@ namespace InstantPay.SharedKernel.Entity
         public string AadharCard { get; set; }
         public string UserType { get; set; }
         public string CustomerName { get; set; }
+        public string FatherName { get; set; }
+        public string? ADId { get; set; }
+        public string? MDId { get; set; }
+        public string? STId { get; set; }
         public string AddressLine1 { get; set; }
         public string AddressLine2 { get; set; }
         public string State { get; set; }
@@ -113,6 +117,11 @@ namespace InstantPay.SharedKernel.Entity
         public int? Id { get; set; }
         public string? CompanyName { get; set; }
         public string? CustomerName { get; set; }
+        public string? FatherName { get; set; }
+        public string? WLId { get; set; }
+        public string? ADId { get; set; }
+        public string? MDId { get; set; }
+        public string? STId { get; set; }
         public string? UserName { get; set; }
         public string? EmailId { get; set; }
         public string? UserType { get; set; }

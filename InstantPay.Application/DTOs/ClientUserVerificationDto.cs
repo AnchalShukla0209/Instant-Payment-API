@@ -14,6 +14,8 @@ public sealed class SendClientUserOtpRequest
 {
     [Required]
     public string Value { get; set; } = string.Empty;
+
+    public int ClientId { get; set; }
 }
 
 public sealed class VerifyClientUserOtpRequest

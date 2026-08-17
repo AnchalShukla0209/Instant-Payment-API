@@ -283,6 +283,7 @@ builder.Services.AddCors(options =>
                 var uri = new Uri(origin);
                 var host = uri.Host;
                 return host.Equals("demo2.instantpayment.co.in", StringComparison.OrdinalIgnoreCase) ||
+                       host.Equals("instantpayment.in", StringComparison.OrdinalIgnoreCase) ||
                        host.Equals("neqs.co.in", StringComparison.OrdinalIgnoreCase) ||
                        ((host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
                          host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
@@ -566,6 +567,9 @@ builder.Services.AddScoped<IRechargeService, RechargeService>();
 builder.Services.AddScoped<IOtpService, OtpService>();
 
 builder.Services.AddScoped<IMasterService, MasterService>();
+builder.Services.AddScoped<IUserDropdownService, UserDropdownService>();
+builder.Services.AddScoped<ISalesTeamOnboardingService, SalesTeamOnboardingService>();
+builder.Services.AddScoped<IAdminOnboardingService, AdminOnboardingService>();
 
 builder.Services.AddScoped<IReportService, ReportService>();
 

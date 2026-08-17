@@ -17,6 +17,7 @@ using System.Text;
 using System.Threading.Tasks;
 using static InstantPay.SharedKernel.Enums.WalletOperationStatusENUM;
 using static MongoDB.Driver.WriteConcern;
+using Microsoft.Extensions.Logging;
 
 namespace InstantPay.Application.Services
 {
@@ -28,13 +29,17 @@ namespace InstantPay.Application.Services
         private readonly ISmsService _smsService;
         private readonly IWalletService _walletService;
         private readonly IClientUserVerificationService _verificationService;
+        private readonly IEmailService _emailService;
+        private readonly ILogger<ClientUserOperation> _logger;
         public ClientUserOperation(
             AppDbContext context,
             IFileHandler iFileHandler,
             AesEncryptionService aes,
             ISmsService smsservice,
             IWalletService walletService,
-            IClientUserVerificationService verificationService)
+            IClientUserVerificationService verificationService,
+            IEmailService emailService,
+            ILogger<ClientUserOperation> logger)
         {
             _context = context;
             _IFileHandler = iFileHandler;
@@ -42,6 +47,8 @@ namespace InstantPay.Application.Services
             _smsService = smsservice;
             _walletService = walletService;
             _verificationService = verificationService;
+            _emailService = emailService;
+            _logger = logger;
         }
 
         public async Task<GetClientUsersWithMainBalanceResponse> GetClientUserList(GetClientUserQuery request)
@@ -169,6 +176,10 @@ namespace InstantPay.Application.Services
 
         public async Task<ResponseModelforClientUseraddandupdateapi> CreateOrUpdateClientUser(CreateOrUpdateClientUserCommand request, CancellationToken cancellationToken)
         {
+            request.UserType = request.UserType?.Trim().ToUpperInvariant();
+            if (request.UserType is not ("RT" or "AD" or "MD" or "ST"))
+                return Failure("User type must be RT, AD, MD, or ST.");
+
             TblUser client;
             bool isNew = request.ClientId == 0;
             var existingClient = isNew
@@ -247,6 +258,7 @@ namespace InstantPay.Application.Services
                     Usertype = request.UserType,
                     CompanyName = request.CompanyName,
                     Name = request.CustomerName,
+                    FatherName = request.FatherName,
                     Username = request.UserName,
                     EmailId = request.EmailId,
                     Phone = request.Phone,
@@ -285,10 +297,11 @@ namespace InstantPay.Application.Services
                     TokenKey = "",
                     Mdid = string.Equals(request.ScopeType, "MD", StringComparison.OrdinalIgnoreCase)
                         ? ResolveScopePartnerId(request)
-                        : "0",
+                        : request.MDId ?? "0",
                     Adid = string.Equals(request.ScopeType, "AD", StringComparison.OrdinalIgnoreCase)
                         ? ResolveScopePartnerId(request)
-                        : "0",
+                        : request.ADId ?? "0",
+                    Stid = request.STId ?? "0",
                     DeviceInfo = "",
                     DeviceId = "",
                     Lat = request.lat,
@@ -328,6 +341,7 @@ namespace InstantPay.Application.Services
 
                 client.CompanyName = request.CompanyName;
                 client.Name = request.CustomerName;
+                client.FatherName = request.FatherName;
                 client.Username = request.UserName;
                 client.EmailId = request.EmailId;
                 client.Phone = request.Phone;
@@ -360,12 +374,13 @@ namespace InstantPay.Application.Services
                 client.Wlid = Convert.ToString(request.WLID);
                 client.MerchargeCode = "";
                 client.TokenKey = "";
-                client.Mdid = string.Equals(request.ScopeType, "MD", StringComparison.OrdinalIgnoreCase)
-                    ? ResolveScopePartnerId(request)
-                    : "0";
                 client.Adid = string.Equals(request.ScopeType, "AD", StringComparison.OrdinalIgnoreCase)
                     ? ResolveScopePartnerId(request)
-                    : "0";
+                    : request.ADId ?? "0";
+                client.Mdid = string.Equals(request.ScopeType, "MD", StringComparison.OrdinalIgnoreCase)
+                    ? ResolveScopePartnerId(request)
+                    : request.MDId ?? "0";
+                client.Stid = request.STId ?? "0";
                 client.DeviceInfo = "";
                 client.DeviceId = "";
                 client.Lat = request.lat;
@@ -439,6 +454,28 @@ namespace InstantPay.Application.Services
             }
 
             await _context.SaveChangesAsync(cancellationToken);
+
+            if (isNew && !string.IsNullOrWhiteSpace(client.EmailId))
+            {
+                var loginUrl = GetLoginUrl(client.Usertype);
+                try
+                {
+                    var emailResult = await _emailService.SendNewUserWelcomeEmailAsync(
+                        client.EmailId,
+                        client.Name ?? client.Username ?? "User",
+                        client.Username ?? client.Id.ToString(),
+                        client.Phone ?? string.Empty,
+                        client.Usertype ?? string.Empty,
+                        loginUrl);
+                    if (emailResult != "1")
+                        _logger.LogWarning("Welcome email failed for newly created user {UserId}: {EmailResult}", client.Id, emailResult);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Welcome email failed for newly created user {UserId}", client.Id);
+                }
+            }
+
             _verificationService.ConsumeProof(request.MobileVerificationToken);
             _verificationService.ConsumeProof(request.EmailVerificationToken);
             _verificationService.ConsumeProof(request.PanVerificationToken);
@@ -451,6 +488,15 @@ namespace InstantPay.Application.Services
                 flag = true
             };
         }
+
+        private static string GetLoginUrl(string? userType) =>
+            userType?.Trim().ToUpperInvariant() switch
+            {
+                "AD" => "https://instantpayment.in/distributor-login",
+                "MD" => "https://instantpayment.in/masterdistributor-login",
+                "ST" => "https://instantpayment.in/salesteam-login",
+                _ => "https://instantpayment.in/login"
+            };
 
         public async Task<GetClientUserDetail?> GetClientUserDetailByIdAsync(int Id)
         {
@@ -474,6 +520,11 @@ namespace InstantPay.Application.Services
                 PanCard = t1.PanCard,
                 AadharCard = t1.AadharCard,
                 CustomerName = t1.Name,
+                FatherName = t1.FatherName,
+                WLId = t1.Wlid,
+                ADId = t1.Adid,
+                MDId = t1.Mdid,
+                STId = t1.Stid,
                 UserType = t1.Usertype,
                 Logo = t1.Logo,
                 SelfieImage = t1.SelfieImage,
