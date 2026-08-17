@@ -27,6 +27,14 @@ public sealed class SalesTeamOnboardingService : ISalesTeamOnboardingService
     public async Task<OnboardingDraftResponse> SaveDraftAsync(SaveOnboardingDraftRequest request, int salesTeamId, string? ipAddress, string? userAgent, CancellationToken cancellationToken)
     {
         ValidatePartial(request);
+        var mappedWlId = await _db.TblUsers.AsNoTracking()
+            .Where(x => x.Id == salesTeamId && x.Usertype == "ST" && x.Status == "Active")
+            .Select(x => x.Wlid)
+            .SingleOrDefaultAsync(cancellationToken);
+        if (!int.TryParse(mappedWlId, out var mappedWlUserId) || mappedWlUserId <= 0)
+            throw new InvalidOperationException("Your Sales Team account is not mapped to an active White Label user. Contact SuperAdmin.");
+        if (!await _db.TblWlUsers.AsNoTracking().AnyAsync(x => x.Id == mappedWlUserId && x.Status == "Active", cancellationToken))
+            throw new InvalidOperationException("The White Label user mapped to your Sales Team account is not active. Contact SuperAdmin.");
         await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
         var now = DateTime.UtcNow;
         TblUser user;
@@ -47,6 +55,9 @@ public sealed class SalesTeamOnboardingService : ISalesTeamOnboardingService
         }
 
         Apply(request, user);
+        user.Wlid = mappedWlUserId.ToString();
+        user.Adid = null;
+        user.Mdid = null;
         user.Status = "Inactive";
         user.LastDraftSavedAt = now;
         user.OnboardingStatus = user.OnboardingStatus == OnboardingStatuses.Rejected
@@ -253,7 +264,7 @@ public sealed class SalesTeamOnboardingService : ISalesTeamOnboardingService
         u.AddressLine1 = Clean(r.AddressLine1); u.AddressLine2 = Clean(r.AddressLine2);
         u.State = Clean(r.State); u.City = Clean(r.City); u.Pincode = Digits(r.Pincode); u.ShopAddress = Clean(r.ShopAddress);
         u.ShopState = Clean(r.ShopState); u.ShopCity = Clean(r.ShopCity); u.ShipZipcode = Digits(r.ShopZipCode); u.Lat = Clean(r.Latitude);
-        u.Longitute = Clean(r.Longitude); u.Wlid = Clean(r.WLId); u.Adid = Clean(r.ADId); u.Mdid = Clean(r.MDId);
+        u.Longitute = Clean(r.Longitude);
         u.CommissionPlanId = r.CommissionPlanId; u.PlanId = r.CommissionPlanId?.ToString();
     }
 
