@@ -35,7 +35,8 @@ public sealed class SalesTeamOnboardingService : ISalesTeamOnboardingService
             user = new TblUser
             {
                 Status = "Inactive", OnboardingStatus = OnboardingStatuses.Draft, OnboardingVersion = 0,
-                Stid = salesTeamId.ToString(), CreatedByUserId = salesTeamId, CreatedByUserType = "ST", RegDate = now
+                Stid = salesTeamId.ToString(), CreatedByUserId = salesTeamId, CreatedByUserType = "ST", RegDate = now,
+                RazorpayPayment = "Inactive", Settlement = "Inactive"
             };
             _db.TblUsers.Add(user);
         }
