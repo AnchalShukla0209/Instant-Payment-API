@@ -23,7 +23,8 @@ public sealed class AdminOnboardingService : IAdminOnboardingService
         var users = from user in _db.TblUsers.AsNoTracking()
                     join sales in _db.TblUsers.AsNoTracking() on user.Stid equals sales.Id.ToString() into salesJoin
                     from sales in salesJoin.DefaultIfEmpty()
-                    where user.OnboardingStatus != null
+                    where user.OnboardingStatus != null && user.Stid != null &&
+                          (user.Usertype == "RT" || user.Usertype == "AD" || user.Usertype == "MD")
                     select new { user, SalesName = sales.Name ?? sales.Username ?? "" };
         if (query.SalesTeamId.HasValue) users = users.Where(x => x.user.Stid == query.SalesTeamId.Value.ToString());
         if (string.Equals(query.Status, "Review", StringComparison.OrdinalIgnoreCase))
@@ -50,7 +51,8 @@ public sealed class AdminOnboardingService : IAdminOnboardingService
 
     public async Task<AdminOnboardingReviewDetail> GetDetailAsync(int userId, CancellationToken ct)
     {
-        var u = await _db.TblUsers.AsNoTracking().SingleOrDefaultAsync(x => x.Id == userId && x.OnboardingStatus != null, ct)
+        var u = await _db.TblUsers.AsNoTracking().SingleOrDefaultAsync(x => x.Id == userId && x.OnboardingStatus != null && x.Stid != null &&
+            (x.Usertype == "RT" || x.Usertype == "AD" || x.Usertype == "MD"), ct)
             ?? throw new KeyNotFoundException("Onboarding not found.");
         var review = await CurrentReview(userId, ct);
         var fields = review == null ? [] : await _db.TblUserOnboardingFieldReviews.AsNoTracking().Where(x => x.ReviewId == review.Id)
@@ -146,7 +148,8 @@ public sealed class AdminOnboardingService : IAdminOnboardingService
 
     public async Task<OnboardingCommandResult> RetryCredentialEmailAsync(int userId, int adminId, string? ipAddress, string? userAgent, CancellationToken ct)
     {
-        var user = await _db.TblUsers.SingleOrDefaultAsync(x => x.Id == userId, ct) ?? throw new KeyNotFoundException("Onboarding not found.");
+        var user = await _db.TblUsers.SingleOrDefaultAsync(x => x.Id == userId && x.Stid != null &&
+            (x.Usertype == "RT" || x.Usertype == "AD" || x.Usertype == "MD"), ct) ?? throw new KeyNotFoundException("Onboarding not found.");
         if (user.OnboardingStatus != OnboardingStatuses.Approved || user.Status != "Active") throw new InvalidOperationException("Credentials can only be retried for an approved active user.");
         var latest = await _db.TblUserCredentialDeliveryLogs.Where(x => x.UserId == userId).OrderByDescending(x => x.CreatedAt).FirstOrDefaultAsync(ct)
             ?? throw new InvalidOperationException("Credential delivery record not found.");
@@ -165,7 +168,8 @@ public sealed class AdminOnboardingService : IAdminOnboardingService
 
     private async Task<TblUser> EnsureReviewable(int userId, CancellationToken ct)
     {
-        var user = await _db.TblUsers.SingleOrDefaultAsync(x => x.Id == userId, ct) ?? throw new KeyNotFoundException("Onboarding not found.");
+        var user = await _db.TblUsers.SingleOrDefaultAsync(x => x.Id == userId && x.Stid != null &&
+            (x.Usertype == "RT" || x.Usertype == "AD" || x.Usertype == "MD"), ct) ?? throw new KeyNotFoundException("Onboarding not found.");
         if (user.OnboardingStatus is not (OnboardingStatuses.PendingReview or OnboardingStatuses.PendingReReview)) throw new InvalidOperationException("Onboarding is not pending review.");
         return user;
     }
