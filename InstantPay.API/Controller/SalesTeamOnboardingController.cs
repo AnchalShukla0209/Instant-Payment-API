@@ -126,7 +126,7 @@ public sealed class SalesTeamOnboardingController : ControllerBase
         if (userId <= 0 || !await _db.TblUsers.AsNoTracking().AnyAsync(x => x.Id == userId && x.Stid == UserId().ToString()
             && (x.OnboardingStatus == InstantPay.SharedKernel.Enums.OnboardingStatuses.Draft || x.OnboardingStatus == InstantPay.SharedKernel.Enums.OnboardingStatuses.Rejected), ct))
             return Forbid();
-        return await Execute(action);
+        return Ok(await action());
     }
     private async Task<IActionResult> Execute<T>(Func<Task<T>> action)
     {
