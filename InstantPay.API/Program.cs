@@ -136,15 +136,15 @@ else
     builder.Services.AddDbContext<AppDbContext>(options =>
 
         options.UseSqlServer(configuration.GetConnectionString("Sql"),
-            sqlOptions => sqlOptions.CommandTimeout(120)));
+            sqlOptions => sqlOptions.CommandTimeout(120).EnableRetryOnFailure(5, TimeSpan.FromSeconds(3), null)));
 
     builder.Services.AddDbContext<BeneficiaryDbContext>(options =>
         options.UseSqlServer(configuration.GetConnectionString("BeneficiaryDb"),
-            sqlOptions => sqlOptions.CommandTimeout(120)));
+            sqlOptions => sqlOptions.CommandTimeout(120).EnableRetryOnFailure(5, TimeSpan.FromSeconds(3), null)));
 
     builder.Services.AddDbContext<SenderDbContext>(options =>
         options.UseSqlServer(configuration.GetConnectionString("SenderDb"),
-            sqlOptions => sqlOptions.CommandTimeout(120)));
+            sqlOptions => sqlOptions.CommandTimeout(120).EnableRetryOnFailure(5, TimeSpan.FromSeconds(3), null)));
 
 
 
