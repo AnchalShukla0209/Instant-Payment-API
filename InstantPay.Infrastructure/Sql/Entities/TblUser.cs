@@ -57,6 +57,7 @@ public partial class TblUser
     public string? MoneyTransfer { get; set; }
 
     public string? Aeps { get; set; }
+    public string? AepsStatus { get; set; }
 
     public string? BillPayment { get; set; }
 

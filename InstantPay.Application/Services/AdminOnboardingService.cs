@@ -132,7 +132,8 @@ public sealed class AdminOnboardingService : IAdminOnboardingService
         var review = await CurrentReview(userId, ct) ?? throw new InvalidOperationException("Review session not found.");
         if (await _db.TblUserOnboardingFieldReviews.AnyAsync(x => x.ReviewId == review.Id && x.ReviewStatus != OnboardingReviewStatuses.Approved, ct))
             throw new InvalidOperationException("Every required information section must be approved.");
-        if (await _db.TblUserOnboardingDocuments.AnyAsync(x => x.UserId == userId && x.ReviewStatus != OnboardingReviewStatuses.Approved, ct))
+        var documents = await _db.TblUserOnboardingDocuments.Where(x => x.UserId == userId).ToListAsync(ct);
+        if (documents.Any(x => x.ReviewStatus != OnboardingReviewStatuses.Approved))
             throw new InvalidOperationException("Every uploaded document must be approved.");
         if (await _db.TblUsers.AnyAsync(x => x.Id != userId && x.Status == "Active" &&
             (x.Username == user.Username || x.Phone == user.Phone || x.EmailId == user.EmailId || x.PanCard == user.PanCard || x.AadharCard == user.AadharCard), ct))
@@ -140,20 +141,36 @@ public sealed class AdminOnboardingService : IAdminOnboardingService
 
         var temporaryPassword = CreateTemporaryPassword();
         var from = user.OnboardingStatus!;
+        var merchantCode = await CreateUniqueMerchantCodeAsync(userId, ct);
+        var approvedFiles = CopyApprovedDocuments(userId, documents);
         var delivery = new TblUserCredentialDeliveryLog { UserId = userId, Channel = "Email", DestinationMasked = MaskEmail(user.EmailId),
             DeliveryStatus = "Pending", IdempotencyKey = $"onboarding-approved:{userId}:v{user.OnboardingVersion}", AttemptCount = 0, CreatedAt = DateTime.UtcNow };
         var strategy = _db.Database.CreateExecutionStrategy();
-        await strategy.ExecuteAsync(async () =>
+        try
         {
-            await using var tx = await _db.Database.BeginTransactionAsync(ct);
-            user.Password = BCrypt.Net.BCrypt.HashPassword(temporaryPassword, 12); user.Status = "Active"; user.OnboardingStatus = OnboardingStatuses.Approved;
-            user.ApprovedAt = DateTime.UtcNow; user.ApprovedBy = adminId; user.RejectedAt = null; user.RejectedBy = null; user.FinalReviewRemarks = null;
-            review.ReviewStatus = OnboardingReviewStatuses.Approved; review.ReviewedBy = adminId; review.CompletedAt = DateTime.UtcNow;
-            _db.TblUserCredentialDeliveryLogs.Add(delivery);
-            _db.TblUserOnboardingHistory.Add(History(user, "Approved", from, user.OnboardingStatus, "All review items approved.", adminId, ipAddress, userAgent));
-            await _db.SaveChangesAsync(ct);
-            await tx.CommitAsync(ct);
-        });
+            await strategy.ExecuteAsync(async () =>
+            {
+                await using var tx = await _db.Database.BeginTransactionAsync(ct);
+                user.Password = temporaryPassword; user.MPin = "1234"; user.TxnPin = "1234"; user.SuperAdminId = 1;
+                user.MobileRecharge = "Active"; user.MoneyTransfer = "Active"; user.Aeps = "Active"; user.AepsStatus = "Active";
+                user.BillPayment = "Active"; user.MicroAtm = "Active"; user.RazorpayPayment = "Active"; user.Settlement = "Active";
+                user.MerchargeCode = merchantCode; user.Latlongstatus = "Y"; user.Wlid = "1";
+                user.Pancopy = approvedFiles.PanCopy; user.AadharFront = approvedFiles.AadhaarFront; user.AadharBack = approvedFiles.AadhaarBack;
+                user.Logo = approvedFiles.Logo; user.SelfieImage = approvedFiles.Selfie;
+                user.Status = "Active"; user.OnboardingStatus = OnboardingStatuses.Approved;
+                user.ApprovedAt = DateTime.UtcNow; user.ApprovedBy = adminId; user.RejectedAt = null; user.RejectedBy = null; user.FinalReviewRemarks = null;
+                review.ReviewStatus = OnboardingReviewStatuses.Approved; review.ReviewedBy = adminId; review.CompletedAt = DateTime.UtcNow;
+                _db.TblUserCredentialDeliveryLogs.Add(delivery);
+                _db.TblUserOnboardingHistory.Add(History(user, "Approved", from, user.OnboardingStatus, "All review items approved and final user defaults applied.", adminId, ipAddress, userAgent));
+                await _db.SaveChangesAsync(ct);
+                await tx.CommitAsync(ct);
+            });
+        }
+        catch
+        {
+            DeleteCopiedDocuments(approvedFiles);
+            throw;
+        }
 
         var result = await _emailService.SendNewUserWelcomeEmailAsync(user.EmailId!, user.Name ?? user.Username ?? "User", user.Username!, user.Phone ?? "", user.Usertype!, LoginUrl(user.Usertype), temporaryPassword);
         delivery.AttemptCount = 1;
@@ -172,7 +189,7 @@ public sealed class AdminOnboardingService : IAdminOnboardingService
             ?? throw new InvalidOperationException("Credential delivery record not found.");
         if (latest.DeliveryStatus == "Sent") throw new InvalidOperationException("Credentials were already delivered successfully.");
         var temporaryPassword = CreateTemporaryPassword();
-        user.Password = BCrypt.Net.BCrypt.HashPassword(temporaryPassword, 12);
+        user.Password = temporaryPassword;
         latest.DeliveryStatus = "Pending"; latest.AttemptCount++; latest.FailureReason = null;
         await _db.SaveChangesAsync(ct);
         var result = await _emailService.SendNewUserWelcomeEmailAsync(user.EmailId!, user.Name ?? user.Username ?? "User", user.Username!, user.Phone ?? "", user.Usertype!, LoginUrl(user.Usertype), temporaryPassword);
@@ -182,6 +199,63 @@ public sealed class AdminOnboardingService : IAdminOnboardingService
         await _db.SaveChangesAsync(ct);
         return new OnboardingCommandResult(true, latest.DeliveryStatus == "Sent" ? "Credentials emailed successfully." : "Credential email retry failed and was logged.", userId, user.OnboardingStatus!);
     }
+
+    private async Task<string> CreateUniqueMerchantCodeAsync(int userId, CancellationToken ct)
+    {
+        var code = $"IP{userId:D8}";
+        if (!await _db.TblUsers.AsNoTracking().AnyAsync(x => x.Id != userId && x.MerchargeCode == code, ct)) return code;
+        do code = $"IP{RandomNumberGenerator.GetInt32(10_000_000, 100_000_000)}";
+        while (await _db.TblUsers.AsNoTracking().AnyAsync(x => x.MerchargeCode == code, ct));
+        return code;
+    }
+
+    private static ApprovedDocumentCopies CopyApprovedDocuments(int userId, IReadOnlyCollection<TblUserOnboardingDocument> documents)
+    {
+        var copiedFiles = new List<string>();
+        try
+        {
+            string Copy(string documentType, string destinationFolder)
+            {
+                var document = documents.SingleOrDefault(x => x.DocumentType.Equals(documentType, StringComparison.OrdinalIgnoreCase))
+                    ?? throw new InvalidOperationException($"Approved {documentType} document is missing.");
+                var webRoot = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"));
+                var source = Path.GetFullPath(Path.Combine(webRoot, document.CurrentFilePath.Replace('/', Path.DirectorySeparatorChar)));
+                if (!source.StartsWith(webRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) || !File.Exists(source))
+                    throw new InvalidOperationException($"Approved {documentType} file is unavailable.");
+
+                var extension = Path.GetExtension(source).ToLowerInvariant();
+                var fileName = $"{Guid.NewGuid():N}{extension}";
+                var relativePath = Path.Combine("UploadFiles", "ClientUser", userId.ToString(), destinationFolder, fileName).Replace('\\', '/');
+                var destination = Path.GetFullPath(Path.Combine(webRoot, relativePath.Replace('/', Path.DirectorySeparatorChar)));
+                Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+                File.Copy(source, destination, false);
+                copiedFiles.Add(destination);
+                return relativePath;
+            }
+
+            return new ApprovedDocumentCopies(
+                Copy("PanCopy", "PanCard"),
+                Copy("AadhaarFront", "AadharCard"),
+                Copy("AadhaarBack", "AadharBack"),
+                Copy("Logo", "Logo"),
+                Copy("Selfie", "Selfie"),
+                copiedFiles);
+        }
+        catch
+        {
+            foreach (var file in copiedFiles) if (File.Exists(file)) File.Delete(file);
+            throw;
+        }
+    }
+
+    private static void DeleteCopiedDocuments(ApprovedDocumentCopies files)
+    {
+        foreach (var file in files.AbsolutePaths) if (File.Exists(file)) File.Delete(file);
+    }
+
+    private sealed record ApprovedDocumentCopies(
+        string PanCopy, string AadhaarFront, string AadhaarBack, string Logo, string Selfie,
+        IReadOnlyCollection<string> AbsolutePaths);
 
     private async Task<TblUser> EnsureReviewable(int userId, CancellationToken ct)
     {
