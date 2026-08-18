@@ -46,7 +46,7 @@ public class OnboardingListQuery
 
 public sealed record OnboardingListItem(
     int UserId, string Name, string Username, string Phone, string EmailId,
-    string UserType, string OnboardingStatus, DateTime? CreatedAt, DateTime? UpdatedAt);
+    string UserType, string PanCard, string AadhaarMasked, string OnboardingStatus, DateTime? CreatedAt, DateTime? UpdatedAt);
 
 public sealed record OnboardingPagedResponse(
     IReadOnlyList<OnboardingListItem> Data, int TotalCount, int PageIndex, int PageSize);

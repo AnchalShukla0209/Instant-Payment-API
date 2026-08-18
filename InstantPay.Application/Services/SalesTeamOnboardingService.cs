@@ -107,7 +107,8 @@ public sealed class SalesTeamOnboardingService : ISalesTeamOnboardingService
         var data = await users.OrderByDescending(u => u.RegDate).ThenByDescending(u => u.Id)
             .Skip((query.PageIndex - 1) * query.PageSize).Take(query.PageSize)
             .Select(u => new OnboardingListItem(u.Id, u.Name ?? "", u.Username ?? "", u.Phone ?? "", u.EmailId ?? "",
-                u.Usertype ?? "", u.OnboardingStatus ?? "", u.RegDate, u.LastDraftSavedAt ?? u.SubmittedAt))
+                u.Usertype ?? "", u.PanCard ?? "", MaskAadhaar(u.AadharCard), u.OnboardingStatus ?? "", u.RegDate,
+                u.SubmittedAt ?? u.LastDraftSavedAt ?? u.RegDate))
             .ToListAsync(cancellationToken);
         return new OnboardingPagedResponse(data, total, query.PageIndex, query.PageSize);
     }
