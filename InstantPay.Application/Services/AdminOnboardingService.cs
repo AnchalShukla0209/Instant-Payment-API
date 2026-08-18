@@ -68,9 +68,20 @@ public sealed class AdminOnboardingService : IAdminOnboardingService
             x.ActorUserType, ActorName = actorNames.GetValueOrDefault(x.ActorUserId, $"User #{x.ActorUserId}"), x.IpAddress, x.UserAgent, x.CreatedAt }).ToList();
         var credentialDelivery = await _db.TblUserCredentialDeliveryLogs.AsNoTracking().Where(x => x.UserId == userId).OrderByDescending(x => x.CreatedAt)
             .Select(x => new { x.Id, x.DeliveryStatus, x.DestinationMasked, x.AttemptCount, x.CreatedAt, x.SentAt, x.FailureReason }).FirstOrDefaultAsync(ct);
+        var salesTeam = int.TryParse(u.Stid, out var salesTeamId)
+            ? await _db.TblUsers.AsNoTracking().Where(x => x.Id == salesTeamId).Select(x => new { x.Id, x.Name, x.Phone }).FirstOrDefaultAsync(ct)
+            : null;
+        var whiteLabel = int.TryParse(u.Wlid, out var whiteLabelId)
+            ? await _db.TblWlUsers.AsNoTracking().Where(x => x.Id == whiteLabelId).Select(x => new { x.Id, Name = x.CompanyName ?? x.UserName, x.Phone }).FirstOrDefaultAsync(ct)
+            : null;
+        var commissionPlan = u.CommissionPlanId.HasValue
+            ? await _db.PlanDetails.AsNoTracking().Where(x => x.Id == u.CommissionPlanId.Value).Select(x => new { x.Id, x.PlanName }).FirstOrDefaultAsync(ct)
+            : null;
         var user = new { u.Id, u.Usertype, u.CompanyName, u.Name, u.FatherName, u.Username, u.EmailId, u.Phone, u.PanCard,
             AadhaarMasked = MaskAadhaar(u.AadharCard), u.AddressLine1, u.AddressLine2, u.State, u.City, u.Pincode, u.ShopAddress,
             u.ShopState, u.ShopCity, ShopZipCode = u.ShipZipcode, u.Lat, u.Longitute, u.Wlid, u.Adid, u.Mdid, u.Stid,
+            u.CommissionPlanId, CommissionPlanName = commissionPlan?.PlanName, WhiteLabelName = whiteLabel?.Name, WhiteLabelPhone = whiteLabel?.Phone,
+            SalesPersonName = salesTeam?.Name, SalesPersonPhone = salesTeam?.Phone, u.IsEmailVerified, u.IsPhoneVerified, u.IsPanVerified, u.IsAadhaarVerified,
             u.OnboardingStatus, u.OnboardingVersion, u.SubmittedAt, u.FinalReviewRemarks };
         return new AdminOnboardingReviewDetail(userId, user, review == null ? new { } : new { review.Id, review.SubmissionVersion, review.ReviewStatus, review.FinalRemarks, CredentialDelivery = credentialDelivery }, fields, documents, history, Convert.ToBase64String(u.RowVersion ?? []));
     }
