@@ -49,6 +49,95 @@ namespace InstantPay.Application.Services
             }
         }
 
+        public async Task<string> SendWebsiteEnquiryAsync(
+            string fullName,
+            string mobile,
+            string customerEmail,
+            string interest,
+            string? message,
+            string enquiryId,
+            DateTime submittedAtUtc)
+        {
+            try
+            {
+                static string Safe(string value) => WebUtility.HtmlEncode(value.Trim());
+
+                var name = Safe(fullName);
+                var phone = Safe(mobile);
+                var emailAddress = Safe(customerEmail);
+                var selectedInterest = Safe(interest);
+                var enquiryMessage = string.IsNullOrWhiteSpace(message)
+                    ? "No additional message provided."
+                    : Safe(message).Replace("\r\n", "<br>").Replace("\n", "<br>");
+                var submittedAtIst = submittedAtUtc.AddHours(5).AddMinutes(30);
+
+                var email = new MimeMessage();
+                email.From.Add(new MailboxAddress("Instant Payment Website", _smtpEmail));
+                email.To.Add(MailboxAddress.Parse("krishany365@gmail.com"));
+                email.Cc.Add(MailboxAddress.Parse(customerEmail));
+                email.Cc.Add(MailboxAddress.Parse("contact@instantpayment.in"));
+                email.Subject = $"New Partner Enquiry - {interest} - {enquiryId}";
+
+                email.Body = new BodyBuilder
+                {
+                    HtmlBody = $"""
+                    <!doctype html>
+                    <html><body style="margin:0;background:#f4f5f8;font-family:Arial,Helvetica,sans-serif;color:#0c133d">
+                      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f5f8;padding:24px 10px"><tr><td align="center">
+                        <table role="presentation" width="680" cellspacing="0" cellpadding="0" style="width:100%;max-width:680px;background:#fff;border-radius:22px;overflow:hidden;box-shadow:0 14px 42px rgba(12,19,61,.13)">
+                          <tr><td style="padding:24px 30px;border-bottom:3px solid #cf5512">
+                            <table role="presentation" width="100%"><tr>
+                              <td><img src="https://demo2.instantpayment.co.in/assets/images/logo__.png" width="190" alt="Instant Payment" style="display:block;max-width:190px;height:auto"></td>
+                              <td align="right" style="font-size:13px;line-height:1.5;color:#5f647c">India's trusted<br><strong style="color:#0c133d">banking services network</strong></td>
+                            </tr></table>
+                          </td></tr>
+                          <tr><td style="padding:34px 32px;background:linear-gradient(120deg,#0c133d,#202b6b 67%,#cf5512);color:#fff">
+                            <div style="font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#ffb58e">Website enquiry</div>
+                            <h1 style="margin:9px 0 7px;font-size:30px;line-height:1.15">New Partner Enquiry Received</h1>
+                            <p style="margin:0;color:#e8eaf4;font-size:15px">A new opportunity request has been submitted on the Instant Payment website.</p>
+                          </td></tr>
+                          <tr><td style="padding:30px 32px 10px">
+                            <h2 style="margin:0 0 8px;font-size:21px;color:#0c133d">Dear Super Admin,</h2>
+                            <p style="margin:0 0 25px;color:#62677c;line-height:1.65;font-size:14px">Please review the customer details below and connect at the earliest.</p>
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border:1px solid #e4e6ef;border-radius:14px;overflow:hidden">
+                              <tr><td style="padding:13px 17px;background:#f7f8fb;border-bottom:1px solid #e4e6ef;width:34%;font-weight:700">Full name</td><td style="padding:13px 17px;border-bottom:1px solid #e4e6ef;color:#cf5512;font-weight:700">{name}</td></tr>
+                              <tr><td style="padding:13px 17px;background:#f7f8fb;border-bottom:1px solid #e4e6ef;font-weight:700">Mobile number</td><td style="padding:13px 17px;border-bottom:1px solid #e4e6ef">{phone}</td></tr>
+                              <tr><td style="padding:13px 17px;background:#f7f8fb;border-bottom:1px solid #e4e6ef;font-weight:700">Email ID</td><td style="padding:13px 17px;border-bottom:1px solid #e4e6ef">{emailAddress}</td></tr>
+                              <tr><td style="padding:13px 17px;background:#f7f8fb;border-bottom:1px solid #e4e6ef;font-weight:700">Interest</td><td style="padding:13px 17px;border-bottom:1px solid #e4e6ef;color:#cf5512;font-weight:700">{selectedInterest}</td></tr>
+                              <tr><td style="padding:13px 17px;background:#f7f8fb;font-weight:700;vertical-align:top">Message</td><td style="padding:13px 17px;line-height:1.55">{enquiryMessage}</td></tr>
+                            </table>
+                          </td></tr>
+                          <tr><td style="padding:20px 32px 30px">
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr>
+                              <td style="padding:18px;background:#f3f4f9;border-radius:13px"><div style="font-size:11px;color:#777c90">ENQUIRY ID</div><strong style="display:block;margin-top:5px;color:#0c133d">{Safe(enquiryId)}</strong></td>
+                              <td width="12"></td>
+                              <td style="padding:18px;background:#fff5ef;border-radius:13px"><div style="font-size:11px;color:#8a6958">DATE &amp; TIME</div><strong style="display:block;margin-top:5px;color:#cf5512">{submittedAtIst:dd MMM yyyy, hh:mm tt} IST</strong></td>
+                            </tr></table>
+                          </td></tr>
+                          <tr><td style="padding:20px 32px;background:#0c133d;color:#fff">
+                            <table role="presentation" width="100%"><tr><td style="font-size:12px;line-height:1.6">To: <strong>krishany365@gmail.com</strong><br>CC: {emailAddress}, contact@instantpayment.in</td><td align="right" style="font-size:12px;color:#cfd3e7">Automated notification<br>Please do not reply</td></tr></table>
+                          </td></tr>
+                          <tr><td align="center" style="padding:16px;background:#cf5512;color:#fff;font-size:12px">© {DateTime.UtcNow.Year} Instant Payment Private Limited · Secure services · Human support</td></tr>
+                        </table>
+                      </td></tr></table>
+                    </body></html>
+                    """
+                }.ToMessageBody();
+
+                using var smtp = new SmtpClient();
+                smtp.CheckCertificateRevocation = false;
+                await smtp.ConnectAsync("smtp.gmail.com", 587, SecureSocketOptions.StartTls);
+                await smtp.AuthenticateAsync(_smtpEmail, _smtpPassword);
+                await smtp.SendAsync(email);
+                await smtp.DisconnectAsync(true);
+                return "1";
+            }
+            catch (Exception ex)
+            {
+                return ex.ToString();
+            }
+        }
+
         public async Task<string> SendClientUserVerificationOtpAsync(string toEmail, string otp)
         {
             try
