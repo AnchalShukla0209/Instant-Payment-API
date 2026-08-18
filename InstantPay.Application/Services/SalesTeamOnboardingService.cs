@@ -12,6 +12,7 @@ namespace InstantPay.Application.Services;
 
 public sealed class SalesTeamOnboardingService : ISalesTeamOnboardingService
 {
+    private const int DefaultWhiteLabelUserId = 1;
     private static readonly Regex PhoneRegex = new("^[6-9][0-9]{9}$", RegexOptions.Compiled);
     private static readonly Regex PanRegex = new("^[A-Z]{5}[0-9]{4}[A-Z]$", RegexOptions.Compiled);
     private static readonly Regex AadhaarRegex = new("^[0-9]{12}$", RegexOptions.Compiled);
@@ -27,14 +28,8 @@ public sealed class SalesTeamOnboardingService : ISalesTeamOnboardingService
     public async Task<OnboardingDraftResponse> SaveDraftAsync(SaveOnboardingDraftRequest request, int salesTeamId, string? ipAddress, string? userAgent, CancellationToken cancellationToken)
     {
         ValidatePartial(request);
-        var mappedWlId = await _db.TblUsers.AsNoTracking()
-            .Where(x => x.Id == salesTeamId && x.Usertype == "ST" && x.Status == "Active")
-            .Select(x => x.Wlid)
-            .SingleOrDefaultAsync(cancellationToken);
-        if (!int.TryParse(mappedWlId, out var mappedWlUserId) || mappedWlUserId <= 0)
-            throw new InvalidOperationException("Your Sales Team account is not mapped to an active White Label user. Contact SuperAdmin.");
-        if (!await _db.TblWlUsers.AsNoTracking().AnyAsync(x => x.Id == mappedWlUserId && x.Status == "Active", cancellationToken))
-            throw new InvalidOperationException("The White Label user mapped to your Sales Team account is not active. Contact SuperAdmin.");
+        if (!await _db.TblWlUsers.AsNoTracking().AnyAsync(x => x.Id == DefaultWhiteLabelUserId && x.Status == "Active", cancellationToken))
+            throw new InvalidOperationException("The default Instant Payment White Label user is not active. Contact SuperAdmin.");
         var strategy = _db.Database.CreateExecutionStrategy();
         return await strategy.ExecuteAsync(async () =>
         {
@@ -58,7 +53,7 @@ public sealed class SalesTeamOnboardingService : ISalesTeamOnboardingService
             }
 
             Apply(request, user);
-            user.Wlid = mappedWlUserId.ToString();
+            user.Wlid = DefaultWhiteLabelUserId.ToString();
             user.Adid = null;
             user.Mdid = null;
             user.Status = "Inactive";
