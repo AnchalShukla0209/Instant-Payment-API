@@ -295,7 +295,7 @@ builder.Services.AddCors(options =>
                        ((host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
                          host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
                          host.Equals("::1", StringComparison.OrdinalIgnoreCase)) &&
-                        uri.Port == 4200);
+                        (uri.Port == 4200 || uri.Port == 4300));
             }
             catch { return false; }
         })
