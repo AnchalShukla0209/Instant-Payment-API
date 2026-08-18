@@ -154,6 +154,21 @@ public sealed class SalesTeamOnboardingService : ISalesTeamOnboardingService
         {
             await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
             var from = user.OnboardingStatus!;
+            Dictionary<string, string>? previousFieldStatuses = null;
+            if (from == OnboardingStatuses.Rejected)
+            {
+                var previousReviewId = await _db.TblUserOnboardingReviews.AsNoTracking()
+                    .Where(x => x.UserId == user.Id)
+                    .OrderByDescending(x => x.SubmissionVersion)
+                    .Select(x => (int?)x.Id)
+                    .FirstOrDefaultAsync(cancellationToken);
+                if (previousReviewId.HasValue)
+                {
+                    previousFieldStatuses = await _db.TblUserOnboardingFieldReviews.AsNoTracking()
+                        .Where(x => x.ReviewId == previousReviewId.Value)
+                        .ToDictionaryAsync(x => x.FieldName, x => x.ReviewStatus, StringComparer.OrdinalIgnoreCase, cancellationToken);
+                }
+            }
             user.OnboardingVersion++;
             user.OnboardingStatus = from == OnboardingStatuses.Rejected ? OnboardingStatuses.PendingReReview : OnboardingStatuses.PendingReview;
             user.SubmittedAt = DateTime.UtcNow; user.FinalReviewRemarks = null;
@@ -165,7 +180,13 @@ public sealed class SalesTeamOnboardingService : ISalesTeamOnboardingService
             await _db.SaveChangesAsync(cancellationToken);
             _db.TblUserOnboardingFieldReviews.AddRange(ReviewableFields.Select(field => new TblUserOnboardingFieldReview
             {
-                ReviewId = review.Id, UserId = user.Id, FieldName = field, ReviewStatus = OnboardingReviewStatuses.Pending
+                ReviewId = review.Id,
+                UserId = user.Id,
+                FieldName = field,
+                ReviewStatus = previousFieldStatuses?.TryGetValue(field, out var previousStatus) == true &&
+                    previousStatus == OnboardingReviewStatuses.Approved
+                        ? OnboardingReviewStatuses.Approved
+                        : OnboardingReviewStatuses.Pending
             }));
             _db.TblUserOnboardingHistory.Add(new TblUserOnboardingHistory
             {
