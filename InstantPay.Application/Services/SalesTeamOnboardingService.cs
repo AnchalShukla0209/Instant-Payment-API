@@ -130,8 +130,8 @@ public sealed class SalesTeamOnboardingService : ISalesTeamOnboardingService
             string.IsNullOrWhiteSpace(username) || !await conflicts.AnyAsync(x => x.Username == username, cancellationToken),
             !PhoneRegex.IsMatch(phone) || !await conflicts.AnyAsync(x => x.Phone == phone, cancellationToken),
             string.IsNullOrWhiteSpace(email) || !await conflicts.AnyAsync(x => x.EmailId == email, cancellationToken),
-            !PanRegex.IsMatch(pan) || !await conflicts.AnyAsync(x => x.PanCard == pan, cancellationToken),
-            !AadhaarRegex.IsMatch(aadhaar) || !await conflicts.AnyAsync(x => x.AadharCard == aadhaar, cancellationToken));
+            string.IsNullOrWhiteSpace(pan) || !PanRegex.IsMatch(pan) || !await conflicts.AnyAsync(x => x.PanCard == pan, cancellationToken),
+            string.IsNullOrWhiteSpace(aadhaar) || !AadhaarRegex.IsMatch(aadhaar) || !await conflicts.AnyAsync(x => x.AadharCard == aadhaar, cancellationToken));
     }
 
     public async Task<OnboardingCommandResult> SubmitAsync(int userId, string? rowVersion, int salesTeamId, string? ipAddress, string? userAgent, CancellationToken cancellationToken)
