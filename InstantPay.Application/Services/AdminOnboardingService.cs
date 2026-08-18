@@ -140,15 +140,20 @@ public sealed class AdminOnboardingService : IAdminOnboardingService
 
         var temporaryPassword = CreateTemporaryPassword();
         var from = user.OnboardingStatus!;
-        await using var tx = await _db.Database.BeginTransactionAsync(ct);
-        user.Password = BCrypt.Net.BCrypt.HashPassword(temporaryPassword, 12); user.Status = "Active"; user.OnboardingStatus = OnboardingStatuses.Approved;
-        user.ApprovedAt = DateTime.UtcNow; user.ApprovedBy = adminId; user.RejectedAt = null; user.RejectedBy = null; user.FinalReviewRemarks = null;
-        review.ReviewStatus = OnboardingReviewStatuses.Approved; review.ReviewedBy = adminId; review.CompletedAt = DateTime.UtcNow;
         var delivery = new TblUserCredentialDeliveryLog { UserId = userId, Channel = "Email", DestinationMasked = MaskEmail(user.EmailId),
             DeliveryStatus = "Pending", IdempotencyKey = $"onboarding-approved:{userId}:v{user.OnboardingVersion}", AttemptCount = 0, CreatedAt = DateTime.UtcNow };
-        _db.TblUserCredentialDeliveryLogs.Add(delivery);
-        _db.TblUserOnboardingHistory.Add(History(user, "Approved", from, user.OnboardingStatus, "All review items approved.", adminId, ipAddress, userAgent));
-        await _db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
+        var strategy = _db.Database.CreateExecutionStrategy();
+        await strategy.ExecuteAsync(async () =>
+        {
+            await using var tx = await _db.Database.BeginTransactionAsync(ct);
+            user.Password = BCrypt.Net.BCrypt.HashPassword(temporaryPassword, 12); user.Status = "Active"; user.OnboardingStatus = OnboardingStatuses.Approved;
+            user.ApprovedAt = DateTime.UtcNow; user.ApprovedBy = adminId; user.RejectedAt = null; user.RejectedBy = null; user.FinalReviewRemarks = null;
+            review.ReviewStatus = OnboardingReviewStatuses.Approved; review.ReviewedBy = adminId; review.CompletedAt = DateTime.UtcNow;
+            _db.TblUserCredentialDeliveryLogs.Add(delivery);
+            _db.TblUserOnboardingHistory.Add(History(user, "Approved", from, user.OnboardingStatus, "All review items approved.", adminId, ipAddress, userAgent));
+            await _db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+        });
 
         var result = await _emailService.SendNewUserWelcomeEmailAsync(user.EmailId!, user.Name ?? user.Username ?? "User", user.Username!, user.Phone ?? "", user.Usertype!, LoginUrl(user.Usertype), temporaryPassword);
         delivery.AttemptCount = 1;
