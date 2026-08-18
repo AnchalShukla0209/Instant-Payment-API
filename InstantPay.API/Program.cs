@@ -76,6 +76,7 @@ using InstantPay.Application.Services;
 
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.HttpOverrides;
 
 using Microsoft.EntityFrameworkCore;
 
@@ -103,6 +104,12 @@ System.Net.ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | S
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.ForwardLimit = 2;
+});
+
 builder.Services.AddControllers()
     .AddNewtonsoftJson();
 
@@ -129,15 +136,15 @@ else
     builder.Services.AddDbContext<AppDbContext>(options =>
 
         options.UseSqlServer(configuration.GetConnectionString("Sql"),
-            sqlOptions => sqlOptions.CommandTimeout(120)));
+            sqlOptions => sqlOptions.CommandTimeout(120).EnableRetryOnFailure(5, TimeSpan.FromSeconds(3), null)));
 
     builder.Services.AddDbContext<BeneficiaryDbContext>(options =>
         options.UseSqlServer(configuration.GetConnectionString("BeneficiaryDb"),
-            sqlOptions => sqlOptions.CommandTimeout(120)));
+            sqlOptions => sqlOptions.CommandTimeout(120).EnableRetryOnFailure(5, TimeSpan.FromSeconds(3), null)));
 
     builder.Services.AddDbContext<SenderDbContext>(options =>
         options.UseSqlServer(configuration.GetConnectionString("SenderDb"),
-            sqlOptions => sqlOptions.CommandTimeout(120)));
+            sqlOptions => sqlOptions.CommandTimeout(120).EnableRetryOnFailure(5, TimeSpan.FromSeconds(3), null)));
 
 
 
@@ -890,6 +897,11 @@ builder.WebHost.ConfigureKestrel(options =>
 
 
 var app = builder.Build();
+
+// Resolve the originating client address when hosted behind IIS/reverse proxy.
+// ASP.NET Core trusts loopback proxies by default; additional production proxies
+// must be explicitly configured as known proxies/networks by the host.
+app.UseForwardedHeaders();
 
 if (app.Environment.IsDevelopment() || app.Environment.IsProduction())
 

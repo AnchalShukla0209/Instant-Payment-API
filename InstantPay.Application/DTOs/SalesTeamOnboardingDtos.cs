@@ -46,7 +46,7 @@ public class OnboardingListQuery
 
 public sealed record OnboardingListItem(
     int UserId, string Name, string Username, string Phone, string EmailId,
-    string UserType, string OnboardingStatus, DateTime? CreatedAt, DateTime? UpdatedAt);
+    string UserType, string PanCard, string AadhaarMasked, string OnboardingStatus, DateTime? CreatedAt, DateTime? UpdatedAt);
 
 public sealed record OnboardingPagedResponse(
     IReadOnlyList<OnboardingListItem> Data, int TotalCount, int PageIndex, int PageSize);
@@ -54,9 +54,11 @@ public sealed record OnboardingPagedResponse(
 public sealed record OnboardingCommandResult(bool Success, string Message, int UserId, string Status);
 public sealed record OnboardingDocumentResponse(long DocumentId, string DocumentType, int Version, string ReviewStatus);
 public sealed record SubmitOnboardingRequest(string? RowVersion);
+public sealed record IdentityAvailabilityRequest(int UserId, string? Username, string? Phone, string? EmailId, string? PanCard, string? AadharCard);
+public sealed record IdentityAvailabilityResponse(bool UsernameAvailable, bool PhoneAvailable, bool EmailAvailable, bool PanAvailable, bool AadhaarAvailable);
 public sealed record OwnedOnboardingDetail(
     int UserId, string? UserType, string? CompanyName, string? Name, string? FatherName,
-    string? Username, string? EmailId, string? Phone, string? PanCard, string AadhaarMasked,
+    string? Username, string? EmailId, string? Phone, string? PanCard, string? AadharCard, string AadhaarMasked,
     string? AddressLine1, string? AddressLine2, string? State, string? City, string? Pincode,
     string? ShopAddress, string? ShopState, string? ShopCity, string? ShopZipCode,
     string? Latitude, string? Longitude, string? WLId, string? ADId, string? MDId,

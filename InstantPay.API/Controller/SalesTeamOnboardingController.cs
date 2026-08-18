@@ -29,6 +29,30 @@ public sealed class SalesTeamOnboardingController : ControllerBase
     public async Task<IActionResult> SaveDraft([FromBody] SaveOnboardingDraftRequest request, CancellationToken ct) =>
         await Execute(() => _service.SaveDraftAsync(request, UserId(), Ip(), Request.Headers.UserAgent, ct));
 
+    [HttpGet("hierarchy-context")]
+    public async Task<IActionResult> HierarchyContext(CancellationToken ct) => await Execute(async () =>
+    {
+        var mappedWlId = await _db.TblUsers.AsNoTracking()
+            .Where(x => x.Id == UserId() && x.Usertype == "ST" && x.Status == "Active")
+            .Select(x => x.Wlid)
+            .SingleOrDefaultAsync(ct);
+        if (!int.TryParse(mappedWlId, out var wlUserId) || wlUserId <= 0)
+            throw new InvalidOperationException("Your Sales Team account is not mapped to a White Label user. Contact SuperAdmin.");
+
+        var wlUser = await _db.TblWlUsers.AsNoTracking()
+            .Where(x => x.Id == wlUserId && x.Status == "Active")
+            .Select(x => new
+            {
+                id = x.Id,
+                name = (x.CompanyName ?? x.UserName ?? string.Empty) + "-" + (x.Phone ?? string.Empty),
+                username = x.UserName ?? string.Empty,
+                phone = x.Phone ?? string.Empty,
+                userType = "WL"
+            })
+            .SingleOrDefaultAsync(ct);
+        return wlUser ?? throw new InvalidOperationException("Your mapped White Label user is not active. Contact SuperAdmin.");
+    });
+
     [HttpGet("resume-by-phone")]
     public async Task<IActionResult> ResumeByPhone([FromQuery] string phone, CancellationToken ct) =>
         await Execute(() => _service.FindOwnedDraftByPhoneAsync(phone, UserId(), ct));
@@ -40,6 +64,10 @@ public sealed class SalesTeamOnboardingController : ControllerBase
     [HttpGet("{userId:int}")]
     public async Task<IActionResult> Detail(int userId, CancellationToken ct) =>
         await Execute(() => _service.GetOwnedDetailAsync(userId, UserId(), ct));
+
+    [HttpPost("identity-availability")]
+    public async Task<IActionResult> IdentityAvailability([FromBody] IdentityAvailabilityRequest request, CancellationToken ct) =>
+        await Execute(() => _service.CheckIdentityAvailabilityAsync(request, UserId(), ct));
 
     [HttpPost("{userId:int}/submit")]
     public async Task<IActionResult> Submit(int userId, [FromBody] SubmitOnboardingRequest request, CancellationToken ct) =>
@@ -102,7 +130,7 @@ public sealed class SalesTeamOnboardingController : ControllerBase
         if (userId <= 0 || !await _db.TblUsers.AsNoTracking().AnyAsync(x => x.Id == userId && x.Stid == UserId().ToString()
             && (x.OnboardingStatus == InstantPay.SharedKernel.Enums.OnboardingStatuses.Draft || x.OnboardingStatus == InstantPay.SharedKernel.Enums.OnboardingStatuses.Rejected), ct))
             return Forbid();
-        return await Execute(action);
+        return Ok(await action());
     }
     private async Task<IActionResult> Execute<T>(Func<Task<T>> action)
     {

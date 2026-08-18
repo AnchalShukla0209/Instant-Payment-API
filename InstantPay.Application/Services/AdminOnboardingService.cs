@@ -23,7 +23,8 @@ public sealed class AdminOnboardingService : IAdminOnboardingService
         var users = from user in _db.TblUsers.AsNoTracking()
                     join sales in _db.TblUsers.AsNoTracking() on user.Stid equals sales.Id.ToString() into salesJoin
                     from sales in salesJoin.DefaultIfEmpty()
-                    where user.OnboardingStatus != null
+                    where user.OnboardingStatus != null && user.Stid != null &&
+                          (user.Usertype == "RT" || user.Usertype == "AD" || user.Usertype == "MD")
                     select new { user, SalesName = sales.Name ?? sales.Username ?? "" };
         if (query.SalesTeamId.HasValue) users = users.Where(x => x.user.Stid == query.SalesTeamId.Value.ToString());
         if (string.Equals(query.Status, "Review", StringComparison.OrdinalIgnoreCase))
@@ -41,16 +42,18 @@ public sealed class AdminOnboardingService : IAdminOnboardingService
         var raw = await users.OrderByDescending(x => x.user.SubmittedAt ?? x.user.RegDate).ThenByDescending(x => x.user.Id)
             .Skip((query.PageIndex - 1) * query.PageSize).Take(query.PageSize)
             .Select(x => new { x.user.Id, x.user.Name, x.user.Username, x.user.Phone, x.user.EmailId, x.user.Usertype,
-                x.user.OnboardingStatus, x.user.OnboardingVersion, x.user.Stid, x.SalesName, x.user.SubmittedAt }).ToListAsync(ct);
+                x.user.PanCard, x.user.AadharCard, x.user.OnboardingStatus, x.user.OnboardingVersion, x.user.Stid, x.SalesName,
+                DisplayDate = x.user.SubmittedAt ?? x.user.LastDraftSavedAt ?? x.user.RegDate }).ToListAsync(ct);
         var data = raw.Select(x => new AdminOnboardingListItem(x.Id, x.Name ?? "", x.Username ?? "", x.Phone ?? "",
-            x.EmailId ?? "", x.Usertype ?? "", x.OnboardingStatus ?? "", x.OnboardingVersion,
-            int.TryParse(x.Stid, out var salesTeamId) ? salesTeamId : 0, x.SalesName, x.SubmittedAt)).ToList();
+            x.EmailId ?? "", x.Usertype ?? "", x.PanCard ?? "", MaskAadhaar(x.AadharCard), x.OnboardingStatus ?? "", x.OnboardingVersion,
+            int.TryParse(x.Stid, out var salesTeamId) ? salesTeamId : 0, x.SalesName, x.DisplayDate)).ToList();
         return new AdminOnboardingPagedResponse(data, total, query.PageIndex, query.PageSize);
     }
 
     public async Task<AdminOnboardingReviewDetail> GetDetailAsync(int userId, CancellationToken ct)
     {
-        var u = await _db.TblUsers.AsNoTracking().SingleOrDefaultAsync(x => x.Id == userId && x.OnboardingStatus != null, ct)
+        var u = await _db.TblUsers.AsNoTracking().SingleOrDefaultAsync(x => x.Id == userId && x.OnboardingStatus != null && x.Stid != null &&
+            (x.Usertype == "RT" || x.Usertype == "AD" || x.Usertype == "MD"), ct)
             ?? throw new KeyNotFoundException("Onboarding not found.");
         var review = await CurrentReview(userId, ct);
         var fields = review == null ? [] : await _db.TblUserOnboardingFieldReviews.AsNoTracking().Where(x => x.ReviewId == review.Id)
@@ -66,9 +69,20 @@ public sealed class AdminOnboardingService : IAdminOnboardingService
             x.ActorUserType, ActorName = actorNames.GetValueOrDefault(x.ActorUserId, $"User #{x.ActorUserId}"), x.IpAddress, x.UserAgent, x.CreatedAt }).ToList();
         var credentialDelivery = await _db.TblUserCredentialDeliveryLogs.AsNoTracking().Where(x => x.UserId == userId).OrderByDescending(x => x.CreatedAt)
             .Select(x => new { x.Id, x.DeliveryStatus, x.DestinationMasked, x.AttemptCount, x.CreatedAt, x.SentAt, x.FailureReason }).FirstOrDefaultAsync(ct);
+        var salesTeam = int.TryParse(u.Stid, out var salesTeamId)
+            ? await _db.TblUsers.AsNoTracking().Where(x => x.Id == salesTeamId).Select(x => new { x.Id, x.Name, x.Phone }).FirstOrDefaultAsync(ct)
+            : null;
+        var whiteLabel = int.TryParse(u.Wlid, out var whiteLabelId)
+            ? await _db.TblWlUsers.AsNoTracking().Where(x => x.Id == whiteLabelId).Select(x => new { x.Id, Name = x.CompanyName ?? x.UserName, x.Phone }).FirstOrDefaultAsync(ct)
+            : null;
+        var commissionPlan = u.CommissionPlanId.HasValue
+            ? await _db.PlanDetails.AsNoTracking().Where(x => x.Id == u.CommissionPlanId.Value).Select(x => new { x.Id, x.PlanName }).FirstOrDefaultAsync(ct)
+            : null;
         var user = new { u.Id, u.Usertype, u.CompanyName, u.Name, u.FatherName, u.Username, u.EmailId, u.Phone, u.PanCard,
             AadhaarMasked = MaskAadhaar(u.AadharCard), u.AddressLine1, u.AddressLine2, u.State, u.City, u.Pincode, u.ShopAddress,
             u.ShopState, u.ShopCity, ShopZipCode = u.ShipZipcode, u.Lat, u.Longitute, u.Wlid, u.Adid, u.Mdid, u.Stid,
+            u.CommissionPlanId, CommissionPlanName = commissionPlan?.PlanName, WhiteLabelName = whiteLabel?.Name, WhiteLabelPhone = whiteLabel?.Phone,
+            SalesPersonName = salesTeam?.Name, SalesPersonPhone = salesTeam?.Phone, u.IsEmailVerified, u.IsPhoneVerified, u.IsPanVerified, u.IsAadhaarVerified,
             u.OnboardingStatus, u.OnboardingVersion, u.SubmittedAt, u.FinalReviewRemarks };
         return new AdminOnboardingReviewDetail(userId, user, review == null ? new { } : new { review.Id, review.SubmissionVersion, review.ReviewStatus, review.FinalRemarks, CredentialDelivery = credentialDelivery }, fields, documents, history, Convert.ToBase64String(u.RowVersion ?? []));
     }
@@ -146,7 +160,8 @@ public sealed class AdminOnboardingService : IAdminOnboardingService
 
     public async Task<OnboardingCommandResult> RetryCredentialEmailAsync(int userId, int adminId, string? ipAddress, string? userAgent, CancellationToken ct)
     {
-        var user = await _db.TblUsers.SingleOrDefaultAsync(x => x.Id == userId, ct) ?? throw new KeyNotFoundException("Onboarding not found.");
+        var user = await _db.TblUsers.SingleOrDefaultAsync(x => x.Id == userId && x.Stid != null &&
+            (x.Usertype == "RT" || x.Usertype == "AD" || x.Usertype == "MD"), ct) ?? throw new KeyNotFoundException("Onboarding not found.");
         if (user.OnboardingStatus != OnboardingStatuses.Approved || user.Status != "Active") throw new InvalidOperationException("Credentials can only be retried for an approved active user.");
         var latest = await _db.TblUserCredentialDeliveryLogs.Where(x => x.UserId == userId).OrderByDescending(x => x.CreatedAt).FirstOrDefaultAsync(ct)
             ?? throw new InvalidOperationException("Credential delivery record not found.");
@@ -165,7 +180,8 @@ public sealed class AdminOnboardingService : IAdminOnboardingService
 
     private async Task<TblUser> EnsureReviewable(int userId, CancellationToken ct)
     {
-        var user = await _db.TblUsers.SingleOrDefaultAsync(x => x.Id == userId, ct) ?? throw new KeyNotFoundException("Onboarding not found.");
+        var user = await _db.TblUsers.SingleOrDefaultAsync(x => x.Id == userId && x.Stid != null &&
+            (x.Usertype == "RT" || x.Usertype == "AD" || x.Usertype == "MD"), ct) ?? throw new KeyNotFoundException("Onboarding not found.");
         if (user.OnboardingStatus is not (OnboardingStatuses.PendingReview or OnboardingStatuses.PendingReReview)) throw new InvalidOperationException("Onboarding is not pending review.");
         return user;
     }

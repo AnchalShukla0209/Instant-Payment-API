@@ -1,4 +1,5 @@
 using System.IdentityModel.Tokens.Jwt;
+using System.Net;
 using System.Globalization;
 using System.Security.Claims;
 using System.Security.Cryptography;
@@ -128,7 +129,7 @@ public sealed class DistributorAuthService : IDistributorAuthService
                     null,
                     null,
                     0,
-                    CreateTokenResponse(user, userType)));
+                    CreateTokenResponse(user, userType, ipAddress)));
         }
 
         if (string.IsNullOrWhiteSpace(user.Phone))
@@ -141,8 +142,11 @@ public sealed class DistributorAuthService : IDistributorAuthService
         }
 
         var challengeId = Guid.NewGuid();
+        var developmentOtpSection = userType == MasterDistributorUserType
+            ? "MasterDistributorAuth"
+            : "DistributorAuth";
         var configuredDevelopmentOtp = _hostEnvironment.IsDevelopment()
-            ? _configuration["DistributorAuth:DevelopmentOtp"]
+            ? _configuration[$"{developmentOtpSection}:DevelopmentOtp"]
             : null;
         var useDevelopmentOtp = configuredDevelopmentOtp is { Length: 6 } &&
                                 configuredDevelopmentOtp.All(char.IsDigit);
@@ -304,7 +308,7 @@ public sealed class DistributorAuthService : IDistributorAuthService
             user.Id,
             SafeIpAddress(ipAddress));
 
-        return DistributorAuthResult<DistributorTokenResponse>.Success(CreateTokenResponse(user, userType));
+        return DistributorAuthResult<DistributorTokenResponse>.Success(CreateTokenResponse(user, userType, ipAddress));
     }
 
     private async Task RegisterFailedPasswordAttemptAsync(
@@ -375,7 +379,7 @@ public sealed class DistributorAuthService : IDistributorAuthService
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
-    private DistributorTokenResponse CreateTokenResponse(TblUser user, string userType) =>
+    private DistributorTokenResponse CreateTokenResponse(TblUser user, string userType, string ipAddress) =>
         new(
             GenerateAccessToken(user, userType),
             "Bearer",
@@ -383,8 +387,9 @@ public sealed class DistributorAuthService : IDistributorAuthService
             user.Id.ToString(),
             user.Username ?? string.Empty,
             userType,
-            user.Name ?? user.CompanyName ??
-            GetDisplayRole(userType));
+            user.Name ?? user.CompanyName ?? GetDisplayRole(userType),
+            DateTime.UtcNow,
+            SafeIpAddress(ipAddress));
 
     private TimeSpan GetAccessTokenLifetime()
     {
@@ -556,8 +561,18 @@ public sealed class DistributorAuthService : IDistributorAuthService
         return digits.Length < 4 ? "******" : $"******{digits[^4..]}";
     }
 
-    private static string SafeIpAddress(string ipAddress) =>
-        Truncate(ipAddress, 64) ?? "unknown";
+    private static string SafeIpAddress(string ipAddress)
+    {
+        var value = Truncate(ipAddress, 64);
+        if (value is null)
+        {
+            return "unknown";
+        }
+
+        return IPAddress.TryParse(value, out var parsed) && parsed.IsIPv4MappedToIPv6
+            ? parsed.MapToIPv4().ToString()
+            : value;
+    }
 
     private static string? Truncate(string? value, int maximumLength) =>
         string.IsNullOrWhiteSpace(value)
