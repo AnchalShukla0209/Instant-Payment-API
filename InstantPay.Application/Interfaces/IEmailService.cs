@@ -17,7 +17,9 @@ namespace InstantPay.Application.Interfaces
             string phone,
             string userType,
             string loginUrl,
-            string? initialPassword = null);
+            string? initialPassword = null,
+            string? mpin = null,
+            string? txnPin = null);
         Task<string> SendSettlementStatusEmailAsync(string transactionId, string accountNo, string txnType, decimal amount, string userName, DateTime createdOn, string status, string rrn = null);
         Task<string> SendTransactionStatusEmailAsync(string transactionId, string accountNo, string txnType, decimal amount, string userName, DateTime createdOn, string status, string rrn = null);
         Task<string> SendWebsiteEnquiryAsync(

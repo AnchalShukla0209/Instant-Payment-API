@@ -176,7 +176,9 @@ namespace InstantPay.Application.Services
             string phone,
             string userType,
             string loginUrl,
-            string? initialPassword = null)
+            string? initialPassword = null,
+            string? mpin = null,
+            string? txnPin = null)
         {
             try
             {
@@ -186,6 +188,12 @@ namespace InstantPay.Application.Services
                 var safeLoginUrl = WebUtility.HtmlEncode(loginUrl);
                 var passwordRow = string.IsNullOrWhiteSpace(initialPassword) ? string.Empty : $"""
                                 <tr><td style="padding:16px 20px;border-bottom:1px solid #e7e9f2;color:#56617e;"><span style="display:inline-block;width:30px;height:30px;line-height:30px;text-align:center;margin-right:10px;border-radius:8px;background:#fff2eb;color:#cf5512;">&#128274;</span>Temporary Password</td><td align="right" style="padding:16px 20px;border-bottom:1px solid #e7e9f2;font-weight:700;color:#0c133d;">{WebUtility.HtmlEncode(initialPassword)}</td></tr>
+                                """;
+                var mpinRow = string.IsNullOrWhiteSpace(mpin) ? string.Empty : $"""
+                                <tr><td style="padding:16px 20px;border-bottom:1px solid #e7e9f2;color:#56617e;"><span style="display:inline-block;width:30px;height:30px;line-height:30px;text-align:center;margin-right:10px;border-radius:8px;background:#eef0fa;color:#0c133d;">&#128273;</span>MPIN</td><td align="right" style="padding:16px 20px;border-bottom:1px solid #e7e9f2;font-weight:700;color:#0c133d;">{WebUtility.HtmlEncode(mpin)}</td></tr>
+                                """;
+                var txnPinRow = string.IsNullOrWhiteSpace(txnPin) ? string.Empty : $"""
+                                <tr><td style="padding:16px 20px;border-bottom:1px solid #e7e9f2;color:#56617e;"><span style="display:inline-block;width:30px;height:30px;line-height:30px;text-align:center;margin-right:10px;border-radius:8px;background:#fff2eb;color:#cf5512;">&#128273;</span>Transaction PIN</td><td align="right" style="padding:16px 20px;border-bottom:1px solid #e7e9f2;font-weight:700;color:#0c133d;">{WebUtility.HtmlEncode(txnPin)}</td></tr>
                                 """;
                 var role = userType.Trim().ToUpperInvariant() switch
                 {
@@ -223,6 +231,8 @@ namespace InstantPay.Application.Services
                                 <tr><td colspan="2" style="padding:20px 20px 14px;border-bottom:1px solid #e7e9f2;font-weight:700;color:#0c133d;font-size:19px;"><span style="display:inline-block;width:32px;height:32px;line-height:32px;text-align:center;margin-right:10px;border-radius:9px;background:#eef0fa;color:#0c133d;">&#128100;</span>Account Details</td></tr>
                                 <tr><td style="padding:16px 20px;border-bottom:1px solid #e7e9f2;color:#56617e;"><span style="display:inline-block;width:30px;height:30px;line-height:30px;text-align:center;margin-right:10px;border-radius:8px;background:#eef0fa;color:#0c133d;">&#128100;</span>User ID</td><td align="right" style="padding:16px 20px;border-bottom:1px solid #e7e9f2;font-weight:700;color:#0c133d;">{safeUserId}</td></tr>
                                 {passwordRow}
+                                {mpinRow}
+                                {txnPinRow}
                                 <tr><td style="padding:16px 20px;border-bottom:1px solid #e7e9f2;color:#56617e;"><span style="display:inline-block;width:30px;height:30px;line-height:30px;text-align:center;margin-right:10px;border-radius:8px;background:#eef0fa;color:#0c133d;">&#128241;</span>Registered Mobile</td><td align="right" style="padding:16px 20px;border-bottom:1px solid #e7e9f2;font-weight:700;color:#0c133d;">{safePhone}</td></tr>
                                 <tr><td style="padding:16px 20px;color:#56617e;"><span style="display:inline-block;width:30px;height:30px;line-height:30px;text-align:center;margin-right:10px;border-radius:8px;background:#fff2eb;color:#cf5512;">&#9733;</span>Role</td><td align="right" style="padding:16px 20px;font-weight:700;color:#0c133d;">{role}</td></tr>
                               </table>

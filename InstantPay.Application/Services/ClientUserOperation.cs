@@ -499,7 +499,9 @@ namespace InstantPay.Application.Services
                         client.Phone ?? string.Empty,
                         client.Usertype ?? string.Empty,
                         loginUrl,
-                        client.Password);
+                        client.Password,
+                        client.MPin,
+                        client.TxnPin);
                     if (emailResult != "1")
                         _logger.LogWarning("Welcome email failed for newly created user {UserId}: {EmailResult}", client.Id, emailResult);
                     else

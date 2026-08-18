@@ -174,7 +174,7 @@ public sealed class AdminOnboardingService : IAdminOnboardingService
             throw;
         }
 
-        var result = await _emailService.SendNewUserWelcomeEmailAsync(user.EmailId!, user.Name ?? user.Username ?? "User", user.Username!, user.Phone ?? "", user.Usertype!, LoginUrl(user.Usertype), temporaryPassword);
+        var result = await _emailService.SendNewUserWelcomeEmailAsync(user.EmailId!, user.Name ?? user.Username ?? "User", user.Username!, user.Phone ?? "", user.Usertype!, LoginUrl(user.Usertype), temporaryPassword, user.MPin, user.TxnPin);
         delivery.AttemptCount = 1;
         if (result == "1") { delivery.DeliveryStatus = "Sent"; delivery.SentAt = DateTime.UtcNow; }
         else { delivery.DeliveryStatus = "Failed"; delivery.FailureReason = result[..Math.Min(result.Length, 2000)]; _logger.LogWarning("Credential email failed for user {UserId}", userId); }
@@ -194,7 +194,7 @@ public sealed class AdminOnboardingService : IAdminOnboardingService
         user.Password = temporaryPassword;
         latest.DeliveryStatus = "Pending"; latest.AttemptCount++; latest.FailureReason = null;
         await _db.SaveChangesAsync(ct);
-        var result = await _emailService.SendNewUserWelcomeEmailAsync(user.EmailId!, user.Name ?? user.Username ?? "User", user.Username!, user.Phone ?? "", user.Usertype!, LoginUrl(user.Usertype), temporaryPassword);
+        var result = await _emailService.SendNewUserWelcomeEmailAsync(user.EmailId!, user.Name ?? user.Username ?? "User", user.Username!, user.Phone ?? "", user.Usertype!, LoginUrl(user.Usertype), temporaryPassword, user.MPin, user.TxnPin);
         if (result == "1") { latest.DeliveryStatus = "Sent"; latest.SentAt = DateTime.UtcNow; }
         else { latest.DeliveryStatus = "Failed"; latest.FailureReason = result[..Math.Min(result.Length, 2000)]; }
         _db.TblUserOnboardingHistory.Add(History(user, "CredentialEmailRetried", user.OnboardingStatus, user.OnboardingStatus!, latest.DeliveryStatus, adminId, ipAddress, userAgent));
