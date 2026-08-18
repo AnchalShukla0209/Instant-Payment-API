@@ -118,11 +118,11 @@ public sealed class SalesTeamOnboardingService : ISalesTeamOnboardingService
             x => x.Id == request.UserId && x.Stid == salesTeamId.ToString(), cancellationToken))
             throw new KeyNotFoundException("Onboarding not found.");
 
-        var username = Clean(request.Username);
+        var username = Clean(request.Username) ?? string.Empty;
         var phone = NormalizePhone(request.Phone);
-        var email = Lower(request.EmailId);
-        var pan = Upper(request.PanCard);
-        var aadhaar = Digits(request.AadharCard);
+        var email = Lower(request.EmailId) ?? string.Empty;
+        var pan = Upper(request.PanCard) ?? string.Empty;
+        var aadhaar = Digits(request.AadharCard) ?? string.Empty;
         var conflicts = _db.TblUsers.AsNoTracking().Where(x => x.Id != request.UserId &&
             (x.Status == "Active" || x.OnboardingStatus == OnboardingStatuses.PendingReview || x.OnboardingStatus == OnboardingStatuses.PendingReReview));
 
