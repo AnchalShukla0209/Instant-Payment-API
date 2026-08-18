@@ -55,6 +55,8 @@ public sealed class AdminOnboardingService : IAdminOnboardingService
         var u = await _db.TblUsers.AsNoTracking().SingleOrDefaultAsync(x => x.Id == userId && x.OnboardingStatus != null && x.Stid != null &&
             (x.Usertype == "RT" || x.Usertype == "AD" || x.Usertype == "MD"), ct)
             ?? throw new KeyNotFoundException("Onboarding not found.");
+        if (u.OnboardingStatus == OnboardingStatuses.PendingReReview)
+            await RepairLegacyReReviewFieldStatuses(userId, ct);
         var review = await CurrentReview(userId, ct);
         var fields = review == null ? [] : await _db.TblUserOnboardingFieldReviews.AsNoTracking().Where(x => x.ReviewId == review.Id)
             .OrderBy(x => x.FieldName).Select(x => (object)new { x.Id, x.FieldName, x.ReviewStatus, x.RejectionRemarks, x.ReviewedAt }).ToListAsync(ct);
@@ -265,6 +267,36 @@ public sealed class AdminOnboardingService : IAdminOnboardingService
         return user;
     }
     private Task<TblUserOnboardingReview?> CurrentReview(int userId, CancellationToken ct) => _db.TblUserOnboardingReviews.Where(x => x.UserId == userId).OrderByDescending(x => x.SubmissionVersion).FirstOrDefaultAsync(ct);
+    private async Task RepairLegacyReReviewFieldStatuses(int userId, CancellationToken ct)
+    {
+        var reviewIds = await _db.TblUserOnboardingReviews.AsNoTracking()
+            .Where(x => x.UserId == userId)
+            .OrderByDescending(x => x.SubmissionVersion)
+            .Select(x => x.Id)
+            .Take(2)
+            .ToListAsync(ct);
+        if (reviewIds.Count < 2) return;
+
+        var currentFields = await _db.TblUserOnboardingFieldReviews
+            .Where(x => x.ReviewId == reviewIds[0] && x.ReviewStatus == OnboardingReviewStatuses.Pending)
+            .ToListAsync(ct);
+        if (currentFields.Count == 0) return;
+
+        var previouslyApproved = await _db.TblUserOnboardingFieldReviews.AsNoTracking()
+            .Where(x => x.ReviewId == reviewIds[1] && x.ReviewStatus == OnboardingReviewStatuses.Approved)
+            .ToDictionaryAsync(x => x.FieldName, StringComparer.OrdinalIgnoreCase, ct);
+        var repaired = false;
+        foreach (var field in currentFields)
+        {
+            if (!previouslyApproved.TryGetValue(field.FieldName, out var previous)) continue;
+            field.ReviewStatus = OnboardingReviewStatuses.Approved;
+            field.ReviewedBy = previous.ReviewedBy;
+            field.ReviewedAt = previous.ReviewedAt;
+            field.RejectionRemarks = null;
+            repaired = true;
+        }
+        if (repaired) await _db.SaveChangesAsync(ct);
+    }
     private async Task AddHistory(int userId, string eventType, string remarks, int adminId, string? ipAddress, string? userAgent, CancellationToken ct)
     { var u = await _db.TblUsers.SingleAsync(x => x.Id == userId, ct); _db.TblUserOnboardingHistory.Add(History(u, eventType, u.OnboardingStatus, u.OnboardingStatus!, remarks, adminId, ipAddress, userAgent)); await _db.SaveChangesAsync(ct); }
     private static TblUserOnboardingHistory History(TblUser u, string type, string? from, string to, string? remarks, int actor, string? ip, string? agent) => new()
