@@ -35,44 +35,48 @@ public sealed class SalesTeamOnboardingService : ISalesTeamOnboardingService
             throw new InvalidOperationException("Your Sales Team account is not mapped to an active White Label user. Contact SuperAdmin.");
         if (!await _db.TblWlUsers.AsNoTracking().AnyAsync(x => x.Id == mappedWlUserId && x.Status == "Active", cancellationToken))
             throw new InvalidOperationException("The White Label user mapped to your Sales Team account is not active. Contact SuperAdmin.");
-        await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
-        var now = DateTime.UtcNow;
-        TblUser user;
-        if (request.UserId == 0)
+        var strategy = _db.Database.CreateExecutionStrategy();
+        return await strategy.ExecuteAsync(async () =>
         {
-            user = new TblUser
+            await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
+            var now = DateTime.UtcNow;
+            TblUser user;
+            if (request.UserId == 0)
             {
-                Status = "Inactive", OnboardingStatus = OnboardingStatuses.Draft, OnboardingVersion = 0,
-                Stid = salesTeamId.ToString(), CreatedByUserId = salesTeamId, CreatedByUserType = "ST", RegDate = now,
-                RazorpayPayment = "Inactive", Settlement = "Inactive"
-            };
-            _db.TblUsers.Add(user);
-        }
-        else
-        {
-            user = await GetOwnedEditableAsync(request.UserId, salesTeamId, cancellationToken);
-            ApplyConcurrencyToken(user, request.RowVersion);
-        }
+                user = new TblUser
+                {
+                    Status = "Inactive", OnboardingStatus = OnboardingStatuses.Draft, OnboardingVersion = 0,
+                    Stid = salesTeamId.ToString(), CreatedByUserId = salesTeamId, CreatedByUserType = "ST", RegDate = now,
+                    RazorpayPayment = "Inactive", Settlement = "Inactive"
+                };
+                _db.TblUsers.Add(user);
+            }
+            else
+            {
+                user = await GetOwnedEditableAsync(request.UserId, salesTeamId, cancellationToken);
+                ApplyConcurrencyToken(user, request.RowVersion);
+            }
 
-        Apply(request, user);
-        user.Wlid = mappedWlUserId.ToString();
-        user.Adid = null;
-        user.Mdid = null;
-        user.Status = "Inactive";
-        user.LastDraftSavedAt = now;
-        user.OnboardingStatus = user.OnboardingStatus == OnboardingStatuses.Rejected
-            ? OnboardingStatuses.Rejected : OnboardingStatuses.Draft;
+            Apply(request, user);
+            user.Wlid = mappedWlUserId.ToString();
+            user.Adid = null;
+            user.Mdid = null;
+            user.Status = "Inactive";
+            user.LastDraftSavedAt = now;
+            user.OnboardingStatus = user.OnboardingStatus == OnboardingStatuses.Rejected
+                ? OnboardingStatuses.Rejected : OnboardingStatuses.Draft;
 
-        await _db.SaveChangesAsync(cancellationToken);
-        _db.TblUserOnboardingHistory.Add(new TblUserOnboardingHistory
-        {
-            UserId = user.Id, OnboardingVersion = user.OnboardingVersion, EventType = "DraftSaved",
-            FromStatus = user.OnboardingStatus, ToStatus = user.OnboardingStatus, ActorUserId = salesTeamId,
-            ActorUserType = "ST", IpAddress = Truncate(ipAddress, 64), UserAgent = Truncate(userAgent, 500), CreatedAt = now
+            await _db.SaveChangesAsync(cancellationToken);
+            _db.TblUserOnboardingHistory.Add(new TblUserOnboardingHistory
+            {
+                UserId = user.Id, OnboardingVersion = user.OnboardingVersion, EventType = "DraftSaved",
+                FromStatus = user.OnboardingStatus, ToStatus = user.OnboardingStatus, ActorUserId = salesTeamId,
+                ActorUserType = "ST", IpAddress = Truncate(ipAddress, 64), UserAgent = Truncate(userAgent, 500), CreatedAt = now
+            });
+            await _db.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return new OnboardingDraftResponse(user.Id, user.OnboardingStatus!, user.OnboardingVersion, Convert.ToBase64String(user.RowVersion ?? []));
         });
-        await _db.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
-        return new OnboardingDraftResponse(user.Id, user.OnboardingStatus!, user.OnboardingVersion, Convert.ToBase64String(user.RowVersion ?? []));
     }
 
     public async Task<OwnedOnboardingDetail?> FindOwnedDraftByPhoneAsync(string phone, int salesTeamId, CancellationToken cancellationToken)
@@ -128,30 +132,34 @@ public sealed class SalesTeamOnboardingService : ISalesTeamOnboardingService
         var missing = RequiredDocuments.Except(documentTypes, StringComparer.OrdinalIgnoreCase).ToArray();
         if (missing.Length > 0) throw new InvalidOperationException($"Upload required documents: {string.Join(", ", missing)}.");
 
-        await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
-        var from = user.OnboardingStatus!;
-        user.OnboardingVersion++;
-        user.OnboardingStatus = from == OnboardingStatuses.Rejected ? OnboardingStatuses.PendingReReview : OnboardingStatuses.PendingReview;
-        user.SubmittedAt = DateTime.UtcNow; user.FinalReviewRemarks = null;
-        var review = new TblUserOnboardingReview
+        var strategy = _db.Database.CreateExecutionStrategy();
+        return await strategy.ExecuteAsync(async () =>
         {
-            UserId = user.Id, SubmissionVersion = user.OnboardingVersion, ReviewStatus = OnboardingReviewStatuses.Pending, StartedAt = DateTime.UtcNow
-        };
-        _db.TblUserOnboardingReviews.Add(review);
-        await _db.SaveChangesAsync(cancellationToken);
-        _db.TblUserOnboardingFieldReviews.AddRange(ReviewableFields.Select(field => new TblUserOnboardingFieldReview
-        {
-            ReviewId = review.Id, UserId = user.Id, FieldName = field, ReviewStatus = OnboardingReviewStatuses.Pending
-        }));
-        _db.TblUserOnboardingHistory.Add(new TblUserOnboardingHistory
-        {
-            UserId = user.Id, OnboardingVersion = user.OnboardingVersion, EventType = "Submitted",
-            FromStatus = from, ToStatus = user.OnboardingStatus, ActorUserId = salesTeamId, ActorUserType = "ST",
-            IpAddress = Truncate(ipAddress, 64), UserAgent = Truncate(userAgent, 500), CreatedAt = DateTime.UtcNow
+            await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
+            var from = user.OnboardingStatus!;
+            user.OnboardingVersion++;
+            user.OnboardingStatus = from == OnboardingStatuses.Rejected ? OnboardingStatuses.PendingReReview : OnboardingStatuses.PendingReview;
+            user.SubmittedAt = DateTime.UtcNow; user.FinalReviewRemarks = null;
+            var review = new TblUserOnboardingReview
+            {
+                UserId = user.Id, SubmissionVersion = user.OnboardingVersion, ReviewStatus = OnboardingReviewStatuses.Pending, StartedAt = DateTime.UtcNow
+            };
+            _db.TblUserOnboardingReviews.Add(review);
+            await _db.SaveChangesAsync(cancellationToken);
+            _db.TblUserOnboardingFieldReviews.AddRange(ReviewableFields.Select(field => new TblUserOnboardingFieldReview
+            {
+                ReviewId = review.Id, UserId = user.Id, FieldName = field, ReviewStatus = OnboardingReviewStatuses.Pending
+            }));
+            _db.TblUserOnboardingHistory.Add(new TblUserOnboardingHistory
+            {
+                UserId = user.Id, OnboardingVersion = user.OnboardingVersion, EventType = "Submitted",
+                FromStatus = from, ToStatus = user.OnboardingStatus, ActorUserId = salesTeamId, ActorUserType = "ST",
+                IpAddress = Truncate(ipAddress, 64), UserAgent = Truncate(userAgent, 500), CreatedAt = DateTime.UtcNow
+            });
+            await _db.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return new OnboardingCommandResult(true, "Onboarding submitted for review.", user.Id, user.OnboardingStatus);
         });
-        await _db.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
-        return new OnboardingCommandResult(true, "Onboarding submitted for review.", user.Id, user.OnboardingStatus);
     }
 
     public async Task<OnboardingDocumentResponse> UploadDocumentAsync(int userId, string documentType, IFormFile file, string? correctionRemarks, int salesTeamId, CancellationToken cancellationToken)
@@ -186,27 +194,31 @@ public sealed class SalesTeamOnboardingService : ISalesTeamOnboardingService
 
         try
         {
-            await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
-            existing ??= new TblUserOnboardingDocument { UserId = userId, DocumentType = normalizedType, CreatedAt = DateTime.UtcNow };
-            if (existing.Id == 0) _db.TblUserOnboardingDocuments.Add(existing);
-            existing.CurrentFilePath = relativePath; existing.CurrentVersion = version; existing.ReviewStatus = OnboardingReviewStatuses.Pending;
-            existing.RejectionRemarks = null; existing.ReviewedBy = null; existing.ReviewedAt = null; existing.UpdatedAt = DateTime.UtcNow;
-            await _db.SaveChangesAsync(cancellationToken);
-            _db.TblUserOnboardingDocumentVersions.Add(new TblUserOnboardingDocumentVersion
+            var strategy = _db.Database.CreateExecutionStrategy();
+            return await strategy.ExecuteAsync(async () =>
             {
-                DocumentId = existing.Id, UserId = userId, VersionNumber = version, FilePath = relativePath,
-                OriginalFileName = Path.GetFileName(file.FileName), ContentType = file.ContentType, FileSize = file.Length,
-                FileHash = hash, CorrectionRemarks = Clean(correctionRemarks), UploadedBy = salesTeamId, UploadedAt = DateTime.UtcNow
+                await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
+                existing ??= new TblUserOnboardingDocument { UserId = userId, DocumentType = normalizedType, CreatedAt = DateTime.UtcNow };
+                if (existing.Id == 0) _db.TblUserOnboardingDocuments.Add(existing);
+                existing.CurrentFilePath = relativePath; existing.CurrentVersion = version; existing.ReviewStatus = OnboardingReviewStatuses.Pending;
+                existing.RejectionRemarks = null; existing.ReviewedBy = null; existing.ReviewedAt = null; existing.UpdatedAt = DateTime.UtcNow;
+                await _db.SaveChangesAsync(cancellationToken);
+                _db.TblUserOnboardingDocumentVersions.Add(new TblUserOnboardingDocumentVersion
+                {
+                    DocumentId = existing.Id, UserId = userId, VersionNumber = version, FilePath = relativePath,
+                    OriginalFileName = Path.GetFileName(file.FileName), ContentType = file.ContentType, FileSize = file.Length,
+                    FileHash = hash, CorrectionRemarks = Clean(correctionRemarks), UploadedBy = salesTeamId, UploadedAt = DateTime.UtcNow
+                });
+                _db.TblUserOnboardingHistory.Add(new TblUserOnboardingHistory
+                {
+                    UserId = userId, OnboardingVersion = user.OnboardingVersion, EventType = version == 1 ? "DocumentUploaded" : "DocumentReuploaded",
+                    FromStatus = user.OnboardingStatus, ToStatus = user.OnboardingStatus!, Remarks = $"{normalizedType} version {version}",
+                    ActorUserId = salesTeamId, ActorUserType = "ST", CreatedAt = DateTime.UtcNow
+                });
+                await _db.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+                return new OnboardingDocumentResponse(existing.Id, normalizedType, version, existing.ReviewStatus);
             });
-            _db.TblUserOnboardingHistory.Add(new TblUserOnboardingHistory
-            {
-                UserId = userId, OnboardingVersion = user.OnboardingVersion, EventType = version == 1 ? "DocumentUploaded" : "DocumentReuploaded",
-                FromStatus = user.OnboardingStatus, ToStatus = user.OnboardingStatus!, Remarks = $"{normalizedType} version {version}",
-                ActorUserId = salesTeamId, ActorUserType = "ST", CreatedAt = DateTime.UtcNow
-            });
-            await _db.SaveChangesAsync(cancellationToken);
-            await transaction.CommitAsync(cancellationToken);
-            return new OnboardingDocumentResponse(existing.Id, normalizedType, version, existing.ReviewStatus);
         }
         catch
         {
