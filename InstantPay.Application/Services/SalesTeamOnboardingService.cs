@@ -117,6 +117,28 @@ public sealed class SalesTeamOnboardingService : ISalesTeamOnboardingService
         return new OnboardingPagedResponse(data, total, query.PageIndex, query.PageSize);
     }
 
+    public async Task<IdentityAvailabilityResponse> CheckIdentityAvailabilityAsync(IdentityAvailabilityRequest request, int salesTeamId, CancellationToken cancellationToken)
+    {
+        if (request.UserId > 0 && !await _db.TblUsers.AsNoTracking().AnyAsync(
+            x => x.Id == request.UserId && x.Stid == salesTeamId.ToString(), cancellationToken))
+            throw new KeyNotFoundException("Onboarding not found.");
+
+        var username = Clean(request.Username);
+        var phone = NormalizePhone(request.Phone);
+        var email = Lower(request.EmailId);
+        var pan = Upper(request.PanCard);
+        var aadhaar = Digits(request.AadharCard);
+        var conflicts = _db.TblUsers.AsNoTracking().Where(x => x.Id != request.UserId &&
+            (x.Status == "Active" || x.OnboardingStatus == OnboardingStatuses.PendingReview || x.OnboardingStatus == OnboardingStatuses.PendingReReview));
+
+        return new IdentityAvailabilityResponse(
+            string.IsNullOrWhiteSpace(username) || !await conflicts.AnyAsync(x => x.Username == username, cancellationToken),
+            !PhoneRegex.IsMatch(phone) || !await conflicts.AnyAsync(x => x.Phone == phone, cancellationToken),
+            string.IsNullOrWhiteSpace(email) || !await conflicts.AnyAsync(x => x.EmailId == email, cancellationToken),
+            !PanRegex.IsMatch(pan) || !await conflicts.AnyAsync(x => x.PanCard == pan, cancellationToken),
+            !AadhaarRegex.IsMatch(aadhaar) || !await conflicts.AnyAsync(x => x.AadharCard == aadhaar, cancellationToken));
+    }
+
     public async Task<OnboardingCommandResult> SubmitAsync(int userId, string? rowVersion, int salesTeamId, string? ipAddress, string? userAgent, CancellationToken cancellationToken)
     {
         var user = await GetOwnedEditableAsync(userId, salesTeamId, cancellationToken);

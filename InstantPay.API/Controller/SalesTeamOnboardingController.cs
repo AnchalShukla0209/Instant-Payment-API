@@ -65,6 +65,10 @@ public sealed class SalesTeamOnboardingController : ControllerBase
     public async Task<IActionResult> Detail(int userId, CancellationToken ct) =>
         await Execute(() => _service.GetOwnedDetailAsync(userId, UserId(), ct));
 
+    [HttpPost("identity-availability")]
+    public async Task<IActionResult> IdentityAvailability([FromBody] IdentityAvailabilityRequest request, CancellationToken ct) =>
+        await Execute(() => _service.CheckIdentityAvailabilityAsync(request, UserId(), ct));
+
     [HttpPost("{userId:int}/submit")]
     public async Task<IActionResult> Submit(int userId, [FromBody] SubmitOnboardingRequest request, CancellationToken ct) =>
         await Execute(() => _service.SubmitAsync(userId, request.RowVersion, UserId(), Ip(), Request.Headers.UserAgent, ct));
