@@ -56,7 +56,7 @@ namespace InstantPay.SharedKernel.Entity
         public string UserName { get; set; }
         public string EmailId { get; set; }
         public string Phone { get; set; }
-        public string Password { get; set; }
+        public string? Password { get; set; }
         public string PanCard { get; set; }
         public string AadharCard { get; set; }
         public string UserType { get; set; }
@@ -84,13 +84,13 @@ namespace InstantPay.SharedKernel.Entity
         public string Status { get; set; }
         public string? lat { get; set; }
         public string? longitute { get; set; }
-        public string TxnPin { get; set; }
+        public string? TxnPin { get; set; }
         public string WLID { get; set; }
         /// <summary>'AD' = Distributor scope (sets Adid = ScopePartnerId), 'MD' = Master Distributor scope (sets Mdid = ScopePartnerId), null/other = White-Label scope (sets Wlid = WLID).</summary>
         public string? ScopeType { get; set; }
         /// <summary>Logged-in AD/MD partner id (server-side). Used for Adid/Mdid while WLID carries the partner's white-label id.</summary>
         public int ScopePartnerId { get; set; }
-        public string MPin { get; set; }
+        public string? MPin { get; set; }
         public int CommissionPlanId { get; set; }
         public string? MobileVerificationToken { get; set; }
         public string? EmailVerificationToken { get; set; }

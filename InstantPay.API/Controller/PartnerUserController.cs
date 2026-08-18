@@ -6,6 +6,7 @@ using InstantPay.SharedKernel.Entity;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using InstantPay.SharedKernel.Enums;
 
 namespace InstantPay.API.Controller;
 
@@ -55,6 +56,29 @@ public sealed class PartnerUserController : ControllerBase
             _logger.LogError(ex, "Failed to load commission plans for partner dropdown.");
             return BadRequest(new { success = false, message = ex.Message });
         }
+    }
+
+    [HttpPost("identity-availability")]
+    public async Task<IActionResult> IdentityAvailability(
+        [FromBody] IdentityAvailabilityRequest request,
+        CancellationToken cancellationToken)
+    {
+        var username = request.Username?.Trim();
+        var phone = request.Phone?.Trim();
+        var email = request.EmailId?.Trim().ToLowerInvariant();
+        var pan = request.PanCard?.Trim().ToUpperInvariant();
+        var aadhaar = request.AadharCard?.Trim();
+        var conflicts = _dbContext.TblUsers.AsNoTracking().Where(x => x.Id != request.UserId &&
+            (x.Status == "Active" || x.OnboardingStatus == OnboardingStatuses.PendingReview ||
+             x.OnboardingStatus == OnboardingStatuses.PendingReReview));
+
+        var result = new IdentityAvailabilityResponse(
+            string.IsNullOrWhiteSpace(username) || !await conflicts.AnyAsync(x => x.Username == username, cancellationToken),
+            string.IsNullOrWhiteSpace(phone) || !await conflicts.AnyAsync(x => x.Phone == phone, cancellationToken),
+            string.IsNullOrWhiteSpace(email) || !await conflicts.AnyAsync(x => x.EmailId == email, cancellationToken),
+            string.IsNullOrWhiteSpace(pan) || !await conflicts.AnyAsync(x => x.PanCard == pan, cancellationToken),
+            string.IsNullOrWhiteSpace(aadhaar) || !await conflicts.AnyAsync(x => x.AadharCard == aadhaar, cancellationToken));
+        return Ok(new { success = true, data = result });
     }
 
     [HttpPost("report")]

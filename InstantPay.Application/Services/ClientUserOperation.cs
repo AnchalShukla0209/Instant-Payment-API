@@ -5,6 +5,7 @@ using InstantPay.Infrastructure.Security;
 using InstantPay.Infrastructure.Sql.Entities;
 using InstantPay.SharedKernel.Entity;
 using InstantPay.SharedKernel.RequestPayload.DebitCredit;
+using InstantPay.SharedKernel.Enums;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using MongoDB.Bson.IO;
@@ -18,6 +19,9 @@ using System.Threading.Tasks;
 using static InstantPay.SharedKernel.Enums.WalletOperationStatusENUM;
 using static MongoDB.Driver.WriteConcern;
 using Microsoft.Extensions.Logging;
+using System.Security.Cryptography;
+using System.Globalization;
+using System.Text.RegularExpressions;
 
 namespace InstantPay.Application.Services
 {
@@ -176,12 +180,32 @@ namespace InstantPay.Application.Services
 
         public async Task<ResponseModelforClientUseraddandupdateapi> CreateOrUpdateClientUser(CreateOrUpdateClientUserCommand request, CancellationToken cancellationToken)
         {
+            if (!IsValidCoordinate(request.lat, -90m, 90m))
+                return Failure("Latitude must be between -90 and 90 with no more than 5 decimal places.");
+            if (!IsValidCoordinate(request.longitute, -180m, 180m))
+                return Failure("Longitude must be between -180 and 180 with no more than 5 decimal places.");
+
             request.UserType = request.UserType?.Trim().ToUpperInvariant();
-            if (request.UserType is not ("RT" or "AD" or "MD" or "ST"))
-                return Failure("User type must be RT, AD, MD, or ST.");
+            var scopeType = request.ScopeType?.Trim().ToUpperInvariant();
+            var userTypeAllowed = scopeType switch
+            {
+                "AD" => request.UserType == "RT",
+                "MD" => request.UserType is "RT" or "AD",
+                _ => request.UserType is "RT" or "AD" or "MD" or "ST"
+            };
+            if (!userTypeAllowed)
+                return Failure(scopeType == "AD"
+                    ? "A Distributor can create Retailer users only."
+                    : scopeType == "MD"
+                        ? "A Master Distributor can create Retailer or Distributor users only."
+                        : "User type must be RT, AD, MD, or ST.");
+
+            if (string.IsNullOrWhiteSpace(request.FatherName))
+                return Failure("Father name is required.");
 
             TblUser client;
             bool isNew = request.ClientId == 0;
+            bool credentialsEmailed = false;
             var existingClient = isNew
                 ? null
                 : await _context.TblUsers.FirstOrDefaultAsync(c => c.Id == request.ClientId, cancellationToken);
@@ -242,14 +266,24 @@ namespace InstantPay.Application.Services
 
             if (isNew)
             {
-                var existingUser = await _context.TblUsers
-        .FirstOrDefaultAsync(x => x.Username.ToLower().Trim() == request.UserName.ToLower().Trim() || x.Phone.Trim() == request.Phone.Trim());
+                var temporaryPassword = CreateTemporaryPassword();
+                var normalizedUsername = request.UserName.Trim();
+                var normalizedPhone = request.Phone.Trim();
+                var normalizedEmail = request.EmailId.Trim().ToLowerInvariant();
+                var normalizedPan = request.PanCard.Trim().ToUpperInvariant();
+                var normalizedAadhaar = request.AadharCard.Trim();
+                var existingUser = await _context.TblUsers.FirstOrDefaultAsync(x =>
+                    (x.Status == "Active" || x.OnboardingStatus == OnboardingStatuses.PendingReview ||
+                     x.OnboardingStatus == OnboardingStatuses.PendingReReview) &&
+                    (x.Username == normalizedUsername || x.Phone == normalizedPhone ||
+                     x.EmailId == normalizedEmail || x.PanCard == normalizedPan || x.AadharCard == normalizedAadhaar),
+                    cancellationToken);
 
                 if (existingUser != null)
                 {
                     return new ResponseModelforClientUseraddandupdateapi
                     {
-                        Msg = "Username already exists with same username or mobile no.",
+                        Msg = "An active or submitted user already exists with the same username, phone, email, PAN, or Aadhaar.",
                         flag = false
                     };
                 }
@@ -263,7 +297,7 @@ namespace InstantPay.Application.Services
                     EmailId = request.EmailId,
                     Phone = request.Phone,
                     //Password = _aes.Encrypt(request.Password),
-                    Password = (request.Password),
+                    Password = temporaryPassword,
                     PanCard = request.PanCard,
                     AadharCard = request.AadharCard,
 
@@ -289,7 +323,7 @@ namespace InstantPay.Application.Services
                     Status = "Active",
 
                     RegDate = DateTime.UtcNow,
-                    TxnPin = request.TxnPin,
+                    TxnPin = "1234",
                     PlanId = request.CommissionPlanId.ToString(),
                     CommissionPlanId = request.CommissionPlanId,
                     Wlid = Convert.ToString(request.WLID),
@@ -316,7 +350,8 @@ namespace InstantPay.Application.Services
                     IsAadhaarVerified = true,
                     AadharVerifiedAt = DateTime.UtcNow,
                     //MPin = _aes.Encrypt(request.MPin)
-                    MPin = (request.MPin)
+                    MPin = "1234",
+                    SuperAdminId = 1
 
                 };
 
@@ -346,7 +381,6 @@ namespace InstantPay.Application.Services
                 client.EmailId = request.EmailId;
                 client.Phone = request.Phone;
                 //client.Password = _aes.Encrypt(request.Password);
-                client.Password = (request.Password);
                 client.PanCard = request.PanCard;
                 client.AadharCard = request.AadharCard;
                 client.Usertype = request.UserType;
@@ -406,8 +440,6 @@ namespace InstantPay.Application.Services
                     client.IsAadhaarVerified = true;
                     client.AadharVerifiedAt = DateTime.UtcNow;
                 }
-                //client.MPin = _aes.Encrypt(request.MPin);
-                client.MPin = (request.MPin);
             }
 
             string webRootPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
@@ -466,9 +498,12 @@ namespace InstantPay.Application.Services
                         client.Username ?? client.Id.ToString(),
                         client.Phone ?? string.Empty,
                         client.Usertype ?? string.Empty,
-                        loginUrl);
+                        loginUrl,
+                        client.Password);
                     if (emailResult != "1")
                         _logger.LogWarning("Welcome email failed for newly created user {UserId}: {EmailResult}", client.Id, emailResult);
+                    else
+                        credentialsEmailed = true;
                 }
                 catch (Exception ex)
                 {
@@ -484,7 +519,11 @@ namespace InstantPay.Application.Services
             return new ResponseModelforClientUseraddandupdateapi
             {
                 id = client.Id,
-                Msg = isNew ? "Client Created Successfully" : "Client Updated",
+                Msg = isNew
+                    ? credentialsEmailed
+                        ? "Client created successfully and credentials emailed."
+                        : "Client created successfully; credential email could not be sent."
+                    : "Client Updated",
                 flag = true
             };
         }
@@ -497,6 +536,16 @@ namespace InstantPay.Application.Services
                 "ST" => "https://instantpayment.in/salesteam-login",
                 _ => "https://instantpayment.in/login"
             };
+
+        private static string CreateTemporaryPassword() =>
+            $"Ip@{RandomNumberGenerator.GetInt32(100000, 1000000)}{(char)RandomNumberGenerator.GetInt32('A', 'Z' + 1)}";
+
+        private static bool IsValidCoordinate(string? value, decimal minimum, decimal maximum) =>
+            !string.IsNullOrWhiteSpace(value)
+            && Regex.IsMatch(value.Trim(), @"^-?\d{1,3}(?:\.\d{1,5})?$")
+            && decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out var coordinate)
+            && coordinate >= minimum
+            && coordinate <= maximum;
 
         public async Task<GetClientUserDetail?> GetClientUserDetailByIdAsync(int Id)
         {
