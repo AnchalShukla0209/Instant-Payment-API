@@ -246,7 +246,7 @@ public sealed class SalesTeamOnboardingService : ISalesTeamOnboardingService
         var history = historyRows.Select(h => new OnboardingHistoryItem(h.Id, h.OnboardingVersion, h.EventType, h.FromStatus, h.ToStatus, h.Remarks,
             h.ActorUserId, h.ActorUserType, actorNames.GetValueOrDefault(h.ActorUserId, $"User #{h.ActorUserId}"), h.IpAddress, h.CreatedAt)).ToList();
         return new OwnedOnboardingDetail(u.Id, u.Usertype, u.CompanyName, u.Name, u.FatherName, u.Username, u.EmailId, u.Phone,
-            u.PanCard, MaskAadhaar(u.AadharCard), u.AddressLine1, u.AddressLine2, u.State, u.City, u.Pincode, u.ShopAddress,
+            u.PanCard, u.AadharCard, MaskAadhaar(u.AadharCard), u.AddressLine1, u.AddressLine2, u.State, u.City, u.Pincode, u.ShopAddress,
             u.ShopState, u.ShopCity, u.ShipZipcode, u.Lat, u.Longitute, u.Wlid, u.Adid, u.Mdid, u.CommissionPlanId,
             u.IsEmailVerified, u.IsPhoneVerified, u.IsPanVerified, u.IsAadhaarVerified,
             u.OnboardingStatus!, u.OnboardingVersion, Convert.ToBase64String(u.RowVersion ?? []), u.FinalReviewRemarks, docs, history);

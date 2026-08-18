@@ -56,7 +56,7 @@ public sealed record OnboardingDocumentResponse(long DocumentId, string Document
 public sealed record SubmitOnboardingRequest(string? RowVersion);
 public sealed record OwnedOnboardingDetail(
     int UserId, string? UserType, string? CompanyName, string? Name, string? FatherName,
-    string? Username, string? EmailId, string? Phone, string? PanCard, string AadhaarMasked,
+    string? Username, string? EmailId, string? Phone, string? PanCard, string? AadharCard, string AadhaarMasked,
     string? AddressLine1, string? AddressLine2, string? State, string? City, string? Pincode,
     string? ShopAddress, string? ShopState, string? ShopCity, string? ShopZipCode,
     string? Latitude, string? Longitude, string? WLId, string? ADId, string? MDId,
