@@ -157,17 +157,14 @@ public sealed class SalesTeamOnboardingService : ISalesTeamOnboardingService
             Dictionary<string, string>? previousFieldStatuses = null;
             if (from == OnboardingStatuses.Rejected)
             {
-                var previousReviewId = await _db.TblUserOnboardingReviews.AsNoTracking()
-                    .Where(x => x.UserId == user.Id)
-                    .OrderByDescending(x => x.SubmissionVersion)
-                    .Select(x => (int?)x.Id)
-                    .FirstOrDefaultAsync(cancellationToken);
-                if (previousReviewId.HasValue)
-                {
-                    previousFieldStatuses = await _db.TblUserOnboardingFieldReviews.AsNoTracking()
-                        .Where(x => x.ReviewId == previousReviewId.Value)
-                        .ToDictionaryAsync(x => x.FieldName, x => x.ReviewStatus, StringComparer.OrdinalIgnoreCase, cancellationToken);
-                }
+                var decisionHistory = await (from reviewRow in _db.TblUserOnboardingReviews.AsNoTracking()
+                    join field in _db.TblUserOnboardingFieldReviews.AsNoTracking() on reviewRow.Id equals field.ReviewId
+                    where reviewRow.UserId == user.Id && field.ReviewStatus != OnboardingReviewStatuses.Pending
+                    orderby reviewRow.SubmissionVersion descending
+                    select new { field.FieldName, field.ReviewStatus }).ToListAsync(cancellationToken);
+                previousFieldStatuses = decisionHistory
+                    .GroupBy(x => x.FieldName, StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(x => x.Key, x => x.First().ReviewStatus, StringComparer.OrdinalIgnoreCase);
             }
             user.OnboardingVersion++;
             user.OnboardingStatus = from == OnboardingStatuses.Rejected ? OnboardingStatuses.PendingReReview : OnboardingStatuses.PendingReview;

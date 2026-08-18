@@ -282,13 +282,19 @@ public sealed class AdminOnboardingService : IAdminOnboardingService
             .ToListAsync(ct);
         if (currentFields.Count == 0) return;
 
-        var previouslyApproved = await _db.TblUserOnboardingFieldReviews.AsNoTracking()
-            .Where(x => x.ReviewId == reviewIds[1] && x.ReviewStatus == OnboardingReviewStatuses.Approved)
-            .ToDictionaryAsync(x => x.FieldName, StringComparer.OrdinalIgnoreCase, ct);
+        var decisionHistory = await (from review in _db.TblUserOnboardingReviews.AsNoTracking()
+            join field in _db.TblUserOnboardingFieldReviews.AsNoTracking() on review.Id equals field.ReviewId
+            where review.UserId == userId && review.Id != reviewIds[0] && field.ReviewStatus != OnboardingReviewStatuses.Pending
+            orderby review.SubmissionVersion descending
+            select new { field.FieldName, field.ReviewStatus, field.ReviewedBy, field.ReviewedAt }).ToListAsync(ct);
+        var latestDecisions = decisionHistory
+            .GroupBy(x => x.FieldName, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
         var repaired = false;
         foreach (var field in currentFields)
         {
-            if (!previouslyApproved.TryGetValue(field.FieldName, out var previous)) continue;
+            if (!latestDecisions.TryGetValue(field.FieldName, out var previous) ||
+                previous.ReviewStatus != OnboardingReviewStatuses.Approved) continue;
             field.ReviewStatus = OnboardingReviewStatuses.Approved;
             field.ReviewedBy = previous.ReviewedBy;
             field.ReviewedAt = previous.ReviewedAt;
