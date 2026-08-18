@@ -42,9 +42,9 @@ public sealed class AdminOnboardingService : IAdminOnboardingService
         var raw = await users.OrderByDescending(x => x.user.SubmittedAt ?? x.user.RegDate).ThenByDescending(x => x.user.Id)
             .Skip((query.PageIndex - 1) * query.PageSize).Take(query.PageSize)
             .Select(x => new { x.user.Id, x.user.Name, x.user.Username, x.user.Phone, x.user.EmailId, x.user.Usertype,
-                x.user.OnboardingStatus, x.user.OnboardingVersion, x.user.Stid, x.SalesName, x.user.SubmittedAt }).ToListAsync(ct);
+                x.user.PanCard, x.user.AadharCard, x.user.OnboardingStatus, x.user.OnboardingVersion, x.user.Stid, x.SalesName, x.user.SubmittedAt }).ToListAsync(ct);
         var data = raw.Select(x => new AdminOnboardingListItem(x.Id, x.Name ?? "", x.Username ?? "", x.Phone ?? "",
-            x.EmailId ?? "", x.Usertype ?? "", x.OnboardingStatus ?? "", x.OnboardingVersion,
+            x.EmailId ?? "", x.Usertype ?? "", x.PanCard ?? "", MaskAadhaar(x.AadharCard), x.OnboardingStatus ?? "", x.OnboardingVersion,
             int.TryParse(x.Stid, out var salesTeamId) ? salesTeamId : 0, x.SalesName, x.SubmittedAt)).ToList();
         return new AdminOnboardingPagedResponse(data, total, query.PageIndex, query.PageSize);
     }

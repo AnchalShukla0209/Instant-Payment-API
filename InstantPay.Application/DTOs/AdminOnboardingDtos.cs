@@ -11,7 +11,7 @@ public sealed record FinalRejectionRequest(
 
 public sealed record AdminOnboardingListItem(
     int UserId, string Name, string Username, string Phone, string EmailId, string UserType,
-    string OnboardingStatus, int SubmissionVersion, int SalesTeamId, string SalesPersonName,
+    string PanCard, string AadhaarMasked, string OnboardingStatus, int SubmissionVersion, int SalesTeamId, string SalesPersonName,
     DateTime? SubmittedAt);
 
 public sealed record AdminOnboardingPagedResponse(
