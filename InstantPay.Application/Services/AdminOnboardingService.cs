@@ -55,6 +55,8 @@ public sealed class AdminOnboardingService : IAdminOnboardingService
         var u = await _db.TblUsers.AsNoTracking().SingleOrDefaultAsync(x => x.Id == userId && x.OnboardingStatus != null && x.Stid != null &&
             (x.Usertype == "RT" || x.Usertype == "AD" || x.Usertype == "MD"), ct)
             ?? throw new KeyNotFoundException("Onboarding not found.");
+        if (u.OnboardingStatus == OnboardingStatuses.PendingReReview)
+            await RepairLegacyReReviewFieldStatuses(userId, ct);
         var review = await CurrentReview(userId, ct);
         var fields = review == null ? [] : await _db.TblUserOnboardingFieldReviews.AsNoTracking().Where(x => x.ReviewId == review.Id)
             .OrderBy(x => x.FieldName).Select(x => (object)new { x.Id, x.FieldName, x.ReviewStatus, x.RejectionRemarks, x.ReviewedAt }).ToListAsync(ct);
@@ -132,7 +134,8 @@ public sealed class AdminOnboardingService : IAdminOnboardingService
         var review = await CurrentReview(userId, ct) ?? throw new InvalidOperationException("Review session not found.");
         if (await _db.TblUserOnboardingFieldReviews.AnyAsync(x => x.ReviewId == review.Id && x.ReviewStatus != OnboardingReviewStatuses.Approved, ct))
             throw new InvalidOperationException("Every required information section must be approved.");
-        if (await _db.TblUserOnboardingDocuments.AnyAsync(x => x.UserId == userId && x.ReviewStatus != OnboardingReviewStatuses.Approved, ct))
+        var documents = await _db.TblUserOnboardingDocuments.Where(x => x.UserId == userId).ToListAsync(ct);
+        if (documents.Any(x => x.ReviewStatus != OnboardingReviewStatuses.Approved))
             throw new InvalidOperationException("Every uploaded document must be approved.");
         if (await _db.TblUsers.AnyAsync(x => x.Id != userId && x.Status == "Active" &&
             (x.Username == user.Username || x.Phone == user.Phone || x.EmailId == user.EmailId || x.PanCard == user.PanCard || x.AadharCard == user.AadharCard), ct))
@@ -140,15 +143,36 @@ public sealed class AdminOnboardingService : IAdminOnboardingService
 
         var temporaryPassword = CreateTemporaryPassword();
         var from = user.OnboardingStatus!;
-        await using var tx = await _db.Database.BeginTransactionAsync(ct);
-        user.Password = BCrypt.Net.BCrypt.HashPassword(temporaryPassword, 12); user.Status = "Active"; user.OnboardingStatus = OnboardingStatuses.Approved;
-        user.ApprovedAt = DateTime.UtcNow; user.ApprovedBy = adminId; user.RejectedAt = null; user.RejectedBy = null; user.FinalReviewRemarks = null;
-        review.ReviewStatus = OnboardingReviewStatuses.Approved; review.ReviewedBy = adminId; review.CompletedAt = DateTime.UtcNow;
+        var merchantCode = await CreateUniqueMerchantCodeAsync(userId, ct);
+        var approvedFiles = CopyApprovedDocuments(userId, documents);
         var delivery = new TblUserCredentialDeliveryLog { UserId = userId, Channel = "Email", DestinationMasked = MaskEmail(user.EmailId),
             DeliveryStatus = "Pending", IdempotencyKey = $"onboarding-approved:{userId}:v{user.OnboardingVersion}", AttemptCount = 0, CreatedAt = DateTime.UtcNow };
-        _db.TblUserCredentialDeliveryLogs.Add(delivery);
-        _db.TblUserOnboardingHistory.Add(History(user, "Approved", from, user.OnboardingStatus, "All review items approved.", adminId, ipAddress, userAgent));
-        await _db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
+        var strategy = _db.Database.CreateExecutionStrategy();
+        try
+        {
+            await strategy.ExecuteAsync(async () =>
+            {
+                await using var tx = await _db.Database.BeginTransactionAsync(ct);
+                user.Password = temporaryPassword; user.MPin = "1234"; user.TxnPin = "1234"; user.SuperAdminId = 1;
+                user.MobileRecharge = "Active"; user.MoneyTransfer = "Active"; user.Aeps = "Active"; user.AepsStatus = "Active";
+                user.BillPayment = "Active"; user.MicroAtm = "Active"; user.RazorpayPayment = "Active"; user.Settlement = "Active";
+                user.MerchargeCode = merchantCode; user.Latlongstatus = "Y"; user.Wlid = "1";
+                user.Pancopy = approvedFiles.PanCopy; user.AadharFront = approvedFiles.AadhaarFront; user.AadharBack = approvedFiles.AadhaarBack;
+                user.Logo = approvedFiles.Logo; user.SelfieImage = approvedFiles.Selfie;
+                user.Status = "Active"; user.OnboardingStatus = OnboardingStatuses.Approved;
+                user.ApprovedAt = DateTime.UtcNow; user.ApprovedBy = adminId; user.RejectedAt = null; user.RejectedBy = null; user.FinalReviewRemarks = null;
+                review.ReviewStatus = OnboardingReviewStatuses.Approved; review.ReviewedBy = adminId; review.CompletedAt = DateTime.UtcNow;
+                _db.TblUserCredentialDeliveryLogs.Add(delivery);
+                _db.TblUserOnboardingHistory.Add(History(user, "Approved", from, user.OnboardingStatus, "All review items approved and final user defaults applied.", adminId, ipAddress, userAgent));
+                await _db.SaveChangesAsync(ct);
+                await tx.CommitAsync(ct);
+            });
+        }
+        catch
+        {
+            DeleteCopiedDocuments(approvedFiles);
+            throw;
+        }
 
         var result = await _emailService.SendNewUserWelcomeEmailAsync(user.EmailId!, user.Name ?? user.Username ?? "User", user.Username!, user.Phone ?? "", user.Usertype!, LoginUrl(user.Usertype), temporaryPassword);
         delivery.AttemptCount = 1;
@@ -167,7 +191,7 @@ public sealed class AdminOnboardingService : IAdminOnboardingService
             ?? throw new InvalidOperationException("Credential delivery record not found.");
         if (latest.DeliveryStatus == "Sent") throw new InvalidOperationException("Credentials were already delivered successfully.");
         var temporaryPassword = CreateTemporaryPassword();
-        user.Password = BCrypt.Net.BCrypt.HashPassword(temporaryPassword, 12);
+        user.Password = temporaryPassword;
         latest.DeliveryStatus = "Pending"; latest.AttemptCount++; latest.FailureReason = null;
         await _db.SaveChangesAsync(ct);
         var result = await _emailService.SendNewUserWelcomeEmailAsync(user.EmailId!, user.Name ?? user.Username ?? "User", user.Username!, user.Phone ?? "", user.Usertype!, LoginUrl(user.Usertype), temporaryPassword);
@@ -178,6 +202,63 @@ public sealed class AdminOnboardingService : IAdminOnboardingService
         return new OnboardingCommandResult(true, latest.DeliveryStatus == "Sent" ? "Credentials emailed successfully." : "Credential email retry failed and was logged.", userId, user.OnboardingStatus!);
     }
 
+    private async Task<string> CreateUniqueMerchantCodeAsync(int userId, CancellationToken ct)
+    {
+        var code = $"IP{userId:D8}";
+        if (!await _db.TblUsers.AsNoTracking().AnyAsync(x => x.Id != userId && x.MerchargeCode == code, ct)) return code;
+        do code = $"IP{RandomNumberGenerator.GetInt32(10_000_000, 100_000_000)}";
+        while (await _db.TblUsers.AsNoTracking().AnyAsync(x => x.MerchargeCode == code, ct));
+        return code;
+    }
+
+    private static ApprovedDocumentCopies CopyApprovedDocuments(int userId, IReadOnlyCollection<TblUserOnboardingDocument> documents)
+    {
+        var copiedFiles = new List<string>();
+        try
+        {
+            string Copy(string documentType, string destinationFolder)
+            {
+                var document = documents.SingleOrDefault(x => x.DocumentType.Equals(documentType, StringComparison.OrdinalIgnoreCase))
+                    ?? throw new InvalidOperationException($"Approved {documentType} document is missing.");
+                var webRoot = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"));
+                var source = Path.GetFullPath(Path.Combine(webRoot, document.CurrentFilePath.Replace('/', Path.DirectorySeparatorChar)));
+                if (!source.StartsWith(webRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) || !File.Exists(source))
+                    throw new InvalidOperationException($"Approved {documentType} file is unavailable.");
+
+                var extension = Path.GetExtension(source).ToLowerInvariant();
+                var fileName = $"{Guid.NewGuid():N}{extension}";
+                var relativePath = Path.Combine("UploadFiles", "ClientUser", userId.ToString(), destinationFolder, fileName).Replace('\\', '/');
+                var destination = Path.GetFullPath(Path.Combine(webRoot, relativePath.Replace('/', Path.DirectorySeparatorChar)));
+                Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+                File.Copy(source, destination, false);
+                copiedFiles.Add(destination);
+                return relativePath;
+            }
+
+            return new ApprovedDocumentCopies(
+                Copy("PanCopy", "PanCard"),
+                Copy("AadhaarFront", "AadharCard"),
+                Copy("AadhaarBack", "AadharBack"),
+                Copy("Logo", "Logo"),
+                Copy("Selfie", "Selfie"),
+                copiedFiles);
+        }
+        catch
+        {
+            foreach (var file in copiedFiles) if (File.Exists(file)) File.Delete(file);
+            throw;
+        }
+    }
+
+    private static void DeleteCopiedDocuments(ApprovedDocumentCopies files)
+    {
+        foreach (var file in files.AbsolutePaths) if (File.Exists(file)) File.Delete(file);
+    }
+
+    private sealed record ApprovedDocumentCopies(
+        string PanCopy, string AadhaarFront, string AadhaarBack, string Logo, string Selfie,
+        IReadOnlyCollection<string> AbsolutePaths);
+
     private async Task<TblUser> EnsureReviewable(int userId, CancellationToken ct)
     {
         var user = await _db.TblUsers.SingleOrDefaultAsync(x => x.Id == userId && x.Stid != null &&
@@ -186,6 +267,42 @@ public sealed class AdminOnboardingService : IAdminOnboardingService
         return user;
     }
     private Task<TblUserOnboardingReview?> CurrentReview(int userId, CancellationToken ct) => _db.TblUserOnboardingReviews.Where(x => x.UserId == userId).OrderByDescending(x => x.SubmissionVersion).FirstOrDefaultAsync(ct);
+    private async Task RepairLegacyReReviewFieldStatuses(int userId, CancellationToken ct)
+    {
+        var reviewIds = await _db.TblUserOnboardingReviews.AsNoTracking()
+            .Where(x => x.UserId == userId)
+            .OrderByDescending(x => x.SubmissionVersion)
+            .Select(x => x.Id)
+            .Take(2)
+            .ToListAsync(ct);
+        if (reviewIds.Count < 2) return;
+
+        var currentFields = await _db.TblUserOnboardingFieldReviews
+            .Where(x => x.ReviewId == reviewIds[0] && x.ReviewStatus == OnboardingReviewStatuses.Pending)
+            .ToListAsync(ct);
+        if (currentFields.Count == 0) return;
+
+        var decisionHistory = await (from review in _db.TblUserOnboardingReviews.AsNoTracking()
+            join field in _db.TblUserOnboardingFieldReviews.AsNoTracking() on review.Id equals field.ReviewId
+            where review.UserId == userId && review.Id != reviewIds[0] && field.ReviewStatus != OnboardingReviewStatuses.Pending
+            orderby review.SubmissionVersion descending
+            select new { field.FieldName, field.ReviewStatus, field.ReviewedBy, field.ReviewedAt }).ToListAsync(ct);
+        var latestDecisions = decisionHistory
+            .GroupBy(x => x.FieldName, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
+        var repaired = false;
+        foreach (var field in currentFields)
+        {
+            if (!latestDecisions.TryGetValue(field.FieldName, out var previous) ||
+                previous.ReviewStatus != OnboardingReviewStatuses.Approved) continue;
+            field.ReviewStatus = OnboardingReviewStatuses.Approved;
+            field.ReviewedBy = previous.ReviewedBy;
+            field.ReviewedAt = previous.ReviewedAt;
+            field.RejectionRemarks = null;
+            repaired = true;
+        }
+        if (repaired) await _db.SaveChangesAsync(ct);
+    }
     private async Task AddHistory(int userId, string eventType, string remarks, int adminId, string? ipAddress, string? userAgent, CancellationToken ct)
     { var u = await _db.TblUsers.SingleAsync(x => x.Id == userId, ct); _db.TblUserOnboardingHistory.Add(History(u, eventType, u.OnboardingStatus, u.OnboardingStatus!, remarks, adminId, ipAddress, userAgent)); await _db.SaveChangesAsync(ct); }
     private static TblUserOnboardingHistory History(TblUser u, string type, string? from, string to, string? remarks, int actor, string? ip, string? agent) => new()

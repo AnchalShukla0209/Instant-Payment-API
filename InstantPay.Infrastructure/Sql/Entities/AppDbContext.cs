@@ -573,6 +573,10 @@ public partial class AppDbContext : DbContext
                 .HasMaxLength(255)
                 .IsUnicode(false)
                 .HasColumnName("MicroATM");
+            entity.Property(e => e.AepsStatus)
+                .HasMaxLength(255)
+                .IsUnicode(false)
+                .HasColumnName("AepsStatus");
             entity.Property(e => e.RazorpayPayment)
                 .HasMaxLength(20)
                 .IsUnicode(false);

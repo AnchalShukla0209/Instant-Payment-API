@@ -185,7 +185,7 @@ namespace InstantPay.Application.Services
                 var safePhone = WebUtility.HtmlEncode(phone);
                 var safeLoginUrl = WebUtility.HtmlEncode(loginUrl);
                 var passwordRow = string.IsNullOrWhiteSpace(initialPassword) ? string.Empty : $"""
-                                <tr><td style="padding:15px 22px;border-bottom:1px solid #dce5f2;color:#68758e;">Temporary Password</td><td align="right" style="padding:15px 22px;border-bottom:1px solid #dce5f2;font-weight:bold;">{WebUtility.HtmlEncode(initialPassword)}</td></tr>
+                                <tr><td style="padding:16px 20px;border-bottom:1px solid #e7e9f2;color:#56617e;"><span style="display:inline-block;width:30px;height:30px;line-height:30px;text-align:center;margin-right:10px;border-radius:8px;background:#fff2eb;color:#cf5512;">&#128274;</span>Temporary Password</td><td align="right" style="padding:16px 20px;border-bottom:1px solid #e7e9f2;font-weight:700;color:#0c133d;">{WebUtility.HtmlEncode(initialPassword)}</td></tr>
                                 """;
                 var role = userType.Trim().ToUpperInvariant() switch
                 {
@@ -204,35 +204,35 @@ namespace InstantPay.Application.Services
                 {
                     HtmlBody = $"""
                     <!doctype html>
-                    <html>
-                    <body style="margin:0;padding:0;background:#f3f7fc;font-family:Arial,Helvetica,sans-serif;color:#102044;">
-                      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f3f7fc;padding:30px 12px;">
+                    <html lang="en">
+                    <body style="margin:0;padding:0;background:#f3f4f8;font-family:Arial,Helvetica,sans-serif;color:#0c133d;">
+                      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f3f4f8;padding:28px 12px;">
                         <tr><td align="center">
-                          <table role="presentation" width="620" cellspacing="0" cellpadding="0" style="width:100%;max-width:620px;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 8px 30px rgba(15,42,85,.12);">
-                            <tr><td align="center" style="padding:30px;background:linear-gradient(135deg,#061b46,#075bea);">
-                              <img src="https://demo2.instantpayment.co.in/assets/images/logo__.png" width="210" alt="Instant Payment" style="display:block;max-width:210px;height:auto;">
-                            </td></tr>
-                            <tr><td style="padding:38px 42px 18px;text-align:center;">
-                              <h1 style="margin:0 0 10px;font-size:30px;color:#102044;">Welcome to Instant Payment</h1>
-                              <p style="margin:0;color:#72809d;font-size:17px;">Your account has been created successfully</p>
-                            </td></tr>
-                            <tr><td style="padding:18px 42px;">
-                              <h2 style="font-size:20px;margin:0 0 14px;">Hello {safeName},</h2>
-                              <p style="font-size:16px;line-height:1.65;color:#42516e;margin:0 0 24px;">We’re excited to have you on board. Your account is ready and you can now access the portal using the details below.</p>
-                              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border:1px solid #dce5f2;border-radius:12px;background:#f9fbff;">
-                                <tr><td colspan="2" style="padding:20px 22px 12px;font-weight:bold;color:#075bea;font-size:17px;">ACCOUNT DETAILS</td></tr>
-                                <tr><td style="padding:15px 22px;border-bottom:1px solid #dce5f2;color:#68758e;">User ID</td><td align="right" style="padding:15px 22px;border-bottom:1px solid #dce5f2;font-weight:bold;">{safeUserId}</td></tr>
-                                {passwordRow}
-                                <tr><td style="padding:15px 22px;border-bottom:1px solid #dce5f2;color:#68758e;">Registered Mobile</td><td align="right" style="padding:15px 22px;border-bottom:1px solid #dce5f2;font-weight:bold;">{safePhone}</td></tr>
-                                <tr><td style="padding:15px 22px;color:#68758e;">Role</td><td align="right" style="padding:15px 22px;font-weight:bold;">{role}</td></tr>
+                          <table role="presentation" width="680" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:680px;background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 14px 45px rgba(12,19,61,.13);">
+                            <tr><td style="padding:34px 42px 38px;background-color:#0c133d;background-image:linear-gradient(135deg,#0c133d 0%,#17276d 100%);">
+                              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                                <tr><td colspan="2" style="padding-bottom:34px;"><img src="https://demo2.instantpayment.co.in/assets/images/logo_2.png" width="190" alt="Instant Payment" style="display:block;width:190px;max-width:100%;height:auto;"></td></tr>
+                                <tr><td valign="middle" style="padding-right:20px;"><h1 style="margin:0 0 12px;color:#ffffff;font-size:36px;line-height:1.15;letter-spacing:-.5px;">Welcome to<br>Instant Payment</h1><p style="margin:0;color:#dce2ff;font-size:16px;line-height:1.55;">Your account has been created successfully.</p></td><td width="150" align="center" valign="middle"><div style="display:inline-block;width:118px;height:118px;line-height:118px;border-radius:30px;background:#cf5512;color:#ffffff;font-size:58px;text-align:center;box-shadow:0 12px 28px rgba(0,0,0,.22);">&#10003;</div></td></tr>
                               </table>
-                              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:28px 0 20px;"><tr><td align="center" bgcolor="#075bea" style="border-radius:9px;">
-                                <a href="{safeLoginUrl}" style="display:block;padding:17px 24px;color:#fff;text-decoration:none;font-size:18px;font-weight:bold;">Login to Your Account</a>
-                              </td></tr></table>
-                              <p style="padding:16px 18px;background:#f2fbf7;border:1px solid #ccebdd;border-radius:9px;color:#42516e;line-height:1.5;">For your security, please change your password after your first login.</p>
-                              <p style="padding:14px 18px;background:#f5f8ff;border:1px solid #d6e2fa;border-radius:9px;color:#42516e;">Need help? Contact <a href="mailto:support@instantpayment.co.in" style="color:#075bea;">support@instantpayment.co.in</a></p>
                             </td></tr>
-                            <tr><td align="center" style="padding:22px;border-top:1px solid #e2e8f1;color:#7a869d;font-size:13px;">© {DateTime.UtcNow.Year} Instant Payment. All rights reserved.</td></tr>
+                            <tr><td style="padding:36px 42px 12px;">
+                              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr><td width="54" valign="top"><div style="width:44px;height:44px;line-height:44px;border-radius:50%;background:#fff2eb;text-align:center;font-size:23px;">&#128075;</div></td><td><h2 style="font-size:23px;margin:2px 0 8px;color:#0c133d;">Hello {safeName},</h2><p style="font-size:15px;line-height:1.65;color:#56617e;margin:0;">We’re excited to have you on board. Your account is ready and you can now access the portal using the details below.</p></td></tr></table>
+                            </td></tr>
+                            <tr><td style="padding:22px 42px 8px;">
+                              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border:1px solid #dfe2ec;border-radius:14px;background:#ffffff;box-shadow:0 6px 18px rgba(12,19,61,.06);">
+                                <tr><td colspan="2" style="padding:20px 20px 14px;border-bottom:1px solid #e7e9f2;font-weight:700;color:#0c133d;font-size:19px;"><span style="display:inline-block;width:32px;height:32px;line-height:32px;text-align:center;margin-right:10px;border-radius:9px;background:#eef0fa;color:#0c133d;">&#128100;</span>Account Details</td></tr>
+                                <tr><td style="padding:16px 20px;border-bottom:1px solid #e7e9f2;color:#56617e;"><span style="display:inline-block;width:30px;height:30px;line-height:30px;text-align:center;margin-right:10px;border-radius:8px;background:#eef0fa;color:#0c133d;">&#128100;</span>User ID</td><td align="right" style="padding:16px 20px;border-bottom:1px solid #e7e9f2;font-weight:700;color:#0c133d;">{safeUserId}</td></tr>
+                                {passwordRow}
+                                <tr><td style="padding:16px 20px;border-bottom:1px solid #e7e9f2;color:#56617e;"><span style="display:inline-block;width:30px;height:30px;line-height:30px;text-align:center;margin-right:10px;border-radius:8px;background:#eef0fa;color:#0c133d;">&#128241;</span>Registered Mobile</td><td align="right" style="padding:16px 20px;border-bottom:1px solid #e7e9f2;font-weight:700;color:#0c133d;">{safePhone}</td></tr>
+                                <tr><td style="padding:16px 20px;color:#56617e;"><span style="display:inline-block;width:30px;height:30px;line-height:30px;text-align:center;margin-right:10px;border-radius:8px;background:#fff2eb;color:#cf5512;">&#9733;</span>Role</td><td align="right" style="padding:16px 20px;font-weight:700;color:#0c133d;">{role}</td></tr>
+                              </table>
+                              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:26px 0 18px;"><tr><td align="center" bgcolor="#cf5512" style="border-radius:10px;">
+                                <a href="{safeLoginUrl}" style="display:block;padding:17px 24px;color:#ffffff;text-decoration:none;font-size:17px;font-weight:700;">Login to Your Account &nbsp; &#8594;</a>
+                              </td></tr></table>
+                              <p style="padding:15px 18px;background:#f5f6fa;border-left:4px solid #0c133d;border-radius:8px;color:#49536f;line-height:1.5;margin:0 0 14px;">&#128737;&nbsp; For your security, please change your password after your first login.</p>
+                              <p style="padding:14px 18px;background:#fff7f2;border-left:4px solid #cf5512;border-radius:8px;color:#49536f;margin:0;">&#127911;&nbsp; Need help? Contact <a href="mailto:support@instantpayment.co.in" style="color:#cf5512;font-weight:700;">support@instantpayment.co.in</a></p>
+                            </td></tr>
+                            <tr><td align="center" style="padding:26px 22px;color:#7a8197;font-size:12px;">&copy; {DateTime.UtcNow.Year} Instant Payment. All rights reserved.</td></tr>
                           </table>
                         </td></tr>
                       </table>

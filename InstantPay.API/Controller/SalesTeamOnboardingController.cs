@@ -13,6 +13,7 @@ namespace InstantPay.API.Controller;
 [Route("api/v1/sales-team/onboardings")]
 public sealed class SalesTeamOnboardingController : ControllerBase
 {
+    private const int DefaultWhiteLabelUserId = 1;
     private readonly ISalesTeamOnboardingService _service;
     private readonly IClientUserVerificationService _verificationService;
     private readonly AppDbContext _db;
@@ -32,25 +33,18 @@ public sealed class SalesTeamOnboardingController : ControllerBase
     [HttpGet("hierarchy-context")]
     public async Task<IActionResult> HierarchyContext(CancellationToken ct) => await Execute(async () =>
     {
-        var mappedWlId = await _db.TblUsers.AsNoTracking()
-            .Where(x => x.Id == UserId() && x.Usertype == "ST" && x.Status == "Active")
-            .Select(x => x.Wlid)
-            .SingleOrDefaultAsync(ct);
-        if (!int.TryParse(mappedWlId, out var wlUserId) || wlUserId <= 0)
-            throw new InvalidOperationException("Your Sales Team account is not mapped to a White Label user. Contact SuperAdmin.");
-
         var wlUser = await _db.TblWlUsers.AsNoTracking()
-            .Where(x => x.Id == wlUserId && x.Status == "Active")
+            .Where(x => x.Id == DefaultWhiteLabelUserId && x.Status == "Active")
             .Select(x => new
             {
                 id = x.Id,
-                name = (x.CompanyName ?? x.UserName ?? string.Empty) + "-" + (x.Phone ?? string.Empty),
+                name = (x.CompanyName ?? x.UserName ?? string.Empty) + " - " + (x.Phone ?? string.Empty),
                 username = x.UserName ?? string.Empty,
                 phone = x.Phone ?? string.Empty,
                 userType = "WL"
             })
             .SingleOrDefaultAsync(ct);
-        return wlUser ?? throw new InvalidOperationException("Your mapped White Label user is not active. Contact SuperAdmin.");
+        return wlUser ?? throw new InvalidOperationException("The default Instant Payment White Label user is not active. Contact SuperAdmin.");
     });
 
     [HttpGet("resume-by-phone")]
