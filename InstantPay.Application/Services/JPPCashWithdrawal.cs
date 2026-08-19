@@ -544,7 +544,8 @@ namespace InstantPay.Application.Services
                                         }
                                         tx.NewBal = parsed.ResponseCode == "00" && parsed.ResponseMessage.ToUpper() == "SUCCESS" ? Convert.ToString(Newbal) : Convert.ToString(currentBalance);
                                         tx.UpdateDate = DateTime.Now;
-                                        tx.Status = parsed.ResponseCode == "00" && parsed.ResponseMessage.ToUpper() == "SUCCESS" ? "SUCCESS" : "FAILED";
+                                        // Provider success is not final until the retailer wallet credit is verified.
+                                        tx.Status = parsed.ResponseCode == "00" && parsed.ResponseMessage.ToUpper() == "SUCCESS" ? "PENDING" : "FAILED";
                                         tx.Brid = parsed.ResponseData.Transaction.Rrn ?? tx.Brid;
                                         _context.TransactionDetails.Update(tx);
                                         await _context.SaveChangesAsync(cancellationToken);
@@ -554,19 +555,45 @@ namespace InstantPay.Application.Services
                                         {
                                             if (parsed.ResponseCode == "00" && parsed.ResponseMessage.ToUpper() == "SUCCESS")
                                             {
-                                                var (_, actualNewBal, _) = await _walletService.CreditAsync(
+                                                var existingWalletCredit = await _context.Tbluserbalances
+                                                    .Where(b => b.UserId == userData.Id
+                                                        && b.TxnType == "AEPS_CASH_WITHDRAWAL"
+                                                        && b.Remarks != null
+                                                        && b.Remarks.EndsWith($"TXN:{tx.TxnId}"))
+                                                    .OrderByDescending(b => b.Id)
+                                                    .Select(b => new { b.Id, b.NewBal })
+                                                    .FirstOrDefaultAsync(cancellationToken);
+
+                                                var (_, actualNewBal, walletEntryId) = existingWalletCredit != null
+                                                    ? (0m, existingWalletCredit.NewBal ?? 0m, existingWalletCredit.Id)
+                                                    : await _walletService.CreditAsync(
                                                     userData.Id, userData.Name + "-" + userData.Phone,
                                                     model.Amount, cost, rtComm, tds,
                                                     "AEPS_CASH_WITHDRAWAL",
                                                     $"AEPS Withdrawal TXN:{tx.TxnId}",
                                                     userData.Wlid, cancellationToken);
+
+                                                if (walletEntryId <= 0 || !await _context.Tbluserbalances.AnyAsync(
+                                                        b => b.Id == walletEntryId && b.UserId == userData.Id,
+                                                        cancellationToken))
+                                                    throw new InvalidOperationException("Retailer wallet credit could not be verified.");
+
                                                 Newbal = actualNewBal;
                                                 tx.NewBal = Convert.ToString(actualNewBal);
+                                                tx.Status = "SUCCESS";
+                                                tx.ApiMsg = Truncate(parsed.ResponseMessage, 500);
+                                                tx.UpdateDate = DateTime.Now;
+                                                await _context.SaveChangesAsync(cancellationToken);
                                             }
                                         }
                                         catch (Exception ubEx)
                                         {
+                                            tx.Status = "PENDING";
+                                            tx.ApiMsg = "Provider succeeded; retailer wallet credit is pending reconciliation. " + Truncate(ubEx.Message, 350);
+                                            tx.UpdateDate = DateTime.Now;
+                                            try { await _context.SaveChangesAsync(CancellationToken.None); } catch { }
                                             await LogApiAsync(apiUrl, "DB", "33", ubEx.Message, deviceInfoJson+", x-traceid:"+ traceId + "", requestBody, responseContent, "AEPS", "CashWithdrawal_TblUserBalance");
+                                            parsed.ResponseMessage = "Provider transaction succeeded; retailer wallet credit is pending reconciliation";
                                         }
                                     }
                                 }

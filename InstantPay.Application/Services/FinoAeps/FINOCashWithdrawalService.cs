@@ -125,8 +125,25 @@ namespace InstantPay.Application.Services.FinoAeps
             if (result.IsSuccess && (status.Equals("Success", StringComparison.OrdinalIgnoreCase) || status.Equals("SUCCESS", StringComparison.OrdinalIgnoreCase)))
             {
                 decimal oldBal = await _walletService.GetLatestWalletBalanceAsync(int.Parse(userId), ct);
-                newBal = oldBal + (onUs ? Convert.ToDecimal(request.amount) : commission.Cost);
-                await _walletService.CreditAsync(int.Parse(userId), onUs? Convert.ToDecimal(request.amount) : commission.Cost, "CW", request.BankName ?? "", txnId, onUs, ct);
+                decimal creditAmount = onUs ? Convert.ToDecimal(request.amount) : commission.Cost;
+                decimal creditedBalance = await _walletService.CreditAsync(
+                    int.Parse(userId), creditAmount, "CW", request.BankName ?? "", txnId, onUs, ct);
+
+                decimal expectedBalance = oldBal + creditAmount;
+                if (creditedBalance != expectedBalance)
+                {
+                    status = "PENDING";
+                    newBal = oldBal;
+                    await _txnService.UpdateWithCommissionAsync(
+                        txnId, status, result.RawResponse, commission, newBal, rrn,
+                        onUs, Convert.ToDecimal(request.amount), ct);
+                    _logger.LogError(
+                        "FINO AEPS provider succeeded but retailer wallet credit failed for UserId={UserId}, TxnId={TxnId}",
+                        userId, txnId);
+                    return Err("Provider transaction succeeded; retailer wallet credit is pending reconciliation");
+                }
+
+                newBal = creditedBalance;
             }
 
             await _txnService.UpdateWithCommissionAsync(txnId, status, result.RawResponse, commission, newBal, rrn, onUs, Convert.ToDecimal(request.amount), ct);
