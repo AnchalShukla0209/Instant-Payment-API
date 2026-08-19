@@ -136,7 +136,10 @@ else
     builder.Services.AddDbContext<AppDbContext>(options =>
 
         options.UseSqlServer(configuration.GetConnectionString("Sql"),
-            sqlOptions => sqlOptions.CommandTimeout(120).EnableRetryOnFailure(5, TimeSpan.FromSeconds(3), null)));
+            // Financial workflows use explicit database transactions and call external
+            // providers. Automatic execution-strategy retries are intentionally disabled
+            // here to support those transactions without risking duplicate provider calls.
+            sqlOptions => sqlOptions.CommandTimeout(120)));
 
     builder.Services.AddDbContext<BeneficiaryDbContext>(options =>
         options.UseSqlServer(configuration.GetConnectionString("BeneficiaryDb"),

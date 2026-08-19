@@ -123,7 +123,11 @@ public partial class AppDbContext : DbContext
 #warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
             optionsBuilder.UseSqlServer(
                 "Data Source=198.38.81.244,1232;Initial Catalog=InstantPayment_Db;User ID=InstantPayment_Db;Password=Chandan@1234;MultipleActiveResultSets=True;TrustServerCertificate=True",
-                sqlOptions => sqlOptions.CommandTimeout(120).EnableRetryOnFailure(5, TimeSpan.FromSeconds(3), null));
+                // Keep the fallback configuration consistent with Program.cs. This
+                // context performs explicit financial transactions and must not use
+                // SqlServerRetryingExecutionStrategy unless every transaction is
+                // explicitly redesigned as an idempotent retriable unit.
+                sqlOptions => sqlOptions.CommandTimeout(120));
         }
     }
 
